@@ -1,0 +1,92 @@
+[gd_scene load_steps=11 format=3 uid="uid://c31nqjglqt5ux"]
+
+[ext_resource type="Script" path="res://Scenes/Player/Player.cs" id="1_lbeix"]
+[ext_resource type="Texture2D" uid="uid://qjiioteowg6j" path="res://Assets/RandySliced/Leg.png" id="2_o32yp"]
+[ext_resource type="Texture2D" uid="uid://cf1o3es1d4b73" path="res://Assets/RandySliced/Foot@0.5x.png" id="3_8cu44"]
+[ext_resource type="Texture2D" uid="uid://b76mon6uvl7p7" path="res://Assets/RandySliced/Torso.png" id="4_wtk1u"]
+[ext_resource type="Texture2D" uid="uid://cri8hckj5d2fo" path="res://Assets/RandySliced/ArmBack.png" id="5_sejif"]
+[ext_resource type="Texture2D" uid="uid://dmde4c5ojil7d" path="res://Assets/RandySliced/Head.png" id="7_ck6gm"]
+[ext_resource type="Texture2D" uid="uid://bsm71yqiw1m6t" path="res://Assets/RandySliced/ArmFront.png" id="8_2wyil"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v21uh"]
+size = Vector2(125, 368)
+
+[sub_resource type="Animation" id="Animation_o04ha"]
+resource_name = "Walk"
+length = 0.5
+loop_mode = 2
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_r3ifn"]
+_data = {
+"Walk": SubResource("Animation_o04ha")
+}
+
+[node name="Player" type="CharacterBody2D"]
+scale = Vector2(0.7, 0.7)
+script = ExtResource("1_lbeix")
+Gravity = 9
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(300, 2.08165e-12)
+position_smoothing_enabled = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(9.5, 21)
+shape = SubResource("RectangleShape2D_v21uh")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_r3ifn")
+}
+
+[node name="PlayerSprites" type="Node2D" parent="."]
+position = Vector2(2.08165e-12, 2.08165e-12)
+
+[node name="BackLeg" type="Node2D" parent="PlayerSprites"]
+scale = Vector2(1, 1)
+
+[node name="Calf" type="Sprite2D" parent="PlayerSprites/BackLeg"]
+position = Vector2(-7.14285, 118.571)
+scale = Vector2(1.05, 1.05)
+texture = ExtResource("2_o32yp")
+offset = Vector2(2.20748, 22.9766)
+
+[node name="Foot" type="Sprite2D" parent="PlayerSprites/BackLeg"]
+position = Vector2(-5.71429, 172.857)
+texture = ExtResource("3_8cu44")
+offset = Vector2(2.86102e-06, 12.8571)
+
+[node name="FrontLeg" type="Node2D" parent="PlayerSprites"]
+scale = Vector2(1, 1)
+
+[node name="Calf" type="Sprite2D" parent="PlayerSprites/FrontLeg"]
+position = Vector2(38.5714, 118.571)
+scale = Vector2(1.05, 1.05)
+texture = ExtResource("2_o32yp")
+offset = Vector2(0.166637, 22.9762)
+
+[node name="Foot" type="Sprite2D" parent="PlayerSprites/FrontLeg"]
+position = Vector2(41.4286, 172.857)
+scale = Vector2(1, 1)
+texture = ExtResource("3_8cu44")
+offset = Vector2(0, 12.8571)
+
+[node name="ArmBack" type="Sprite2D" parent="PlayerSprites"]
+visible = false
+position = Vector2(-57, 70)
+texture = ExtResource("5_sejif")
+offset = Vector2(2.08165e-12, 2.08165e-12)
+
+[node name="Torso" type="Sprite2D" parent="PlayerSprites"]
+visible = false
+position = Vector2(10, 66)
+texture = ExtResource("4_wtk1u")
+
+[node name="Head" type="Sprite2D" parent="PlayerSprites"]
+position = Vector2(26, -84)
+texture = ExtResource("7_ck6gm")
+
+[node name="ArmFront" type="Sprite2D" parent="PlayerSprites"]
+visible = false
+position = Vector2(72, 81)
+texture = ExtResource("8_2wyil")
