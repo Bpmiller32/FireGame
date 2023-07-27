@@ -5,6 +5,9 @@ namespace FireGame;
 
 public class PlayerStateManager
 {
+    [Signal]
+    public delegate void PlayerStateEventHandler(string myString);
+
     private readonly Dictionary<PlayerStates, BaseState> allStates;
     private BaseState currentState;
 

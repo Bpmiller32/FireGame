@@ -4,19 +4,18 @@ namespace FireGame;
 
 public class Jump : BaseState
 {
+    private double variableJumpTimer;
+
     public override void Enter()
     {
         GD.Print("Entered Jump");
-        Player.Velocity = new(Player.Velocity.X, -Player.JumpForce);
-    }
-
-    public override void Exit()
-    {
-        GD.Print("Exited Jump");
+        variableJumpTimer = Player.VariableJumpTime;
     }
 
     public override PlayerStates UpdatePhysics(double delta)
     {
+        variableJumpTimer -= delta;
+
         int direction = 0;
         if (Input.IsActionPressed("Left"))
         {
@@ -25,6 +24,15 @@ public class Jump : BaseState
         if (Input.IsActionPressed("Right"))
         {
             direction = 1;
+        }
+
+        if (Input.IsActionPressed("Jump") && variableJumpTimer > 0)
+        {
+            Player.Velocity = new(Player.Velocity.X, Player.Velocity.Y - Player.JumpForce);
+            // Player.Velocity = new(direction * Player.MoveSpeed, Player.Velocity.Y + (Player.Gravity * (float)delta));
+            Player.MoveAndSlide();
+
+            return PlayerStates.Null;
         }
 
         Player.Velocity = new(direction * Player.MoveSpeed, Player.Velocity.Y + (Player.Gravity * (float)delta));

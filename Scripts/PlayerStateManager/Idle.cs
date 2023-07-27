@@ -9,11 +9,6 @@ public class Idle : BaseState
         GD.Print("Entered Idle");
     }
 
-    public override void Exit()
-    {
-        GD.Print("Exited Idle");
-    }
-
     public override PlayerStates UpdatePhysics(double delta)
     {
         if (Input.IsActionPressed("Left") || Input.IsActionPressed("Right"))

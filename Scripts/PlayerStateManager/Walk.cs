@@ -18,7 +18,7 @@ public class Walk : BaseState
 
     public override PlayerStates UpdateInput(InputEvent inputEvent)
     {
-        if (Input.IsActionPressed("Jump"))
+        if (Input.IsActionJustPressed("Jump"))
         {
             return PlayerStates.Jump;
         }

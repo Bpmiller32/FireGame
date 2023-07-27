@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://c6gcvf07rrj27"]
+
+[node name="CanvasLayer" type="CanvasLayer"]
+
+[node name="Label" type="Label" parent="."]
+offset_right = 89.0
+offset_bottom = 26.0
+text = "Player State: "
+
+[node name="Label2" type="Label" parent="."]
+offset_top = 21.0
+offset_right = 42.0
+offset_bottom = 47.0
+text = "None"
