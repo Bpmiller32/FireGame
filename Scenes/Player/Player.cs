@@ -18,10 +18,13 @@ public partial class Player : CharacterBody2D
     public double CoyoteTime { get; set; } = 0.1;
 
     private PlayerStateManager stateMachine;
+    private Label playerState;
 
     public override void _Ready()
     {
         stateMachine = new(this);
+        var test = GetTree().Root.get();
+        // playerState = GetNode<Label>("");
     }
 
     public override void _UnhandledKeyInput(InputEvent inputEvent)

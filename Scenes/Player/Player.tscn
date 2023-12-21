@@ -1,7 +1,9 @@
-[gd_scene load_steps=12 format=3 uid="uid://c31nqjglqt5ux"]
+[gd_scene load_steps=14 format=3 uid="uid://c31nqjglqt5ux"]
 
 [ext_resource type="Script" path="res://Scenes/Player/Player.cs" id="1_lbeix"]
+[ext_resource type="Script" path="res://Scenes/Player/StateManager.cs" id="2_1ehtr"]
 [ext_resource type="Texture2D" uid="uid://qjiioteowg6j" path="res://Assets/RandySliced/Leg.png" id="2_o32yp"]
+[ext_resource type="Script" path="res://Scenes/Player/BaseState.cs" id="3_3l11g"]
 [ext_resource type="Texture2D" uid="uid://cf1o3es1d4b73" path="res://Assets/RandySliced/Foot@0.5x.png" id="3_8cu44"]
 [ext_resource type="Texture2D" uid="uid://b76mon6uvl7p7" path="res://Assets/RandySliced/Torso.png" id="4_wtk1u"]
 [ext_resource type="Texture2D" uid="uid://cri8hckj5d2fo" path="res://Assets/RandySliced/ArmBack.png" id="5_sejif"]
@@ -224,6 +226,12 @@ script = ExtResource("1_lbeix")
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(2.08165e-12, 2.08165e-12)
 position_smoothing_enabled = true
+
+[node name="StateManager" type="Node" parent="."]
+script = ExtResource("2_1ehtr")
+
+[node name="BaseState" type="Node" parent="StateManager"]
+script = ExtResource("3_3l11g")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(9.09091, 15.1515)
