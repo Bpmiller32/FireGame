@@ -5,16 +5,22 @@
 import * as THREE from "three";
 import Experience from "../experience";
 import ResourceLoader from "../utils/resourceLoader";
-import Player from "./player";
+import Box from "./box";
 import Floor from "./floor";
+import Sphere from "./sphere";
+import { Vector2 } from "@dimforge/rapier2d";
+import Player from "./player";
 
 export default class World {
   experience: Experience;
   scene?: THREE.Scene;
   resources?: ResourceLoader;
-  player?: Player;
-  player2?: Player;
+
   floor?: Floor;
+  box1?: Box;
+  box2?: Box;
+  sphere?: Sphere;
+  player?: Player;
 
   constructor() {
     this.experience = Experience.getInstance();
@@ -26,20 +32,25 @@ export default class World {
     this.resources?.on("ready", () => {
       this.floor = new Floor();
 
-      this.player = new Player();
-      this.player.body!.position.y += 3;
-      this.player.isInteractive = true;
+      this.box1 = new Box();
+      this.box1.body?.setTranslation(new Vector2(-3, 3), true);
 
-      this.player2 = new Player();
-      this.player2.isInteractive = false;
-      this.player2.body!.position.x += 3;
-      this.player2.body!.position.y += 3;
+      this.box2 = new Box();
+      this.box2.body?.setTranslation(new Vector2(3, 3), true);
+
+      this.sphere = new Sphere();
+      this.sphere.body?.setTranslation(new Vector2(5, 2), true);
+
+      this.player = new Player();
+      this.player.body?.setTranslation(new Vector2(0, 5), true);
     });
   }
 
   update() {
+    this.box1?.update();
+    this.box2?.update();
+    this.sphere?.update();
     this.player?.update();
-    this.player2?.update();
   }
 
   destroy() {}

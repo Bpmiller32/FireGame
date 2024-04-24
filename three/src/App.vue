@@ -4,9 +4,9 @@ import Experience from "./webgl/experience.ts";
 
 const webglRef = ref<HTMLCanvasElement | null>(null);
 
-onMounted(() => {
+onMounted(async () => {
   const webglExperience = Experience.getInstance();
-  webglExperience.configure(webglRef.value);
+  await webglExperience.configure(webglRef.value);
 });
 </script>
 

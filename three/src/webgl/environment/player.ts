@@ -1,26 +1,34 @@
 import * as THREE from "three";
-import * as CANNON from "cannon-es";
+import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../experience";
 import ResourceLoader from "../utils/resourceLoader";
 import Keyboard from "../utils/keyboard";
+import Physics from "./physics";
 
 export default class Player {
   experience: Experience;
   scene?: THREE.Scene;
   resources?: ResourceLoader;
-  geometry: any;
-  material: any;
+
+  geometry?: THREE.CapsuleGeometry;
+  material?: THREE.MeshBasicMaterial;
   mesh?: THREE.Mesh;
-  physics: any;
-  body?: CANNON.Body;
+
+  physics?: Physics;
+  body?: RAPIER.RigidBody;
+
   keyboard?: Keyboard;
   isInteractive?: boolean;
-  movementSpeed = 1;
+  movementSpeed = 3;
+  staticCollision = false;
+  characterController?: RAPIER.KinematicCharacterController;
+  collider: RAPIER.Collider | undefined;
+  bodyCollider: RAPIER.Collider | undefined;
 
   constructor() {
     this.experience = Experience.getInstance();
     this.scene = this.experience.scene;
-    this.physics = this.experience.physics;
+    this.physics = this.experience.physics2d;
     this.resources = this.experience.resources;
     this.keyboard = this.experience.keyboard;
 
@@ -28,16 +36,18 @@ export default class Player {
     this.setMaterial();
     this.setMesh();
     this.setPhysics();
+
+    this.isInteractive = false;
   }
 
   setGeometry() {
-    this.geometry = new THREE.BoxGeometry(1, 1, 1);
+    this.geometry = new THREE.CapsuleGeometry(0.25, 1);
   }
 
   setMaterial() {
     this.material = new THREE.MeshBasicMaterial({
       //   wireframe: true,
-      color: "blue",
+      color: "purple",
     });
   }
 
@@ -47,34 +57,49 @@ export default class Player {
   }
 
   setPhysics() {
-    // Cannon's length, width, height start from the origin, hense the 0.5 since the mesh is 1
-    const shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
+    const shape = RAPIER.ColliderDesc.capsule(0.5, 0.25);
 
-    this.body = new CANNON.Body({
-      mass: 5,
-      position: new CANNON.Vec3(),
-      shape: shape,
-    });
+    this.body = this.physics?.world?.createRigidBody(
+      RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
+    );
 
-    this.physics.world.addBody(this.body);
-    this.isInteractive = false;
+    this.bodyCollider = this.physics?.world?.createCollider(shape, this.body);
+
+    this.characterController =
+      this.physics?.world?.createCharacterController(0.01);
+
+    // this.characterController!.enableSnapToGround(1);
   }
 
   update() {
-    this.mesh?.position.copy(this.body!.position);
-    this.mesh?.quaternion.copy(this.body!.quaternion);
+    // Set THREE mesh position to physics body
+    const bodyPosition = this.body!.translation();
+    this.mesh?.position.set(bodyPosition.x, bodyPosition.y, 0);
 
-    if (this.isInteractive) {
-      let direction = 0;
-
-      if (this.keyboard?.keyStatus.left.isDown) {
-        direction = -1;
-      }
-      if (this.keyboard?.keyStatus.right.isDown) {
-        direction = 1;
-      }
-
-      this.body!.velocity.x = direction * this.movementSpeed;
+    // Calculate input
+    let xVector = 0;
+    let yVector = -0.1;
+    if (this.keyboard?.keyStatus.left.isDown) {
+      xVector = -0.1;
     }
+    if (this.keyboard?.keyStatus.right.isDown) {
+      xVector = 0.1;
+    }
+    if (this.keyboard?.keyStatus.up.isDown) {
+      yVector = 0.1;
+    }
+
+    // Calculate and kinematic body's next position
+    this.characterController!.computeColliderMovement(
+      this.bodyCollider!,
+      new RAPIER.Vector2(xVector, yVector)
+    );
+    const correctedMovement = this.characterController!.computedMovement();
+    const nextPosition = new RAPIER.Vector2(
+      (bodyPosition.x += correctedMovement.x),
+      (bodyPosition.y += correctedMovement.y)
+    );
+
+    this.body?.setNextKinematicTranslation(nextPosition);
   }
 }

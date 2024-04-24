@@ -29,12 +29,12 @@ export default class Experience {
   camera?: Camera;
   renderer?: Renderer;
   keyboard?: Keyboard;
+  physics2d?: Physics;
   world?: World;
-  physics?: Physics;
   resources?: ResourceLoader;
 
   // Replacement public constructor
-  configure(canvas: HTMLCanvasElement | null) {
+  async configure(canvas: HTMLCanvasElement | null) {
     // Setup
     this.debug = new Debug();
     this.targetElement = canvas;
@@ -51,7 +51,8 @@ export default class Experience {
     this.resources = new ResourceLoader([
       { name: "boat", type: "gltfModel", path: "/boat.glb" },
     ]);
-    this.physics = new Physics();
+    this.physics2d = new Physics();
+    await this.physics2d.configure();
     this.world = new World();
 
     // Sizes resize event
@@ -83,8 +84,8 @@ export default class Experience {
     }
 
     this.camera?.update();
+    this.physics2d?.update();
     this.world?.update();
-    this.physics?.update();
     this.renderer?.update();
 
     if (this.debug?.isActive) {

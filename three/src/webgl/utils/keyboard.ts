@@ -22,6 +22,14 @@ export default class Keyboard {
         keyCode: "ArrowRight",
         isDown: false,
       },
+      up: {
+        keyCode: "ArrowUp",
+        isDown: false,
+      },
+      down: {
+        keyCode: "ArrowDown",
+        isDown: false,
+      },
     };
 
     // Event listeners
@@ -45,7 +53,6 @@ export default class Keyboard {
     for (const keyIndex in this.keyStatus) {
       if (keyName == this.keyStatus[keyIndex].keyCode) {
         this.keyStatus[keyIndex].isDown = true;
-        console.log(keyIndex);
       }
     }
   }
@@ -56,6 +63,25 @@ export default class Keyboard {
         this.keyStatus[keyIndex].isDown = false;
       }
     }
+  }
+
+  getDirection() {
+    if (this.keyStatus.left.isDown && !this.keyStatus.right.isDown) {
+      return -1;
+    }
+    if (!this.keyStatus.left.isDown && this.keyStatus.right.isDown) {
+      return 1;
+    }
+
+    return 0;
+  }
+
+  getJump() {
+    if (this.keyStatus.up.isDown && !this.keyStatus.down.isDown) {
+      return true;
+    }
+
+    return false;
   }
 
   destroy() {
