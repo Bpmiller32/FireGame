@@ -50,6 +50,7 @@ export default class Experience {
 
     this.resources = new ResourceLoader([
       { name: "boat", type: "gltfModel", path: "/boat.glb" },
+      { name: "mario", type: "texture", path: "/mario.png" },
     ]);
     this.physics2d = new Physics();
     await this.physics2d.configure();

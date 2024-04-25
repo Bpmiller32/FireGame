@@ -10,6 +10,7 @@ import Floor from "./floor";
 import Sphere from "./sphere";
 import { Vector2 } from "@dimforge/rapier2d";
 import Player from "./player";
+import SpritePlayer from "./SpritePlayer";
 
 export default class World {
   experience: Experience;
@@ -21,6 +22,7 @@ export default class World {
   box2?: Box;
   sphere?: Sphere;
   player?: Player;
+  spritePlayer?: SpritePlayer;
 
   constructor() {
     this.experience = Experience.getInstance();
@@ -33,7 +35,7 @@ export default class World {
       this.floor = new Floor();
 
       this.box1 = new Box();
-      this.box1.body?.setTranslation(new Vector2(-3, 3), true);
+      this.box1.body?.setTranslation(new Vector2(7, 3), true);
 
       this.box2 = new Box();
       this.box2.body?.setTranslation(new Vector2(3, 3), true);
@@ -41,8 +43,12 @@ export default class World {
       this.sphere = new Sphere();
       this.sphere.body?.setTranslation(new Vector2(5, 2), true);
 
-      this.player = new Player();
-      this.player.body?.setTranslation(new Vector2(0, 5), true);
+      // this.player = new Player();
+      // this.player.body?.setTranslation(new Vector2(0, 5), true);
+
+      this.spritePlayer = new SpritePlayer();
+      this.spritePlayer.body?.setTranslation(new Vector2(0, 5), true);
+      this.spritePlayer.loop([0, 1, 2, 3], 0.15);
     });
   }
 
@@ -51,6 +57,7 @@ export default class World {
     this.box2?.update();
     this.sphere?.update();
     this.player?.update();
+    this.spritePlayer?.update();
   }
 
   destroy() {}

@@ -33,11 +33,11 @@ export default class Physics {
   update() {
     this.world?.step();
 
-    // const { vertices } = this.world!.debugRender();
-    // this.mesh?.geometry.setAttribute(
-    //   "position",
-    //   new THREE.BufferAttribute(vertices, 2)
-    // );
-    // this.mesh!.visible = true;
+    const { vertices } = this.world!.debugRender();
+    this.mesh?.geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(vertices, 2)
+    );
+    this.mesh!.visible = true;
   }
 }

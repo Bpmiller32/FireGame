@@ -2,6 +2,7 @@
 /*          Used to centralize all asset loading in a dedicated class         */
 /* -------------------------------------------------------------------------- */
 
+import * as THREE from "three";
 import { DRACOLoader, GLTFLoader } from "three/examples/jsm/Addons.js";
 import EventEmitter from "./eventEmitter";
 
@@ -19,6 +20,7 @@ export default class ResourceLoader extends EventEmitter {
 
   gltfLoader?: GLTFLoader;
   dracoLoader?: DRACOLoader;
+  textureLoader?: THREE.TextureLoader;
 
   constructor(sources: IResource[]) {
     super();
@@ -38,14 +40,27 @@ export default class ResourceLoader extends EventEmitter {
 
     this.gltfLoader = new GLTFLoader();
     this.gltfLoader.setDRACOLoader(dracoLoader);
+
+    this.textureLoader = new THREE.TextureLoader();
   }
 
   startLoading() {
     for (const source of this.sources) {
-      if (source.type === "gltfModel") {
-        this.gltfLoader?.load(source.path, (file) => {
-          this.sourceLoaded(source, file);
-        });
+      switch (source.type) {
+        case "gltfModel":
+          this.gltfLoader?.load(source.path, (file) => {
+            this.sourceLoaded(source, file);
+          });
+          break;
+
+        case "texture":
+          this.textureLoader?.load(source.path, (file) => {
+            this.sourceLoaded(source, file);
+          });
+          break;
+
+        default:
+          break;
       }
     }
   }
