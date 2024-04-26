@@ -1,7 +1,4 @@
-type Key = {
-  keyCode: string;
-  isDown: boolean;
-};
+import Key from "./key";
 
 type KeyList = {
   [key: string]: Key;

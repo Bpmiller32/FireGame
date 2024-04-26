@@ -7,6 +7,7 @@ import Experience from "../experience";
 import RAPIER from "@dimforge/rapier2d";
 
 export default class Physics {
+  // Setup
   private experience = Experience.getInstance();
   private scene = this.experience.scene;
   private mesh?: THREE.LineSegments<
@@ -15,6 +16,7 @@ export default class Physics {
     THREE.Object3DEventMap
   >;
 
+  // Constructor setup
   public world?: RAPIER.World;
 
   public async configure() {

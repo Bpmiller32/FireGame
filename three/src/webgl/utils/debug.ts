@@ -6,6 +6,7 @@ import dat from "dat.gui";
 import Stats from "stats.js";
 
 export default class Debug {
+  // Constructor setup
   public isActive: boolean;
   public ui?: dat.GUI;
   public stats?: Stats;

@@ -26,6 +26,7 @@ export default class Experience {
   public resources = new ResourceLoader([
     { name: "boat", type: "gltfModel", path: "/boat.glb" },
     { name: "mario", type: "texture", path: "/mario.png" },
+    { name: "test", type: "texture", path: "/testSheet.png" },
   ]);
 
   // Constructor setup

@@ -3,11 +3,13 @@ import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
 
 export default class Box {
+  // Setup
   private experience = Experience.getInstance();
   private scene = this.experience.scene;
   // private resources = this.experience.resources;
   private physics = this.experience.physics;
 
+  // Constructor setup
   public geometry?: THREE.BoxGeometry;
   public material?: THREE.MeshBasicMaterial;
   public mesh?: THREE.Mesh;

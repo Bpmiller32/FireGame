@@ -7,18 +7,20 @@ import Box from "./objects/box.ts";
 import Floor from "./objects/floor.ts";
 import Sphere from "./objects/sphere.ts";
 import { Vector2 } from "@dimforge/rapier2d";
-import SpritePlayer from "./player/spritePlayer.ts";
+import Player from "./player/player.ts";
 
 export default class World {
+  // Setup
   private experience = Experience.getInstance();
   // private scene = this.experience.scene;
   private resources = this.experience.resources;
 
+  // Constuctor setup
   public floor?: Floor;
   public box1?: Box;
   public box2?: Box;
   public sphere?: Sphere;
-  public spritePlayer?: SpritePlayer;
+  public spritePlayer?: Player;
 
   constructor() {
     // Resources
@@ -34,9 +36,8 @@ export default class World {
       this.sphere = new Sphere();
       this.sphere.body?.setTranslation(new Vector2(5, 2), true);
 
-      this.spritePlayer = new SpritePlayer();
-      this.spritePlayer.body?.setTranslation(new Vector2(0, 5), true);
-      this.spritePlayer.loop([0, 1, 2, 3], 0.15);
+      this.spritePlayer = new Player();
+      this.spritePlayer.body?.setTranslation(new Vector2(0, 2), true);
     });
   }
 

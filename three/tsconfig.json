@@ -13,7 +13,8 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-    "allowJs": true,
+    // "allowJs": true,
+    // "strictPropertyInitialization": false,
 
     /* Linting */
     "strict": true,

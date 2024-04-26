@@ -2,6 +2,9 @@
 /*                          Typescript event emitter                          */
 /* -------------------------------------------------------------------------- */
 
+// Great resource for when you forget....
+// https://www.youtube.com/watch?v=Pl7pDjWd830&pp=ygUXdHlwZXNjcmlwdCBldmVudGVtaXR0ZXI%3D
+
 type Listener<T extends Array<any>> = (...args: T) => void;
 
 export default class EventEmitter<EventMap extends Record<string, Array<any>>> {

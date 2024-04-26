@@ -5,20 +5,20 @@
 import KeyList from "./types/keyList";
 
 export default class Input {
-  // Input keys here
+  // Setup
   public keys: KeyList = {
-    left: { keyCode: "ArrowLeft", isDown: false },
+    left: { keyCode: "ArrowLeft", isPressed: false },
     right: {
       keyCode: "ArrowRight",
-      isDown: false,
+      isPressed: false,
     },
     up: {
       keyCode: "ArrowUp",
-      isDown: false,
+      isPressed: false,
     },
     down: {
       keyCode: "ArrowDown",
-      isDown: false,
+      isPressed: false,
     },
   };
 
@@ -43,7 +43,7 @@ export default class Input {
   private onKeyDown(keyName: string) {
     for (const keyIndex in this.keys) {
       if (keyName == this.keys[keyIndex].keyCode) {
-        this.keys[keyIndex].isDown = true;
+        this.keys[keyIndex].isPressed = true;
       }
     }
   }
@@ -51,28 +51,9 @@ export default class Input {
   private onKeyUp(keyName: string) {
     for (const keyIndex in this.keys) {
       if (keyName == this.keys[keyIndex].keyCode) {
-        this.keys[keyIndex].isDown = false;
+        this.keys[keyIndex].isPressed = false;
       }
     }
-  }
-
-  public getDirection() {
-    if (this.keys.left.isDown && !this.keys.right.isDown) {
-      return -1;
-    }
-    if (!this.keys.left.isDown && this.keys.right.isDown) {
-      return 1;
-    }
-
-    return 0;
-  }
-
-  public getJump() {
-    if (this.keys.up.isDown && !this.keys.down.isDown) {
-      return true;
-    }
-
-    return false;
   }
 
   public destroy() {
