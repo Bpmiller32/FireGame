@@ -1,56 +1,42 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
-import Experience from "../experience";
-import ResourceLoader from "../utils/resourceLoader";
-import Keyboard from "../utils/keyboard";
-import Physics from "./physics";
+import Experience from "../../experience";
 
 export default class Box {
-  experience: Experience;
-  scene?: THREE.Scene;
-  resources?: ResourceLoader;
+  private experience = Experience.getInstance();
+  private scene = this.experience.scene;
+  // private resources = this.experience.resources;
+  private physics = this.experience.physics;
 
-  geometry?: THREE.BoxGeometry;
-  material?: THREE.MeshBasicMaterial;
-  mesh?: THREE.Mesh;
-
-  physics?: Physics;
-  body?: RAPIER.RigidBody;
-
-  keyboard?: Keyboard;
-  isInteractive?: boolean;
-  movementSpeed = 1;
+  public geometry?: THREE.BoxGeometry;
+  public material?: THREE.MeshBasicMaterial;
+  public mesh?: THREE.Mesh;
+  public body?: RAPIER.RigidBody;
 
   constructor() {
-    this.experience = Experience.getInstance();
-    this.scene = this.experience.scene;
-    this.physics = this.experience.physics2d;
-    this.resources = this.experience.resources;
-    this.keyboard = this.experience.keyboard;
-
     this.setGeometry();
     this.setMaterial();
     this.setMesh();
     this.setPhysics();
   }
 
-  setGeometry() {
+  private setGeometry() {
     this.geometry = new THREE.BoxGeometry(1, 1, 1);
   }
 
-  setMaterial() {
+  private setMaterial() {
     this.material = new THREE.MeshBasicMaterial({
       //   wireframe: true,
       color: "blue",
     });
   }
 
-  setMesh() {
+  private setMesh() {
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.scene?.add(this.mesh);
   }
 
-  setPhysics() {
+  private setPhysics() {
     const shape = RAPIER.ColliderDesc.cuboid(0.5, 0.5);
 
     this.body = this.physics?.world?.createRigidBody(
@@ -60,7 +46,7 @@ export default class Box {
     this.physics?.world?.createCollider(shape, this.body);
   }
 
-  update() {
+  public update() {
     const bodyPosition = this.body!.translation();
     this.mesh?.position.set(bodyPosition.x, bodyPosition.y, 0);
   }

@@ -2,34 +2,25 @@
 /*         The "World" in which all resources for the webgl scene live        */
 /* -------------------------------------------------------------------------- */
 
-import * as THREE from "three";
 import Experience from "../experience";
-import ResourceLoader from "../utils/resourceLoader";
-import Box from "./box";
-import Floor from "./floor";
-import Sphere from "./sphere";
+import Box from "./objects/box.ts";
+import Floor from "./objects/floor.ts";
+import Sphere from "./objects/sphere.ts";
 import { Vector2 } from "@dimforge/rapier2d";
-import Player from "./player";
-import SpritePlayer from "./SpritePlayer";
+import SpritePlayer from "./player/spritePlayer.ts";
 
 export default class World {
-  experience: Experience;
-  scene?: THREE.Scene;
-  resources?: ResourceLoader;
+  private experience = Experience.getInstance();
+  // private scene = this.experience.scene;
+  private resources = this.experience.resources;
 
-  floor?: Floor;
-  box1?: Box;
-  box2?: Box;
-  sphere?: Sphere;
-  player?: Player;
-  spritePlayer?: SpritePlayer;
+  public floor?: Floor;
+  public box1?: Box;
+  public box2?: Box;
+  public sphere?: Sphere;
+  public spritePlayer?: SpritePlayer;
 
   constructor() {
-    this.experience = Experience.getInstance();
-    this.resources = this.experience.resources;
-
-    this.scene = this.experience.scene;
-
     // Resources
     this.resources?.on("ready", () => {
       this.floor = new Floor();
@@ -43,22 +34,20 @@ export default class World {
       this.sphere = new Sphere();
       this.sphere.body?.setTranslation(new Vector2(5, 2), true);
 
-      // this.player = new Player();
-      // this.player.body?.setTranslation(new Vector2(0, 5), true);
-
       this.spritePlayer = new SpritePlayer();
       this.spritePlayer.body?.setTranslation(new Vector2(0, 5), true);
       this.spritePlayer.loop([0, 1, 2, 3], 0.15);
     });
   }
 
-  update() {
+  public update() {
     this.box1?.update();
     this.box2?.update();
     this.sphere?.update();
-    this.player?.update();
     this.spritePlayer?.update();
   }
 
-  destroy() {}
+  public destroy() {
+    // TODO
+  }
 }

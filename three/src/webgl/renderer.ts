@@ -4,30 +4,24 @@
 
 import * as THREE from "three";
 import Experience from "./experience";
-import Sizes from "./utils/sizes";
-import Camera from "./camera";
 
 export default class Renderer {
-  experience: Experience;
-  canvas?: HTMLCanvasElement | null;
-  sizes?: Sizes;
-  scene?: THREE.Scene;
-  camera?: Camera;
-  instance?: THREE.WebGLRenderer;
+  // Setup
+  private experience = Experience.getInstance();
+  private canvas = this.experience.targetElement;
+  private sizes = this.experience.sizes;
+  private scene = this.experience.scene;
+  private camera = this.experience.camera;
+
+  // Constructor setup
+  public instance?: THREE.WebGLRenderer;
 
   constructor() {
-    this.experience = Experience.getInstance();
-
-    this.canvas = this.experience.targetElement;
-    this.sizes = this.experience.sizes;
-    this.scene = this.experience.scene;
-    this.camera = this.experience.camera;
-
     this.setInstance();
     this.resize();
   }
 
-  setInstance() {
+  private setInstance() {
     this.instance = new THREE.WebGLRenderer({
       canvas: this.canvas!,
       antialias: true,
@@ -38,16 +32,16 @@ export default class Renderer {
     this.instance.setPixelRatio(this.sizes!.pixelRatio);
   }
 
-  resize() {
+  public resize() {
     this.instance?.setSize(this.sizes!.width, this.sizes!.height);
     this.instance?.setPixelRatio(this.sizes!.pixelRatio);
   }
 
-  update() {
+  public update() {
     this.instance?.render(this.scene!, this.camera?.instance!);
   }
 
-  destroy() {
+  public destroy() {
     this.instance?.dispose();
   }
 }
