@@ -2,25 +2,41 @@
 /*                    Used to handle keyboard input events                    */
 /* -------------------------------------------------------------------------- */
 
-import KeyList from "./types/keyList";
+import Key from "./types/key";
 
 export default class Input {
   // Setup
-  public keys: KeyList = {
-    left: { keyCode: "ArrowLeft", isPressed: false },
-    right: {
+  public left = false;
+  public right = false;
+  public up = false;
+  public down = false;
+
+  public keys: Key[] = [
+    {
+      keyCode: "ArrowLeft",
+      isPressed: (eventResult: boolean) => {
+        this.left = eventResult;
+      },
+    },
+    {
       keyCode: "ArrowRight",
-      isPressed: false,
+      isPressed: (eventResult: boolean) => {
+        this.right = eventResult;
+      },
     },
-    up: {
+    {
       keyCode: "ArrowUp",
-      isPressed: false,
+      isPressed: (eventResult: boolean) => {
+        this.up = eventResult;
+      },
     },
-    down: {
+    {
       keyCode: "ArrowDown",
-      isPressed: false,
+      isPressed: (eventResult: boolean) => {
+        this.down = eventResult;
+      },
     },
-  };
+  ];
 
   constructor() {
     // Event listeners
@@ -43,7 +59,7 @@ export default class Input {
   private onKeyDown(keyName: string) {
     for (const keyIndex in this.keys) {
       if (keyName == this.keys[keyIndex].keyCode) {
-        this.keys[keyIndex].isPressed = true;
+        this.keys[keyIndex].isPressed(true);
       }
     }
   }
@@ -51,7 +67,7 @@ export default class Input {
   private onKeyUp(keyName: string) {
     for (const keyIndex in this.keys) {
       if (keyName == this.keys[keyIndex].keyCode) {
-        this.keys[keyIndex].isPressed = false;
+        this.keys[keyIndex].isPressed(false);
       }
     }
   }

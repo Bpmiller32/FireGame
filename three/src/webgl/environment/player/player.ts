@@ -3,7 +3,12 @@ import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
 import Debug from "../../utils/debug";
 import SpritePlayer from "../../utils/spritePlayer";
-import PlayerStateManager from "./playerStateManager";
+import RigidBodyUserData from "../../utils/types/rigidbodyUserData";
+import PlayerStates from "./playerStates/playerStates";
+import PlayerSpriteAnimations from "./playerSpriteAnimations";
+import playerIdle from "./playerStates/playerIdle";
+import playerFalling from "./playerStates/playerFalling";
+import playerRunning from "./playerStates/playerRunning";
 
 export default class Player {
   // Setup
@@ -12,29 +17,44 @@ export default class Player {
   private resources = this.experience.resources;
   private physics = this.experience.physics;
   private time = this.experience.time;
-  private input = this.experience.input;
+  public input = this.experience.input;
 
   public spritePlayer = new SpritePlayer(this.resources.items.test, 8, 8);
-  public stateManager = new PlayerStateManager(
-    this.input,
-    this.spritePlayer,
-    new RAPIER.Vector2(0, 0),
-    false
-  );
 
   // Constructor setup
   public mesh?: THREE.Sprite;
   public body?: RAPIER.RigidBody;
-
-  private bodyCollider?: RAPIER.Collider;
   private characterController?: RAPIER.KinematicCharacterController;
-
   private debug?: Debug;
-  isTouchingGround?: boolean;
+
+  // Character movement
+  state = PlayerStates.IDLE;
+
+  currentAnimation = PlayerSpriteAnimations.IDLE_RIGHT;
+  nextAnimation = PlayerSpriteAnimations.IDLE_RIGHT;
+  animationDuration = 1;
+
+  currentPosition = new RAPIER.Vector2(0, 0);
+  nextPosition = new RAPIER.Vector2(0, 0);
+
+  isFacingRight = true;
+  isTouchingGround = false;
+
+  acceleration = 0.002;
+  maxSpeed = 0.001;
+  velocityPower = 1;
+  decelleration = 0.002;
+  gravity = 0.0001;
 
   public constructor() {
     this.setMesh();
     this.setPhysics();
+
+    // Set initial sprite loop
+    this.spritePlayer.spritesToLoop(
+      this.currentAnimation,
+      this.animationDuration
+    );
 
     // Debug
     if (this.experience.debug?.isActive) {
@@ -43,20 +63,15 @@ export default class Player {
       const playerStateDebug = this.debug?.ui?.addFolder("PlayerStateManager");
       playerStateDebug?.open();
 
+      playerStateDebug?.add(this, "state").name("state").listen();
       playerStateDebug
-        ?.add(this.stateManager, "currentState")
-        .name("currentState")
-        .listen();
-      playerStateDebug
-        ?.add(this.stateManager, "isFacingRight")
+        ?.add(this, "isFacingRight")
         .name("isFacingRight")
         .listen();
       playerStateDebug
-        ?.add(this.stateManager, "friction")
-        .name("friction")
-        .min(0.001)
-        .max(0.009)
-        .step(0.001);
+        ?.add(this, "isTouchingGround")
+        .name("isTouchingGround")
+        .listen();
     }
   }
 
@@ -69,90 +84,89 @@ export default class Player {
     const shape = RAPIER.ColliderDesc.cuboid(0.25, 0.5);
 
     this.body = this.physics?.world?.createRigidBody(
-      RAPIER.RigidBodyDesc.kinematicVelocityBased().lockRotations()
+      RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
     );
 
-    this.bodyCollider = this.physics?.world?.createCollider(shape, this.body);
+    this.physics?.world?.createCollider(shape, this.body);
 
+    // Independent character controller attached to physics world, attaching here since this one is exclusively used for Player
     this.characterController =
       this.physics?.world?.createCharacterController(0.01);
   }
 
-  private computeNextPosition(bodyPosition: RAPIER.Vector2) {
-    const correctedMovement = this.characterController!.computedMovement();
+  private updatePlayerState() {
+    switch (this.state) {
+      case PlayerStates.IDLE:
+        playerIdle(this);
+        break;
+      case PlayerStates.RUNNING:
+        playerRunning(this);
+        break;
+      case PlayerStates.FALLING:
+        playerFalling(this);
+        break;
+      case PlayerStates.JUMPING:
+        playerIdle(this);
+        break;
+    }
+  }
 
-    return new RAPIER.Vector2(
-      (bodyPosition.x += correctedMovement.x),
-      (bodyPosition.y += correctedMovement.y)
+  private updatePlayerSprite() {
+    // Don't call spritesToLoop every frame
+    if (this.currentAnimation !== this.nextAnimation) {
+      this.currentAnimation = this.nextAnimation;
+
+      this.spritePlayer.spritesToLoop(
+        this.currentAnimation,
+        this.animationDuration
+      );
+    }
+
+    this.spritePlayer.update(this.time.delta);
+  }
+
+  private updateTranslation() {
+    // Set THREE mesh position to physics body
+    const bodyPosition = this.body!.translation();
+    this.mesh?.position.set(bodyPosition.x, bodyPosition.y, 0);
+
+    // Given a desired translation, compute the actual translation that we can apply to the collider based on the obstacles.
+    this.characterController?.computeColliderMovement(
+      this.body!.collider(0),
+      new RAPIER.Vector2(this.nextPosition.x, this.nextPosition.y)
+    );
+
+    const correctiveMovement = this.characterController?.computedMovement();
+
+    // Apply the actual translation to the next kinematic translation
+    this.body?.setNextKinematicTranslation(
+      new RAPIER.Vector2(
+        bodyPosition.x + correctiveMovement!.x,
+        bodyPosition.y + correctiveMovement!.y
+      )
     );
   }
 
-  private detectCollisions(nextPosition: RAPIER.Vector2) {
-    this.characterController?.computeColliderMovement(
-      this.bodyCollider!,
-      nextPosition
-    );
-
+  private detectCollisions() {
     for (
       let i = 0;
       i < this.characterController!.numComputedCollisions();
       i++
     ) {
-      // Contact with floor
-      if (
-        this.characterController?.computedCollision(i)?.collider?.handle ==
-        this.experience.world?.floor?.body?.handle
-      ) {
-        console.log("wtf");
-        this.body?.setLinvel(
-          new RAPIER.Vector2(this.body.linvel().x, 0.01),
-          true
-        );
+      const objectCollidedWith = this.characterController
+        ?.computedCollision(i)
+        ?.collider?.parent()?.userData as RigidBodyUserData;
+
+      if (objectCollidedWith.name == "Floor") {
         this.isTouchingGround = true;
-      } else {
-        this.isTouchingGround = false;
       }
     }
   }
 
   public update() {
-    // Set THREE mesh position to physics body
-    const bodyPosition = this.body!.translation();
-    this.mesh?.position.set(bodyPosition.x, bodyPosition.y, 0);
-
-    // Calculate body's next position
-    const nextPosition = this.computeNextPosition(bodyPosition);
-
-    // Detect potential kinematic body collisions
-    this.detectCollisions(nextPosition);
-
-    // Set player state
-    this.stateManager.update(
-      this.time.delta,
-      this.body!.linvel(),
-      this.isTouchingGround!
-    );
-
-    // Set player velocity
-    if (this.isTouchingGround) {
-      this.body?.setLinvel(
-        new RAPIER.Vector2(
-          this.stateManager.newVelocity.x / this.physics!.world!.timestep,
-          0 / this.physics!.world!.timestep
-        ),
-        true
-      );
-    } else {
-      this.body?.setLinvel(
-        new RAPIER.Vector2(
-          this.stateManager.newVelocity.x / this.physics!.world!.timestep,
-          this.stateManager.newVelocity.y / this.physics!.world!.timestep
-        ),
-        true
-      );
-    }
-
-    // Set kinematic body's next position
-    this.body?.setNextKinematicTranslation(nextPosition);
+    this.updatePlayerState();
+    this.updatePlayerSprite();
+    this.updateTranslation();
+    this.detectCollisions();
   }
 }

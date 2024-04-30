@@ -44,6 +44,7 @@ export default class Sphere {
     this.body = this.physics?.world?.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
     );
+    this.body!.userData = { name: Sphere.name };
 
     this.physics?.world?.createCollider(shape, this.body);
   }

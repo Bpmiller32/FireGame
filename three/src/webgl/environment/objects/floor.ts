@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
+import { userData } from "three/examples/jsm/nodes/Nodes.js";
 
 export default class Floor {
   // Setup
@@ -46,6 +47,7 @@ export default class Floor {
     this.body = this.physics?.world?.createRigidBody(
       RAPIER.RigidBodyDesc.fixed()
     );
+    this.body!.userData = { name: Floor.name };
 
     this.physics?.world?.createCollider(shape, this.body);
   }

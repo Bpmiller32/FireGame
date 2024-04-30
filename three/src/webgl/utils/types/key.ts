@@ -1,6 +1,6 @@
 type Key = {
   keyCode: string;
-  isPressed: boolean;
+  isPressed: (arg0: boolean) => void;
 };
 
 export default Key;

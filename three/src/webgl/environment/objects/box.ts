@@ -44,6 +44,7 @@ export default class Box {
     this.body = this.physics?.world?.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
     );
+    this.body!.userData = { name: Box.name };
 
     this.physics?.world?.createCollider(shape, this.body);
   }
