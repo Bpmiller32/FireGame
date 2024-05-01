@@ -6,34 +6,34 @@ import Key from "./types/key";
 
 export default class Input {
   // Setup
-  public left = false;
-  public right = false;
-  public up = false;
-  public down = false;
+  public isLeftPressed = false;
+  public isrightPressed = false;
+  public isUpPressed = false;
+  public isDownPressed = false;
 
   public keys: Key[] = [
     {
       keyCode: "ArrowLeft",
       isPressed: (eventResult: boolean) => {
-        this.left = eventResult;
+        this.isLeftPressed = eventResult;
       },
     },
     {
       keyCode: "ArrowRight",
       isPressed: (eventResult: boolean) => {
-        this.right = eventResult;
+        this.isrightPressed = eventResult;
       },
     },
     {
       keyCode: "ArrowUp",
       isPressed: (eventResult: boolean) => {
-        this.up = eventResult;
+        this.isUpPressed = eventResult;
       },
     },
     {
       keyCode: "ArrowDown",
       isPressed: (eventResult: boolean) => {
-        this.down = eventResult;
+        this.isDownPressed = eventResult;
       },
     },
   ];
@@ -71,6 +71,11 @@ export default class Input {
       }
     }
   }
+
+  public inputLeft() {}
+  public inputRight() {}
+  public inputUp() {}
+  public inputDown() {}
 
   public destroy() {
     window.addEventListener("keydown", () => {});

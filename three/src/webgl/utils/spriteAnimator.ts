@@ -4,7 +4,7 @@
 
 import * as THREE from "three";
 
-export default class SpritePlayer {
+export default class SpriteAnimator {
   // Setup
   public currentTile = 0;
 

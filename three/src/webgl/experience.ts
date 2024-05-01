@@ -18,24 +18,19 @@ export default class Experience {
   private static instance: Experience;
   private constructor() {}
 
-  // Setup
-  public debug = new Debug();
-  public sizes = new Sizes();
-  public time = new Time();
-  public input = new Input();
-  public resources = new ResourceLoader([
-    { name: "boat", type: "gltfModel", path: "/boat.glb" },
-    { name: "mario", type: "texture", path: "/mario.png" },
-    { name: "test", type: "texture", path: "/testSheet.png" },
-  ]);
+  public debug!: Debug;
+  public sizes!: Sizes;
+  public time!: Time;
+  public input!: Input;
+  public resources!: ResourceLoader;
 
-  // Constructor setup
-  public targetElement?: HTMLCanvasElement | null;
-  public scene?: THREE.Scene;
-  public camera?: Camera;
-  public renderer?: Renderer;
-  public physics?: Physics;
-  public world?: World;
+  public targetElement!: HTMLCanvasElement | null;
+
+  public scene!: THREE.Scene;
+  public camera!: Camera;
+  public renderer!: Renderer;
+  public physics!: Physics;
+  public world!: World;
 
   // Singleton check/constructor
   public static getInstance(): Experience {
@@ -47,6 +42,16 @@ export default class Experience {
 
   // Replacement public constructor
   public async configure(canvas: HTMLCanvasElement | null) {
+    this.debug = new Debug();
+    this.sizes = new Sizes();
+    this.time = new Time();
+    this.input = new Input();
+    this.resources = new ResourceLoader([
+      { name: "boat", type: "gltfModel", path: "/boat.glb" },
+      { name: "mario", type: "texture", path: "/mario.png" },
+      { name: "test", type: "texture", path: "/testSheet.png" },
+    ]);
+
     this.targetElement = canvas;
 
     this.scene = new THREE.Scene();
@@ -68,40 +73,40 @@ export default class Experience {
   }
 
   public resize() {
-    this.camera?.resize();
-    this.renderer?.resize();
+    this.camera.resize();
+    this.renderer.resize();
   }
 
   public update() {
-    if (this.debug?.isActive) {
-      this.debug?.stats?.begin();
+    if (this.debug.isActive) {
+      this.debug.stats?.begin();
     }
 
-    this.camera?.update();
-    this.physics?.update();
-    this.world?.update();
-    this.renderer?.update();
+    this.camera.update();
+    this.physics.update();
+    this.world.update();
+    this.renderer.update();
 
-    if (this.debug?.isActive) {
-      this.debug?.stats?.end();
+    if (this.debug.isActive) {
+      this.debug.stats?.end();
     }
   }
 
   public destroy() {
     // Event listeners
-    this.sizes?.destroy();
-    this.time?.destroy();
+    this.sizes.destroy();
+    this.time.destroy();
 
     // Scene items first
-    this.world?.destroy();
-    this.physics?.destroy();
+    this.world.destroy();
+    this.physics.destroy();
 
     // Camera then renderer
-    this.camera?.destroy();
-    this.renderer?.destroy();
+    this.camera.destroy();
+    this.renderer.destroy();
 
     // Debug menu
-    if (this.debug?.isActive) {
+    if (this.debug.isActive) {
       this.debug.destroy();
     }
   }

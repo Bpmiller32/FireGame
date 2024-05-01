@@ -17,7 +17,7 @@ export default class Physics {
   >;
 
   // Constructor setup
-  public world?: RAPIER.World;
+  public world!: RAPIER.World;
 
   public async configure() {
     const rapier = await import("@dimforge/rapier2d");

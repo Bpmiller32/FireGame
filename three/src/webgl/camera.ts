@@ -5,21 +5,25 @@
 import * as THREE from "three";
 import Experience from "./experience";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
+import Sizes from "./utils/sizes";
 
 export default class Camera {
-  // Setup
-  private experience = Experience.getInstance();
-  private sizes = this.experience.sizes;
-  private scene = this.experience.scene;
-  private canvas = this.experience.targetElement;
+  private experience: Experience;
+  private sizes: Sizes;
+  private scene: THREE.Scene;
+  private canvas: HTMLCanvasElement;
 
-  // Constructor setup
-  public instance?: THREE.PerspectiveCamera;
-  private controls?: OrbitControls;
+  public instance!: THREE.PerspectiveCamera;
+  private controls!: OrbitControls;
 
   constructor() {
+    this.experience = Experience.getInstance();
+    this.sizes = this.experience.sizes;
+    this.scene = this.experience.scene;
+    this.canvas = this.experience.targetElement as HTMLCanvasElement;
+
     this.setInstance();
-    this.setOrbitControls();
+    // this.setOrbitControls();
   }
 
   private setInstance() {
@@ -30,18 +34,18 @@ export default class Camera {
       500
     );
 
-    this.instance.position.set(0, 5, 12);
-    this.scene?.add(this.instance);
+    this.instance.position.set(0, 5, 20);
+    this.scene.add(this.instance);
   }
 
   private setOrbitControls() {
-    this.controls = new OrbitControls(this.instance!, this.canvas!);
+    this.controls = new OrbitControls(this.instance, this.canvas);
     this.controls.enableDamping = true;
   }
 
   public resize() {
-    this.instance!.aspect = this.sizes.width / this.sizes.height;
-    this.instance!.updateProjectionMatrix();
+    this.instance.aspect = this.sizes.width / this.sizes.height;
+    this.instance.updateProjectionMatrix();
   }
 
   public update() {

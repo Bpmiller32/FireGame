@@ -1,8 +1,8 @@
-import Player from "../player";
+import PlayerDynamic from "../playerDynamic";
 import PlayerStates from "./playerStates";
 import PlayerSpriteAnimations from "../playerSpriteAnimations";
 
-const playerIdle = (player: Player) => {
+const playerIdle = (player: PlayerDynamic) => {
   // Set animation
   if (player.isFacingRight == true) {
     player.nextAnimation = PlayerSpriteAnimations.IDLE_RIGHT;
@@ -16,12 +16,12 @@ const playerIdle = (player: Player) => {
   }
 
   // Check for transition to running state
-  if (player.input.left || player.input.right) {
+  if (player.input.isLeftPressed || player.input.isrightPressed) {
     player.state = PlayerStates.RUNNING;
   }
 
   // Check for transition to jumping state
-  if (player.input.up) {
+  if (player.input.isUpPressed) {
     player.state = PlayerStates.JUMPING;
   }
 };

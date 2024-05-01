@@ -7,12 +7,12 @@ import Box from "./objects/box.ts";
 import Floor from "./objects/floor.ts";
 import Sphere from "./objects/sphere.ts";
 import { Vector2 } from "@dimforge/rapier2d";
-import Player from "./player/player.ts";
+import Player from "./player/playerKinematicPosition.ts";
+import PlayerDynamic from "./player/playerDynamic.ts";
 
 export default class World {
   // Setup
   private experience = Experience.getInstance();
-  // private scene = this.experience.scene;
   private resources = this.experience.resources;
 
   // Constuctor setup
@@ -21,6 +21,7 @@ export default class World {
   public box2?: Box;
   public sphere?: Sphere;
   public spritePlayer?: Player;
+  spritePlayerDynamic?: PlayerDynamic;
 
   constructor() {
     // Resources
@@ -37,7 +38,10 @@ export default class World {
       this.sphere.body?.setTranslation(new Vector2(5, 2), true);
 
       this.spritePlayer = new Player();
-      this.spritePlayer.body?.setTranslation(new Vector2(0, 2), true);
+      this.spritePlayer.body?.setTranslation(new Vector2(1, 3), true);
+
+      // this.spritePlayerDynamic = new PlayerDynamic();
+      // this.spritePlayerDynamic.body?.setTranslation(new Vector2(1, 1), true);
     });
   }
 
@@ -46,6 +50,14 @@ export default class World {
     this.box2?.update();
     this.sphere?.update();
     this.spritePlayer?.update();
+    // this.spritePlayerDynamic?.update();
+    if (this.spritePlayer?.mesh?.position) {
+      this.experience.camera.instance.position.x =
+        this.spritePlayer.mesh.position.x;
+
+      // this.experience.camera!.instance!.position.y =
+      //   this.spritePlayer.mesh.position.y;
+    }
   }
 
   public destroy() {

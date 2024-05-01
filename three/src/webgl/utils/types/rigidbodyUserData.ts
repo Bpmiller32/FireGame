@@ -1,5 +1,5 @@
 type RigidBodyUserData = {
-  name?: string;
+  name: string;
 };
 
 // Weird default export for types....
