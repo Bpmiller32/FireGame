@@ -7,16 +7,20 @@ import EventMap from "./types/eventMap";
 import * as THREE from "three";
 
 export default class Time extends EventEmitter<EventMap> {
-  // Setup
-  public clock = new THREE.Clock();
-  public start = this.clock.startTime;
-  public elapsed = this.clock.getElapsedTime();
-  public delta = 16; // 16 because at 60 fps delta for 1 frame is ~16. Avoid using 0 for bugs
+  public clock: THREE.Clock;
+  public start: number;
+  public elapsed: number;
+  public delta: number;
 
-  private previous = 0;
+  private previous: number;
 
   constructor() {
     super();
+    this.clock = new THREE.Clock();
+    this.start = this.clock.startTime;
+    this.elapsed = this.clock.getElapsedTime();
+    this.delta = 16; // 16 because at 60 fps delta for 1 frame is ~16. Avoid using 0 for bugs
+    this.previous = 0;
 
     // instead of calling tick() immediately, wait 1 frame for delta time subtraction
     window.requestAnimationFrame(() => {

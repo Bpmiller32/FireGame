@@ -5,27 +5,35 @@
 import * as THREE from "three";
 
 export default class SpriteAnimator {
-  // Setup
-  public currentTile = 0;
+  private currentTile: number;
+  private elapsedTime: number;
+  private maxDisplayTime: number;
+  private runningTileIndex: number;
+  private spriteIndices: number[];
+  private tilesHorizontal: number;
+  private tilesVertical: number;
 
-  private elapsedTime = 0;
-  private maxDisplayTime = 0;
-  private runningTileIndex = 0;
-  private spriteIndices: number[] = [];
-
-  // Constructor setup
-  private tilesHorizontal = 0;
-  private tilesVertical = 0;
-  public material: THREE.SpriteMaterial;
+  public material!: THREE.SpriteMaterial;
 
   constructor(
     spriteSheet: THREE.Texture,
     tilesHorizontal: number,
     tilesVerical: number
   ) {
+    this.currentTile = 0;
+
+    this.elapsedTime = 0;
+    this.maxDisplayTime = 0;
+    this.runningTileIndex = 0;
+    this.spriteIndices = [];
+
     this.tilesHorizontal = tilesHorizontal;
     this.tilesVertical = tilesVerical;
 
+    this.setMaterial(spriteSheet);
+  }
+
+  private setMaterial(spriteSheet: THREE.Texture) {
     spriteSheet.colorSpace = THREE.SRGBColorSpace;
 
     this.material = new THREE.SpriteMaterial({

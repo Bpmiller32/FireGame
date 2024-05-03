@@ -9,7 +9,6 @@ import EventMap from "./types/eventMap";
 import Resource from "./types/resource";
 
 export default class ResourceLoader extends EventEmitter<EventMap> {
-  // Constructor setup
   private sources: Resource[];
   public items: { [key: string]: any };
   public toLoad: number;

@@ -99,7 +99,7 @@ export default class Experience {
 
     // Scene items first
     this.world.destroy();
-    this.physics.destroy();
+    // this.physics.destroy();
 
     // Camera then renderer
     this.camera.destroy();

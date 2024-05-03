@@ -1,56 +1,27 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
-import Experience from "../../experience";
+import GameObject from "./gameObject";
 
-export default class Sphere {
-  // Setup
-  private experience = Experience.getInstance();
-  private scene = this.experience.scene;
-  // private resources = this.experience.resources;
-  private physics = this.experience.physics;
+export default class Sphere extends GameObject {
+  constructor(
+    size: number,
+    position: { x: number; y: number },
+    material?: THREE.MeshBasicMaterial,
+    rigidBodyType?: RAPIER.RigidBodyDesc
+  ) {
+    super();
 
-  // Constructor setup
-  public geometry?: THREE.SphereGeometry;
-  public material?: THREE.MeshBasicMaterial;
-  public mesh?: THREE.Mesh;
-  public body?: RAPIER.RigidBody;
+    if (!rigidBodyType) {
+      rigidBodyType = RAPIER.RigidBodyDesc.dynamic();
+    }
 
-  constructor() {
-    this.setGeometry();
-    this.setMaterial();
+    this.setGeometry(new THREE.SphereGeometry(size));
+    this.setMaterial(material);
     this.setMesh();
-    this.setPhysics();
-  }
-
-  private setGeometry() {
-    this.geometry = new THREE.SphereGeometry(1);
-  }
-
-  private setMaterial() {
-    this.material = new THREE.MeshBasicMaterial({
-      //   wireframe: true,
-      color: "yellow",
-    });
-  }
-
-  private setMesh() {
-    this.mesh = new THREE.Mesh(this.geometry, this.material);
-    this.scene?.add(this.mesh);
-  }
-
-  private setPhysics() {
-    const shape = RAPIER.ColliderDesc.ball(1);
-
-    this.body = this.physics?.world?.createRigidBody(
-      RAPIER.RigidBodyDesc.dynamic()
-    );
-    this.body!.userData = { name: Sphere.name };
-
-    this.physics?.world?.createCollider(shape, this.body);
+    this.setPhysics({ width: size, height: size }, position, rigidBodyType);
   }
 
   public update() {
-    const bodyPosition = this.body!.translation();
-    this.mesh?.position.set(bodyPosition.x, bodyPosition.y, 0);
+    this.syncThreeToRapier();
   }
 }

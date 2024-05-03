@@ -2,49 +2,62 @@
 /*         The "World" in which all resources for the webgl scene live        */
 /* -------------------------------------------------------------------------- */
 
+import * as THREE from "three";
 import Experience from "../experience";
+import ResourceLoader from "../utils/resourceLoader.ts";
 import Box from "./objects/box.ts";
 import Floor from "./objects/floor.ts";
 import Sphere from "./objects/sphere.ts";
-import { Vector2 } from "@dimforge/rapier2d";
-import Player from "./player/playerKinematicPosition.ts";
-import PlayerDynamic from "./player/playerDynamic.ts";
+import Player from "./player/player.ts";
 
 export default class World {
-  // Setup
-  private experience = Experience.getInstance();
-  private resources = this.experience.resources;
+  private experience: Experience;
+  private resources: ResourceLoader;
 
-  // Constuctor setup
-  public floor?: Floor;
+  // World assets
+  public floor1?: Floor;
   public box1?: Box;
   public box2?: Box;
   public sphere?: Sphere;
-  public spritePlayer?: Player;
-  spritePlayerDynamic?: PlayerDynamic;
-  floor2?: Floor;
+  public player?: Player;
+  public floor2?: Floor;
 
   constructor() {
+    this.experience = Experience.getInstance();
+    this.resources = this.experience.resources;
+
     // Resources
     this.resources?.on("ready", () => {
-      this.floor = new Floor({ x: 200, y: 0 });
-      this.floor2 = new Floor({ x: 10, y: 0 });
-      this.floor2.body?.setTranslation({ x: 1, y: 2 }, true);
+      this.floor1 = new Floor(
+        { width: 200, height: 0 },
+        { x: 0, y: 0 },
+        new THREE.MeshBasicMaterial({ color: "green" })
+      );
+      this.floor2 = new Floor(
+        { width: 10, height: 0 },
+        { x: 3, y: 2.5 },
+        new THREE.MeshBasicMaterial({ color: "green" })
+      );
 
-      this.box1 = new Box();
-      this.box1.body?.setTranslation(new Vector2(7, 3), true);
+      this.box1 = new Box(
+        { width: 1, height: 1 },
+        { x: 7, y: 3 },
+        new THREE.MeshBasicMaterial({ color: "blue" })
+      );
 
-      this.box2 = new Box();
-      this.box2.body?.setTranslation(new Vector2(3, 3), true);
+      this.box2 = new Box(
+        { width: 1, height: 1 },
+        { x: 3, y: 3 },
+        new THREE.MeshBasicMaterial({ color: "blue" })
+      );
 
-      this.sphere = new Sphere();
-      this.sphere.body?.setTranslation(new Vector2(5, 2), true);
+      this.sphere = new Sphere(
+        1,
+        { x: 5, y: 2 },
+        new THREE.MeshBasicMaterial({ color: "yellow" })
+      );
 
-      this.spritePlayer = new Player();
-      this.spritePlayer.body?.setTranslation(new Vector2(2, 3), true);
-
-      // this.spritePlayerDynamic = new PlayerDynamic();
-      // this.spritePlayerDynamic.body?.setTranslation(new Vector2(1, 1), true);
+      this.player = new Player({ width: 0.5, height: 1 }, { x: 2, y: 3 });
     });
   }
 
@@ -52,18 +65,25 @@ export default class World {
     this.box1?.update();
     this.box2?.update();
     this.sphere?.update();
-    this.spritePlayer?.update();
-    // this.spritePlayerDynamic?.update();
-    if (this.spritePlayer?.mesh?.position) {
-      this.experience.camera.instance.position.x =
-        this.spritePlayer.mesh.position.x;
+    this.player?.update();
 
-      // this.experience.camera!.instance!.position.y =
-      //   this.spritePlayer.mesh.position.y;
+    // Camera follow
+    if (this.player?.mesh.position) {
+      this.experience.camera.instance.position.x = this.player.mesh.position.x;
+
+      // this.experience.camera.instance.position.y = this.player.mesh.position.y;
     }
   }
 
   public destroy() {
-    // TODO
+    this.floor1?.destroy();
+    this.floor2?.destroy();
+
+    this.box1?.destroy();
+    this.box2?.destroy();
+
+    this.sphere?.destroy();
+
+    this.player?.destroy();
   }
 }

@@ -9,6 +9,7 @@ export default class Input {
   public isRightKeyPressed: boolean;
   public isUpKeyPressed: boolean;
   public isDownKeyPressed: boolean;
+  public isSpacebarPressed: boolean;
 
   public keys: Key[];
 
@@ -17,6 +18,7 @@ export default class Input {
     this.isRightKeyPressed = false;
     this.isUpKeyPressed = false;
     this.isDownKeyPressed = false;
+    this.isSpacebarPressed = false;
 
     this.keys = [
       {
@@ -43,20 +45,26 @@ export default class Input {
           this.isDownKeyPressed = eventResult;
         },
       },
+      {
+        keyCode: "Space",
+        isPressed: (eventResult: boolean) => {
+          this.isSpacebarPressed = eventResult;
+        },
+      },
     ];
 
     // Event listeners
     window.addEventListener(
       "keydown",
       (event: KeyboardEvent) => {
-        this.onKeyDown(event.key);
+        this.onKeyDown(event.code);
       },
       false
     );
     window.addEventListener(
       "keyup",
       (event: KeyboardEvent) => {
-        this.onKeyUp(event.key);
+        this.onKeyUp(event.code);
       },
       false
     );
@@ -105,7 +113,10 @@ export default class Input {
   }
 
   public isUp() {
-    if (this.isUpKeyPressed && !this.isDownKeyPressed) {
+    if (
+      (this.isUpKeyPressed && !this.isDownKeyPressed) ||
+      this.isSpacebarPressed
+    ) {
       return true;
     }
     return false;

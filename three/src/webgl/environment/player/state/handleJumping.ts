@@ -1,31 +1,25 @@
-import Player from "../playerKinematicPosition";
+import Player from "../player";
 import PlayerStates from "../../../utils/types/playerStates";
-import PlayerSpriteAnimations from "../playerSpriteAnimations";
+import SpriteAnimations from "./spriteAnimations";
+import PlayerDirection from "../../../utils/types/playerDirection";
+import GameMath from "../../../utils/gameMath";
 
-function HandleJump(player: Player) {
+function executeJump(player: Player) {
   if (
     !player.endedJumpEarly &&
-    !player.isTouchingGround &&
+    !player.isTouching.ground &&
     !player.input.isUp() &&
     player.nextTranslation.y > 0
   ) {
-    player.handledJumping2 += 1;
     player.endedJumpEarly = true;
-    player.state = PlayerStates.FALLING;
-    player.timeInJump = 0;
   }
 
   if (!player.jumpToConsume && !player.HasBufferedJump) {
-    player.handledJumping3 += 1;
-
     return;
   }
 
   // Execute jump
-  if (player.isTouchingGround || player.canUseCoyote) {
-    player.handledJumping4 += 1;
-
-    console.log("executing jump");
+  if (player.isTouching.ground || player.canUseCoyote) {
     player.endedJumpEarly = false;
     player.timeJumpWasPressed = 0;
     player.bufferJumpUsable = false;
@@ -33,7 +27,6 @@ function HandleJump(player: Player) {
     player.nextTranslation.y = player.JumpPower;
   }
 
-  player.handledJumping5 += 1;
   player.jumpToConsume = false;
   // player.state = PlayerStates.FALLING;
 }
@@ -42,14 +35,6 @@ const playerJumping = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                    Debug                                   */
   /* -------------------------------------------------------------------------- */
-  player.handledJumping1 += 1;
-  player.timeInJump += player.time.delta;
-
-  if (!player.jumpStateTimer.isOn) {
-    console.log("starting stopwatch: ", player.time.elapsed);
-    player.jumpStateTimer.isOn = true;
-    player.jumpStateTimer.time = player.time.elapsed;
-  }
 
   // player.body.setTranslation(
   //   {
@@ -72,7 +57,7 @@ const playerJumping = (player: Player) => {
   // Set coyote jump
   if (
     player.coyoteUseable &&
-    !player.isTouchingGround &&
+    !player.isTouching.ground &&
     player.time.elapsed < player.frameLeftGrounded + player.coyoteTime
   ) {
     player.canUseCoyote = true;
@@ -83,23 +68,33 @@ const playerJumping = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                         Handle input and animation                         */
   /* -------------------------------------------------------------------------- */
-  //   Up
-  // if (player.input.isUp()) {
-  //   player.direction = PlayerDirection.LEFT;
-  //   player.nextAnimation = PlayerSpriteAnimations.RUN_LEFT;
-  // }
+  //   Left
+  if (player.input.isLeft()) {
+    player.direction = PlayerDirection.LEFT;
+    player.nextAnimation = SpriteAnimations.RUN_LEFT;
+  }
+  //   Right
+  else if (player.input.isRight()) {
+    player.direction = PlayerDirection.RIGHT;
+    player.nextAnimation = SpriteAnimations.RUN_RIGHT;
+  }
+  //   Both and neither
+  else if (
+    player.input.isNeitherLeftRight() ||
+    player.input.isLeftRightCombo()
+  ) {
+    player.direction = PlayerDirection.NEUTRAL;
+  }
 
   /* -------------------------------------------------------------------------- */
   /*                                 Handle jump                                */
   /* -------------------------------------------------------------------------- */
-  HandleJump(player);
-  // console.log(player.currentTranslation.y);
+  executeJump(player);
 
-  if (
-    player.currentTranslation.y >= player.JumpPower ||
-    player.timeInJump > 1
-  ) {
-    player.handledJumping6 += 1;
+  /* -------------------------------------------------------------------------- */
+  /*                                Change state                                */
+  /* -------------------------------------------------------------------------- */
+  if (player.currentTranslation.y >= player.JumpPower) {
     player.state = PlayerStates.FALLING;
   }
 };

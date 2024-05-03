@@ -7,19 +7,21 @@ import Experience from "../experience";
 import RAPIER from "@dimforge/rapier2d";
 
 export default class Physics {
-  // Setup
-  private experience = Experience.getInstance();
-  private scene = this.experience.scene;
+  private experience!: Experience;
+  private scene!: THREE.Scene;
+
+  public world!: RAPIER.World;
   private mesh?: THREE.LineSegments<
     THREE.BufferGeometry<THREE.NormalBufferAttributes>,
     THREE.LineBasicMaterial,
     THREE.Object3DEventMap
   >;
 
-  // Constructor setup
-  public world!: RAPIER.World;
-
+  // Replacement constructor to accomodate async
   public async configure() {
+    this.experience = Experience.getInstance();
+    this.scene = this.experience.scene;
+
     const rapier = await import("@dimforge/rapier2d");
     this.world = new rapier.World({ x: 0.0, y: -9.81 });
 
@@ -45,9 +47,5 @@ export default class Physics {
       );
       this.mesh!.visible = true;
     }
-  }
-
-  public destroy() {
-    // TODO
   }
 }

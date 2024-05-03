@@ -1,34 +1,22 @@
-import Player from "../playerKinematicPosition";
+import Player from "../player";
 import PlayerStates from "../../../utils/types/playerStates";
-import PlayerSpriteAnimations from "../playerSpriteAnimations";
-import GameMath from "../../../utils/gameMath";
+import SpriteAnimations from "./spriteAnimations";
 import PlayerDirection from "../../../utils/types/playerDirection";
+import GameMath from "../../../utils/gameMath";
 
-const playerRunning = (player: Player) => {
-  player.handledRunning += 1;
-
-  if (player.jumpStateTimer.isOn) {
-    console.log(
-      "time in jumpState: ",
-      player.time.elapsed - player.jumpStateTimer.time
-    );
-
-    player.jumpStateTimer.isOn = false;
-    player.jumpStateTimer.time = 0;
-  }
-
+const playerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                         Handle input and animation                         */
   /* -------------------------------------------------------------------------- */
   //   Left
   if (player.input.isLeft()) {
     player.direction = PlayerDirection.LEFT;
-    player.nextAnimation = PlayerSpriteAnimations.RUN_LEFT;
+    player.nextAnimation = SpriteAnimations.RUN_LEFT;
   }
   //   Right
   else if (player.input.isRight()) {
     player.direction = PlayerDirection.RIGHT;
-    player.nextAnimation = PlayerSpriteAnimations.RUN_RIGHT;
+    player.nextAnimation = SpriteAnimations.RUN_RIGHT;
   }
   //   Both and neither
   else if (
@@ -39,14 +27,33 @@ const playerRunning = (player: Player) => {
   }
 
   /* -------------------------------------------------------------------------- */
+  /*                               Handle gravity                               */
+  /* -------------------------------------------------------------------------- */
+  if (player.isTouching.ground && player.nextTranslation.y <= 0) {
+    player.nextTranslation.y = player.groundingForce;
+  } else {
+    let inAirGravity = player.fallAcceleration;
+
+    if (player.endedJumpEarly && player.nextTranslation.y > 0) {
+      inAirGravity *= player.JumpEndEarlyGravityModifier;
+    }
+
+    player.nextTranslation.y = GameMath.moveTowardsPoint(
+      player.nextTranslation.y,
+      -player.maxFallSpeed,
+      inAirGravity * player.time.delta
+    );
+  }
+
+  /* -------------------------------------------------------------------------- */
   /*                               Handle movement                              */
   /* -------------------------------------------------------------------------- */
   // Accelerate
   if (player.direction != PlayerDirection.NEUTRAL) {
     player.nextTranslation.x = GameMath.moveTowardsPoint(
       player.nextTranslation.x,
-      player.direction * player.maxSpeed,
-      player.acceleration * player.time.delta
+      player.direction * player.maxGroundSpeed,
+      player.groundAcceleration * player.time.delta
     );
   }
   // Decelerate
@@ -54,42 +61,27 @@ const playerRunning = (player: Player) => {
     player.nextTranslation.x = GameMath.moveTowardsPoint(
       player.nextTranslation.x,
       0,
-      player.GroundDeceleration * player.time.delta
+      player.fallDeceleration * player.time.delta
     );
-  }
-
-  // Hitting a wall
-  if (
-    (player.isTouchingLeftFace && player.direction == PlayerDirection.LEFT) ||
-    (player.isTouchingRightFace && player.direction == PlayerDirection.RIGHT)
-  ) {
-    player.nextTranslation.x = 0;
   }
 
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
-  // Transition to falling state
-  if (!player.isTouchingGround) {
-    player.state = PlayerStates.FALLING;
+  // Stay in falling state
+  if (!player.isTouching.ground) {
+    return;
   }
 
-  // Transition to idle state
+  // Transition to idle or running state
   if (
-    Math.abs(player.nextTranslation.x) <= player.maxSpeed * 0.01 &&
-    (player.input.isNeitherLeftRight() || player.input.isLeftRightCombo())
+    player.input.isNeitherLeftRight() &&
+    Math.abs(player.nextTranslation.x) < player.maxGroundSpeed * 0.01
   ) {
-    // if velocity is 1% of topspeed, smooth to 0 and stateChange
-    player.nextTranslation.x = 0;
     player.state = PlayerStates.IDLE;
-  }
-
-  // Transition to jumping state
-  if (player.input.isUp()) {
-    player.jumpToConsume = true;
-    player.timeJumpWasPressed = player.time.elapsed;
-    player.state = PlayerStates.JUMPING;
+  } else {
+    player.state = PlayerStates.RUNNING;
   }
 };
 
-export default playerRunning;
+export default playerFalling;
