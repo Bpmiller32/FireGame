@@ -8,7 +8,7 @@ const playerRunning = (player: PlayerDynamic) => {
   let isMoveInput = false;
 
   //   Left
-  if (player.input.isLeftPressed && !player.input.isrightPressed) {
+  if (player.input.isLeftKeyPressed && !player.input.isRightKeyPressed) {
     // Set sprite
     player.isFacingRight = false;
     player.nextAnimation = PlayerSpriteAnimations.RUN_LEFT;
@@ -17,7 +17,7 @@ const playerRunning = (player: PlayerDynamic) => {
     isMoveInput = true;
   }
   //   Right
-  else if (!player.input.isLeftPressed && player.input.isrightPressed) {
+  else if (!player.input.isLeftKeyPressed && player.input.isRightKeyPressed) {
     player.isFacingRight = true;
     player.nextAnimation = PlayerSpriteAnimations.RUN_RIGHT;
 
@@ -25,12 +25,12 @@ const playerRunning = (player: PlayerDynamic) => {
     isMoveInput = true;
   }
   //   Neither
-  else if (!player.input.isLeftPressed && !player.input.isrightPressed) {
+  else if (!player.input.isLeftKeyPressed && !player.input.isRightKeyPressed) {
     direction = 0;
     isMoveInput = false;
   }
   //   Both
-  else if (player.input.isLeftPressed && player.input.isrightPressed) {
+  else if (player.input.isLeftKeyPressed && player.input.isRightKeyPressed) {
     if (player.currentAnimation == PlayerSpriteAnimations.RUN_LEFT) {
       player.nextAnimation = PlayerSpriteAnimations.IDLE_LEFT;
     }
@@ -84,15 +84,15 @@ const playerRunning = (player: PlayerDynamic) => {
   // Check for transition to idle state
   if (
     Math.abs(player.velocity.x) <= 1 &&
-    !player.input.isLeftPressed &&
-    !player.input.isrightPressed
+    !player.input.isLeftKeyPressed &&
+    !player.input.isRightKeyPressed
   ) {
     player.velocity.x = 0;
     player.state = PlayerStates.IDLE;
   }
 
   // Check for transition to jumping state
-  if (player.input.isUpPressed) {
+  if (player.input.isUpKeyPressed) {
     player.state = PlayerStates.JUMPING;
   }
 };

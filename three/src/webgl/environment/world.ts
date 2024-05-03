@@ -22,11 +22,14 @@ export default class World {
   public sphere?: Sphere;
   public spritePlayer?: Player;
   spritePlayerDynamic?: PlayerDynamic;
+  floor2?: Floor;
 
   constructor() {
     // Resources
     this.resources?.on("ready", () => {
-      this.floor = new Floor();
+      this.floor = new Floor({ x: 200, y: 0 });
+      this.floor2 = new Floor({ x: 10, y: 0 });
+      this.floor2.body?.setTranslation({ x: 1, y: 2 }, true);
 
       this.box1 = new Box();
       this.box1.body?.setTranslation(new Vector2(7, 3), true);
@@ -38,7 +41,7 @@ export default class World {
       this.sphere.body?.setTranslation(new Vector2(5, 2), true);
 
       this.spritePlayer = new Player();
-      this.spritePlayer.body?.setTranslation(new Vector2(1, 3), true);
+      this.spritePlayer.body?.setTranslation(new Vector2(2, 3), true);
 
       // this.spritePlayerDynamic = new PlayerDynamic();
       // this.spritePlayerDynamic.body?.setTranslation(new Vector2(1, 1), true);

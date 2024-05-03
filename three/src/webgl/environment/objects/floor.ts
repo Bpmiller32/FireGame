@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
-import { userData } from "three/examples/jsm/nodes/Nodes.js";
 
 export default class Floor {
   // Setup
@@ -15,8 +14,11 @@ export default class Floor {
   public material?: THREE.MeshBasicMaterial;
   public mesh?: THREE.Mesh;
   public body?: RAPIER.RigidBody;
+  size: RAPIER.Vector2;
 
-  constructor() {
+  constructor(size: RAPIER.Vector2) {
+    this.size = size;
+
     this.setGeometry();
     this.setMaterial();
     this.setMesh();
@@ -42,7 +44,7 @@ export default class Floor {
   }
 
   private setPhysics() {
-    const shape = RAPIER.ColliderDesc.cuboid(200, 0);
+    const shape = RAPIER.ColliderDesc.cuboid(this.size.x, this.size.y);
 
     this.body = this.physics?.world?.createRigidBody(
       RAPIER.RigidBodyDesc.fixed()

@@ -16,12 +16,12 @@ const playerIdle = (player: PlayerDynamic) => {
   }
 
   // Check for transition to running state
-  if (player.input.isLeftPressed || player.input.isrightPressed) {
+  if (player.input.isLeftKeyPressed || player.input.isRightKeyPressed) {
     player.state = PlayerStates.RUNNING;
   }
 
   // Check for transition to jumping state
-  if (player.input.isUpPressed) {
+  if (player.input.isUpKeyPressed) {
     player.state = PlayerStates.JUMPING;
   }
 };

@@ -6,7 +6,7 @@ const playerFalling = (player: PlayerDynamic) => {
   let direction = 0;
 
   //   Left
-  if (player.input.isLeftPressed && !player.input.isrightPressed) {
+  if (player.input.isLeftKeyPressed && !player.input.isRightKeyPressed) {
     // Set sprite
     player.isFacingRight = false;
     player.nextAnimation = PlayerSpriteAnimations.RUN_LEFT;
@@ -14,7 +14,7 @@ const playerFalling = (player: PlayerDynamic) => {
     direction = -1;
   }
   //   Right
-  else if (!player.input.isLeftPressed && player.input.isrightPressed) {
+  else if (!player.input.isLeftKeyPressed && player.input.isRightKeyPressed) {
     player.isFacingRight = true;
     player.nextAnimation = PlayerSpriteAnimations.RUN_RIGHT;
 
@@ -22,8 +22,8 @@ const playerFalling = (player: PlayerDynamic) => {
   }
   //   Both and neither
   else if (
-    (player.input.isLeftPressed && player.input.isrightPressed) ||
-    (!player.input.isLeftPressed && !player.input.isrightPressed)
+    (player.input.isLeftKeyPressed && player.input.isRightKeyPressed) ||
+    (!player.input.isLeftKeyPressed && !player.input.isRightKeyPressed)
   ) {
     if (player.currentAnimation == PlayerSpriteAnimations.RUN_LEFT) {
       player.nextAnimation = PlayerSpriteAnimations.IDLE_LEFT;
@@ -62,7 +62,7 @@ const playerFalling = (player: PlayerDynamic) => {
   if (player.isTouchingGround) {
     player.nextTranslation.y = 0;
 
-    if (player.input.isLeftPressed || player.input.isrightPressed) {
+    if (player.input.isLeftKeyPressed || player.input.isRightKeyPressed) {
       player.state = PlayerStates.RUNNING;
     } else {
       player.state = PlayerStates.IDLE;

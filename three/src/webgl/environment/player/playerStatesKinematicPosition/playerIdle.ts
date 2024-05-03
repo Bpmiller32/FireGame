@@ -1,58 +1,67 @@
 import Player from "../playerKinematicPosition";
-import PlayerStates from "./playerStates";
+import PlayerStates from "../../../utils/types/playerStates";
 import PlayerSpriteAnimations from "../playerSpriteAnimations";
+import PlayerDirection from "../../../utils/types/playerDirection";
 
 const playerIdle = (player: Player) => {
-  // Set animation
-  if (player.isFacingRight == true) {
-    player.nextAnimation = PlayerSpriteAnimations.IDLE_RIGHT;
-  } else {
-    player.nextAnimation = PlayerSpriteAnimations.IDLE_LEFT;
+  player.handledIdle += 1;
+
+  if (player.jumpStateTimer.isOn) {
+    console.log(
+      "time in jumpState: ",
+      player.time.elapsed - player.jumpStateTimer.time
+    );
+
+    player.jumpStateTimer.isOn = false;
+    player.jumpStateTimer.time = 0;
   }
 
-  const targetSpeed = 0;
-  const speedDifference = targetSpeed - player.nextTranslation.x;
+  /* -------------------------------------------------------------------------- */
+  /*                              Handle animation                              */
+  /* -------------------------------------------------------------------------- */
+  switch (player.direction) {
+    case PlayerDirection.LEFT:
+      player.nextAnimation = PlayerSpriteAnimations.IDLE_LEFT;
+      break;
+    case PlayerDirection.RIGHT:
+      player.nextAnimation = PlayerSpriteAnimations.IDLE_RIGHT;
+      break;
 
-  let accelerationRate = 0;
-  if (Math.abs(speedDifference) > 0.1) {
-    accelerationRate = player.acceleration;
-  } else {
-    accelerationRate = player.decelleration;
+    // PlayerDirection == NEUTRAL
+    default:
+      if (
+        player.currentAnimation == PlayerSpriteAnimations.IDLE_LEFT ||
+        player.currentAnimation == PlayerSpriteAnimations.IDLE_RIGHT
+      ) {
+        break;
+      }
+      if (player.currentAnimation == PlayerSpriteAnimations.RUN_LEFT) {
+        player.nextAnimation = PlayerSpriteAnimations.IDLE_LEFT;
+      }
+      if (player.currentAnimation == PlayerSpriteAnimations.RUN_RIGHT) {
+        player.nextAnimation = PlayerSpriteAnimations.IDLE_RIGHT;
+      }
+      break;
   }
 
-  const movement =
-    Math.pow(
-      Math.abs(speedDifference) * accelerationRate,
-      player.velocityPower
-    ) * Math.sign(speedDifference);
-
-  // Check for transition to idle state
-  if (
-    Math.abs(player.nextTranslation.x) > 0 &&
-    !player.input.isLeftPressed &&
-    !player.input.isrightPressed
-  ) {
-    player.nextTranslation.x +=
-      (movement * player.time.delta) / player.body.mass();
-    if (!player.isTouchingGround) {
-      player.nextTranslation.y = -player.gravity;
-    }
-  }
-
-  // Check for transition to falling state
-  if (!player.isTouchingGround) {
-    player.nextTranslation.y = 0;
-
+  /* -------------------------------------------------------------------------- */
+  /*                                Change state                                */
+  /* -------------------------------------------------------------------------- */
+  // Transition to falling state
+  if (!player.isTouchingGround && player.nextTranslation.y <= 0) {
+    player.fromIdleToFalling += 1;
     player.state = PlayerStates.FALLING;
   }
 
-  // Check for transition to running state
-  if (player.input.isLeftPressed || player.input.isrightPressed) {
+  // Transition to running state
+  if (player.input.isLeft() || player.input.isRight()) {
     player.state = PlayerStates.RUNNING;
   }
 
-  // Check for transition to jumping state
-  if (player.input.isUpPressed) {
+  // Transition to jumping state
+  if (player.input.isUp()) {
+    player.jumpToConsume = true;
+    player.timeJumpWasPressed = player.time.elapsed;
     player.state = PlayerStates.JUMPING;
   }
 };

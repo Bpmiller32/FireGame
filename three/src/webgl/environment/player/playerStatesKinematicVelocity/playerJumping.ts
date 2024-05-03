@@ -12,7 +12,7 @@ const playerJumping = (player: Player) => {
     player.nextAnimation = PlayerSpriteAnimations.RUN_LEFT;
   }
 
-  if (player.input.isUpPressed) {
+  if (player.input.isUpKeyPressed) {
     // player.nextTranslation.y += player.jumpSpeed;
   }
 
@@ -22,12 +22,12 @@ const playerJumping = (player: Player) => {
   }
 
   // Check for transition to running state
-  if (player.input.isLeftPressed || player.input.isrightPressed) {
+  if (player.input.isLeftKeyPressed || player.input.isRightKeyPressed) {
     player.state = PlayerStates.RUNNING;
   }
 
   // Check for transition to jumping state
-  if (player.input.isUpPressed) {
+  if (player.input.isUpKeyPressed) {
     player.state = PlayerStates.JUMPING;
   }
 };

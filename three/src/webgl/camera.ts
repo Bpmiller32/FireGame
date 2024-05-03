@@ -34,7 +34,7 @@ export default class Camera {
       500
     );
 
-    this.instance.position.set(0, 5, 20);
+    this.instance.position.set(0, 5, 30);
     this.scene.add(this.instance);
   }
 

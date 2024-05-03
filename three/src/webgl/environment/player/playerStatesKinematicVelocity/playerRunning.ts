@@ -7,7 +7,7 @@ const playerRunning = (player: Player) => {
   let direction = 0;
 
   //   Left
-  if (player.input.isLeftPressed && !player.input.isrightPressed) {
+  if (player.input.isLeftKeyPressed && !player.input.isRightKeyPressed) {
     // Set sprite
     player.isFacingRight = false;
     player.nextAnimation = PlayerSpriteAnimations.RUN_LEFT;
@@ -15,18 +15,18 @@ const playerRunning = (player: Player) => {
     direction = -1;
   }
   //   Right
-  else if (!player.input.isLeftPressed && player.input.isrightPressed) {
+  else if (!player.input.isLeftKeyPressed && player.input.isRightKeyPressed) {
     player.isFacingRight = true;
     player.nextAnimation = PlayerSpriteAnimations.RUN_RIGHT;
 
     direction = 1;
   }
   //   Neither
-  else if (!player.input.isLeftPressed && !player.input.isrightPressed) {
+  else if (!player.input.isLeftKeyPressed && !player.input.isRightKeyPressed) {
     direction = 0;
   }
   //   Both
-  else if (player.input.isLeftPressed && player.input.isrightPressed) {
+  else if (player.input.isLeftKeyPressed && player.input.isRightKeyPressed) {
     if (player.currentAnimation == PlayerSpriteAnimations.RUN_LEFT) {
       player.nextAnimation = PlayerSpriteAnimations.IDLE_LEFT;
     }
@@ -93,7 +93,7 @@ const playerRunning = (player: Player) => {
   // }
 
   // Check for transition to jumping state
-  if (player.input.isUpPressed) {
+  if (player.input.isUpKeyPressed) {
     player.state = PlayerStates.JUMPING;
   }
 };

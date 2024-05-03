@@ -12,7 +12,8 @@ export default class Time extends EventEmitter<EventMap> {
   public start = this.clock.startTime;
   public elapsed = this.clock.getElapsedTime();
   public delta = 16; // 16 because at 60 fps delta for 1 frame is ~16. Avoid using 0 for bugs
-  public previous = 0;
+
+  private previous = 0;
 
   constructor() {
     super();

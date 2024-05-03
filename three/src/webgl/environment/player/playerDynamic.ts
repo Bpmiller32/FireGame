@@ -4,7 +4,7 @@ import Experience from "../../experience";
 import Debug from "../../utils/debug";
 import SpriteAnimator from "../../utils/spriteAnimator";
 import RigidBodyUserData from "../../utils/types/rigidbodyUserData";
-import PlayerStates from "./playerStatesKinematicPosition/playerStates";
+import PlayerStates from "../../utils/types/playerStates";
 import PlayerSpriteAnimations from "./playerSpriteAnimations";
 import playerIdle from "./playerStatesDynamic/playerIdle";
 import playerFalling from "./playerStatesDynamic/playerFalling";

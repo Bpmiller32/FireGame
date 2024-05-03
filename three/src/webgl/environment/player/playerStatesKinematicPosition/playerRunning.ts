@@ -1,88 +1,93 @@
 import Player from "../playerKinematicPosition";
-import PlayerStates from "./playerStates";
+import PlayerStates from "../../../utils/types/playerStates";
 import PlayerSpriteAnimations from "../playerSpriteAnimations";
+import GameMath from "../../../utils/gameMath";
+import PlayerDirection from "../../../utils/types/playerDirection";
 
 const playerRunning = (player: Player) => {
-  let direction = 0;
+  player.handledRunning += 1;
 
+  if (player.jumpStateTimer.isOn) {
+    console.log(
+      "time in jumpState: ",
+      player.time.elapsed - player.jumpStateTimer.time
+    );
+
+    player.jumpStateTimer.isOn = false;
+    player.jumpStateTimer.time = 0;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /*                         Handle input and animation                         */
+  /* -------------------------------------------------------------------------- */
   //   Left
-  if (player.input.isLeftPressed && !player.input.isrightPressed) {
-    // Set sprite
-    player.isFacingRight = false;
+  if (player.input.isLeft()) {
+    player.direction = PlayerDirection.LEFT;
     player.nextAnimation = PlayerSpriteAnimations.RUN_LEFT;
-
-    direction = -1;
   }
   //   Right
-  else if (!player.input.isLeftPressed && player.input.isrightPressed) {
-    player.isFacingRight = true;
+  else if (player.input.isRight()) {
+    player.direction = PlayerDirection.RIGHT;
     player.nextAnimation = PlayerSpriteAnimations.RUN_RIGHT;
-
-    direction = 1;
   }
-  //   Neither
-  else if (!player.input.isLeftPressed && !player.input.isrightPressed) {
-    direction = 0;
-  }
-  //   Both
-  else if (player.input.isLeftPressed && player.input.isrightPressed) {
-    if (player.currentAnimation == PlayerSpriteAnimations.RUN_LEFT) {
-      player.nextAnimation = PlayerSpriteAnimations.IDLE_LEFT;
-    }
-    if (player.currentAnimation == PlayerSpriteAnimations.RUN_RIGHT) {
-      player.nextAnimation = PlayerSpriteAnimations.IDLE_RIGHT;
-    }
-
-    direction = 0;
+  //   Both and neither
+  else if (
+    player.input.isNeitherLeftRight() ||
+    player.input.isLeftRightCombo()
+  ) {
+    player.direction = PlayerDirection.NEUTRAL;
   }
 
-  //   Weird friction issue from character controller's moveandslide
-  if (Math.abs(player.nextTranslation.x) < 0.01) {
+  /* -------------------------------------------------------------------------- */
+  /*                               Handle movement                              */
+  /* -------------------------------------------------------------------------- */
+  // Accelerate
+  if (player.direction != PlayerDirection.NEUTRAL) {
+    player.nextTranslation.x = GameMath.moveTowardsPoint(
+      player.nextTranslation.x,
+      player.direction * player.maxSpeed,
+      player.acceleration * player.time.delta
+    );
+  }
+  // Decelerate
+  else {
+    player.nextTranslation.x = GameMath.moveTowardsPoint(
+      player.nextTranslation.x,
+      0,
+      player.GroundDeceleration * player.time.delta
+    );
+  }
+
+  // Hitting a wall
+  if (
+    (player.isTouchingLeftFace && player.direction == PlayerDirection.LEFT) ||
+    (player.isTouchingRightFace && player.direction == PlayerDirection.RIGHT)
+  ) {
     player.nextTranslation.x = 0;
   }
 
-  const targetSpeed = direction * player.maxSpeed;
-  const speedDifference = targetSpeed - player.nextTranslation.x;
-
-  let accelerationRate = 0;
-  if (Math.abs(speedDifference) > 0.1) {
-    accelerationRate = player.acceleration;
-  } else {
-    accelerationRate = player.decelleration;
-  }
-
-  const movement =
-    Math.pow(
-      Math.abs(speedDifference) * accelerationRate,
-      player.velocityPower
-    ) * Math.sign(speedDifference);
-
-  //   // Debug
-  //   console.log({
-  //     targetSpeed: targetSpeed,
-  //     speedDifference: speedDifference,
-  //     accelerationRate: accelerationRate,
-  //     nextTranslation: player.nextTranslation.x,
-  //   });
-
-  player.nextTranslation.x +=
-    (movement * player.time.delta) / player.body.mass();
+  /* -------------------------------------------------------------------------- */
+  /*                                Change state                                */
+  /* -------------------------------------------------------------------------- */
+  // Transition to falling state
   if (!player.isTouchingGround) {
-    player.nextTranslation.y = -player.gravity;
+    player.state = PlayerStates.FALLING;
   }
 
-  // Check for transition to idle state
+  // Transition to idle state
   if (
-    Math.abs(player.nextTranslation.x) <= player.maxSpeed * 0.05 &&
-    !player.input.isLeftPressed &&
-    !player.input.isrightPressed
+    Math.abs(player.nextTranslation.x) <= player.maxSpeed * 0.01 &&
+    (player.input.isNeitherLeftRight() || player.input.isLeftRightCombo())
   ) {
+    // if velocity is 1% of topspeed, smooth to 0 and stateChange
     player.nextTranslation.x = 0;
     player.state = PlayerStates.IDLE;
   }
 
-  // Check for transition to jumping state
-  if (player.input.isUpPressed) {
+  // Transition to jumping state
+  if (player.input.isUp()) {
+    player.jumpToConsume = true;
+    player.timeJumpWasPressed = player.time.elapsed;
     player.state = PlayerStates.JUMPING;
   }
 };
