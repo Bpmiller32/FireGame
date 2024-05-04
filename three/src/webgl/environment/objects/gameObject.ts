@@ -2,6 +2,7 @@ import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
 import Physics from "../physics";
+import RigidBodyUserData from "../../utils/types/rigidbodyUserData";
 
 export default class GameObject {
   protected experience: Experience;
@@ -98,7 +99,7 @@ export default class GameObject {
 
     this.body = this.physics.world.createRigidBody(rigidBodyType);
     this.body.setTranslation({ x: position.x, y: position.y }, true);
-    this.body.userData = { name: this.constructor.name };
+    this.body.userData = { name: this.constructor.name } as RigidBodyUserData;
 
     this.physics.world.createCollider(shape!, this.body);
   }

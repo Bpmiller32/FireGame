@@ -15,30 +15,62 @@ export default class World {
   private resources: ResourceLoader;
 
   // World assets
-  public floor1?: Floor;
+  public player?: Player;
+
   public box1?: Box;
   public box2?: Box;
   public sphere?: Sphere;
-  public player?: Player;
-  public floor2?: Floor;
+
+  public allPlatforms: Floor[];
+  public mediumSizedPlatforms: THREE.Vec2[];
 
   constructor() {
     this.experience = Experience.getInstance();
     this.resources = this.experience.resources;
+    this.allPlatforms = [];
+    this.mediumSizedPlatforms = [
+      { x: -5.0, y: 3.0 },
+      { x: -10.0, y: 6.0 },
+      { x: -12.5, y: 9.0 },
+    ];
 
     // Resources
     this.resources?.on("ready", () => {
-      this.floor1 = new Floor(
-        { width: 200, height: 0 },
-        { x: 0, y: 0 },
-        new THREE.MeshBasicMaterial({ color: "green" })
-      );
-      this.floor2 = new Floor(
-        { width: 10, height: 0 },
-        { x: 3, y: 2.5 },
-        new THREE.MeshBasicMaterial({ color: "green" })
+      // Initial floor
+      this.allPlatforms.push(
+        new Floor(
+          { width: 200, height: 0.75, depth: 2 },
+          { x: 0, y: 0 },
+          new THREE.MeshBasicMaterial({
+            color: "green",
+            opacity: 1,
+            transparent: true,
+          }),
+          "MainFloor"
+        )
       );
 
+      // Platforms
+
+      for (let i = 0; i < this.mediumSizedPlatforms.length; i++) {
+        this.allPlatforms.push(
+          new Floor(
+            { width: 1.5, height: 0.75, depth: 2 },
+            {
+              x: this.mediumSizedPlatforms[i].x,
+              y: this.mediumSizedPlatforms[i].y,
+            },
+            new THREE.MeshBasicMaterial({
+              color: "green",
+              opacity: 1,
+              transparent: true,
+            }),
+            "Floor:" + i
+          )
+        );
+      }
+
+      // Random dynamic objects
       this.box1 = new Box(
         { width: 1, height: 1 },
         { x: 7, y: 3 },
@@ -76,9 +108,6 @@ export default class World {
   }
 
   public destroy() {
-    this.floor1?.destroy();
-    this.floor2?.destroy();
-
     this.box1?.destroy();
     this.box2?.destroy();
 

@@ -4,78 +4,18 @@ import SpriteAnimations from "./spriteAnimations";
 import PlayerDirection from "../../../utils/types/playerDirection";
 import GameMath from "../../../utils/gameMath";
 
-function executeJump(player: Player) {
-  if (
-    !player.endedJumpEarly &&
-    !player.isTouching.ground &&
-    !player.input.isUp() &&
-    player.nextTranslation.y > 0
-  ) {
-    player.endedJumpEarly = true;
-  }
-
-  if (!player.jumpToConsume && !player.HasBufferedJump) {
-    return;
-  }
-
-  // Execute jump
-  if (player.isTouching.ground || player.canUseCoyote) {
-    player.endedJumpEarly = false;
-    player.timeJumpWasPressed = 0;
-    player.bufferJumpUsable = false;
-    player.coyoteUseable = false;
-    player.nextTranslation.y = player.JumpPower;
-  }
-
-  player.jumpToConsume = false;
-  // player.state = PlayerStates.FALLING;
-}
-
 const playerJumping = (player: Player) => {
-  /* -------------------------------------------------------------------------- */
-  /*                                    Debug                                   */
-  /* -------------------------------------------------------------------------- */
-
-  // player.body.setTranslation(
-  //   {
-  //     x: player.currentTranslation.x,
-  //     y: player.currentTranslation.y + 3,
-  //   },
-  //   true
-  // );
-
-  // Set buffer jump
-  if (
-    player.bufferJumpUsable &&
-    player.time.elapsed < player.timeJumpWasPressed + player.JumpBuffer
-  ) {
-    player.HasBufferedJump = player.bufferJumpUsable;
-  } else {
-    player.HasBufferedJump = false;
-  }
-
-  // Set coyote jump
-  if (
-    player.coyoteUseable &&
-    !player.isTouching.ground &&
-    player.time.elapsed < player.frameLeftGrounded + player.coyoteTime
-  ) {
-    player.canUseCoyote = true;
-  } else {
-    player.canUseCoyote = false;
-  }
-
   /* -------------------------------------------------------------------------- */
   /*                         Handle input and animation                         */
   /* -------------------------------------------------------------------------- */
   //   Left
   if (player.input.isLeft()) {
-    player.direction = PlayerDirection.LEFT;
+    player.horizontalDirection = PlayerDirection.LEFT;
     player.nextAnimation = SpriteAnimations.RUN_LEFT;
   }
   //   Right
   else if (player.input.isRight()) {
-    player.direction = PlayerDirection.RIGHT;
+    player.horizontalDirection = PlayerDirection.RIGHT;
     player.nextAnimation = SpriteAnimations.RUN_RIGHT;
   }
   //   Both and neither
@@ -83,20 +23,131 @@ const playerJumping = (player: Player) => {
     player.input.isNeitherLeftRight() ||
     player.input.isLeftRightCombo()
   ) {
-    player.direction = PlayerDirection.NEUTRAL;
+    player.horizontalDirection = PlayerDirection.NEUTRAL;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                                 Handle jump                                */
-  /* -------------------------------------------------------------------------- */
-  executeJump(player);
+  // Timer
+  player.timeInJumpState = player.time.elapsed - player.timeJumpWasEntered;
+  player.bufferJumpAvailable = false;
 
-  /* -------------------------------------------------------------------------- */
-  /*                                Change state                                */
-  /* -------------------------------------------------------------------------- */
-  if (player.currentTranslation.y >= player.JumpPower) {
+  // Apply minimum jump
+  if (player.time.elapsed < player.timeJumpWasEntered + player.minJumpTime) {
+    player.nextTranslation.y = player.JumpPower;
+  } else {
     player.state = PlayerStates.FALLING;
   }
+
+  // If still holding input.jump(), continue to apply jump until maxJump
+  if (player.input.isUp()) {
+    if (player.time.elapsed < player.timeJumpWasEntered + player.maxJumpTime) {
+      player.state = PlayerStates.JUMPING;
+    } else {
+      player.endedJumpEarly = false;
+    }
+  } else {
+    player.endedJumpEarly = true;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /*                               Handle movement                              */
+  /* -------------------------------------------------------------------------- */
+  // Accelerate
+  if (player.horizontalDirection != PlayerDirection.NEUTRAL) {
+    player.nextTranslation.x = GameMath.moveTowardsPoint(
+      player.nextTranslation.x,
+      player.horizontalDirection * player.maxGroundSpeed,
+      player.fallAcceleration * player.time.delta
+    );
+  }
+  // Decelerate
+  else {
+    console.log("do i ever hit this?");
+    player.nextTranslation.x = GameMath.moveTowardsPoint(
+      player.nextTranslation.x,
+      0,
+      player.fallDeceleration * player.time.delta
+    );
+  }
+
+  // // Check if ended jump early
+  // if (
+  //   !player.endedJumpEarly &&
+  //   !player.isTouching.ground &&
+  //   !player.input.isUp() &&
+  //   player.nextTranslation.y > 0
+  // ) {
+  //   console.log("true");
+  //   player.endedJumpEarly = true;
+  // }
+
+  // // Jump was ended early, apply inAirGravity but don't FallState immediately in case jump needs to be applied to reach minimum jump height
+  // if (player.endedJumpEarly && player.nextTranslation.y > 0) {
+  //   let inAirGravity = player.fallAcceleration;
+  //   inAirGravity *= player.JumpEndEarlyGravityModifier;
+
+  //   player.nextTranslation.y = GameMath.moveTowardsPoint(
+  //     player.nextTranslation.y,
+  //     -player.maxFallSpeed,
+  //     inAirGravity * player.time.delta
+  //   );
+  // }
+
+  // if (
+  //   !(
+  //     player.isTouching.ground &&
+  //     player.time.elapsed < player.timeJumpWasPressed + player.JumpBuffer
+  //   )
+  // ) {
+  // }
+  //   console.log("leaving");
+  //   player.timeJumpWasPressed = 0;
+  //   player.state = PlayerStates.FALLING;
+  // }
+
+  // if (
+  //   player.isTouching.ground ||
+  //   (player.coyoteUseable &&
+  //     !player.isTouching.ground &&
+  //     player.time.elapsed < player.frameLeftGrounded + player.coyoteTime)
+  // ) {
+  //   player.endedJumpEarly = false;
+  //   player.timeJumpWasPressed = 0;
+  //   player.bufferJumpUsable = false;
+  //   player.coyoteUseable = false;
+  // player.nextTranslation.y = player.JumpPower;
+  // }
+
+  // player.jumpToConsume = false;
+
+  // if (player.timeInJumpState < player.maxJumpTime * 0.5) {
+  //   player.nextTranslation.y = GameMath.moveTowardsPoint(
+  //     player.nextTranslation.y,
+  //     player.JumpPower,
+  //     player.fallAcceleration * player.time.delta
+  //   );
+  // } else {
+  //   console.log("here");
+  //   if (player.input.isUp()) {
+  //     player.nextTranslation.y = GameMath.moveTowardsPoint(
+  //       player.nextTranslation.y,
+  //       player.JumpPower,
+  //       player.fallAcceleration * player.time.delta
+  //     );
+  //   } else {
+  //     player.timeInJumpState = 0;
+  //     player.timeJumpWasPressed = 0;
+  //     player.state = PlayerStates.FALLING;
+  //   }
+  // }
+
+  // if (
+  //   // player.nextTranslation.y == player.JumpPower ||
+  //   player.timeInJumpState > player.maxJumpTime
+  // ) {
+  //   player.timeInJumpState = 0;
+  //   player.timeJumpWasPressed = 0;
+  //   player.state = PlayerStates.FALLING;
+  // }
 };
 
 export default playerJumping;

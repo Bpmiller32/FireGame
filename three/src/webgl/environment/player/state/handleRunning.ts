@@ -10,12 +10,12 @@ const playerRunning = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   //   Left
   if (player.input.isLeft()) {
-    player.direction = PlayerDirection.LEFT;
+    player.horizontalDirection = PlayerDirection.LEFT;
     player.nextAnimation = SpriteAnimations.RUN_LEFT;
   }
   //   Right
   else if (player.input.isRight()) {
-    player.direction = PlayerDirection.RIGHT;
+    player.horizontalDirection = PlayerDirection.RIGHT;
     player.nextAnimation = SpriteAnimations.RUN_RIGHT;
   }
   //   Both and neither
@@ -23,17 +23,17 @@ const playerRunning = (player: Player) => {
     player.input.isNeitherLeftRight() ||
     player.input.isLeftRightCombo()
   ) {
-    player.direction = PlayerDirection.NEUTRAL;
+    player.horizontalDirection = PlayerDirection.NEUTRAL;
   }
 
   /* -------------------------------------------------------------------------- */
   /*                               Handle movement                              */
   /* -------------------------------------------------------------------------- */
   // Accelerate
-  if (player.direction != PlayerDirection.NEUTRAL) {
+  if (player.horizontalDirection != PlayerDirection.NEUTRAL) {
     player.nextTranslation.x = GameMath.moveTowardsPoint(
       player.nextTranslation.x,
-      player.direction * player.maxGroundSpeed,
+      player.horizontalDirection * player.maxGroundSpeed,
       player.groundAcceleration * player.time.delta
     );
   }
@@ -48,8 +48,10 @@ const playerRunning = (player: Player) => {
 
   // Hitting a wall
   if (
-    (player.isTouching.leftSide && player.direction == PlayerDirection.LEFT) ||
-    (player.isTouching.rightSide && player.direction == PlayerDirection.RIGHT)
+    (player.isTouching.leftSide &&
+      player.horizontalDirection == PlayerDirection.LEFT) ||
+    (player.isTouching.rightSide &&
+      player.horizontalDirection == PlayerDirection.RIGHT)
   ) {
     player.nextTranslation.x = 0;
   }
@@ -57,8 +59,16 @@ const playerRunning = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
+  // In a grounded state, give coyote and reset early jump gravity
+  player.coyoteAvailable = true;
+  player.endedJumpEarly = false;
+  if (!player.input.isUp()) {
+    player.bufferJumpAvailable = true;
+  }
+
   // Transition to falling state
   if (!player.isTouching.ground) {
+    player.timeFallWasEntered = player.time.elapsed;
     player.state = PlayerStates.FALLING;
   }
 
@@ -73,8 +83,8 @@ const playerRunning = (player: Player) => {
   }
 
   // Transition to jumping state
-  if (player.input.isUp()) {
-    player.timeJumpWasPressed = player.time.elapsed;
+  if (player.input.isUp() && player.bufferJumpAvailable) {
+    player.timeJumpWasEntered = player.time.elapsed;
     player.state = PlayerStates.JUMPING;
   }
 };

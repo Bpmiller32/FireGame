@@ -10,8 +10,9 @@ const debugPlayer = (player: Player) => {
   const status = playerDebug?.addFolder("status");
   status?.open();
   status?.add(player, "state").name("state").listen();
-  status?.add(player, "direction").name("xDirection").listen();
+  status?.add(player, "horizontalDirection").name("xDirection").listen();
   status?.add(player.isTouching, "ground").name("isTouchingGround").listen();
+  status?.add(player, "coyoteAvailable").name("coyoteAvailable").listen();
   status
     ?.add(player.nextTranslation, "x")
     .name("xVelocity")
@@ -28,6 +29,32 @@ const debugPlayer = (player: Player) => {
   // Statemanager debug
   const stateDebug = playerDebug?.addFolder("stateDebug");
   stateDebug?.open();
+
+  stateDebug
+    ?.add(player.time, "elapsed")
+    .name("elapsedTime")
+    .min(0.001)
+    .listen();
+  stateDebug
+    ?.add(player, "timeJumpWasEntered")
+    .name("timeJumpWasEntered")
+    .min(0.001)
+    .listen();
+  stateDebug
+    ?.add(player, "timeInJumpState")
+    .name("timeInJumpState")
+    .min(0.001)
+    .listen();
+  stateDebug
+    ?.add(player, "timeFallWasEntered")
+    .name("timeFallWasEntered")
+    .min(0.001)
+    .listen();
+  stateDebug
+    ?.add(player, "timeInFallState")
+    .name("timeInFallState")
+    .min(0.001)
+    .listen();
 };
 
 export default debugPlayer;

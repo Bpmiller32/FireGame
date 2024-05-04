@@ -24,7 +24,7 @@ export default class Player extends GameObject {
 
   // Player variables
   public state!: string;
-  public direction!: number;
+  public horizontalDirection!: number;
   public colliderOffset!: number;
   public nextTranslation!: RAPIER.Vector2;
 
@@ -47,20 +47,23 @@ export default class Player extends GameObject {
   public fallAcceleration!: number;
   public fallDeceleration!: number;
 
-  public groundingForce!: number;
-
-  public frameLeftGrounded!: number;
   public JumpEndEarlyGravityModifier!: number;
-  public JumpBuffer!: number;
-  public HasBufferedJump!: boolean;
-  public timeJumpWasPressed!: number;
-  public coyoteTime!: number;
+  public bufferJumpAvailable!: boolean;
+
+  public timeJumpWasEntered!: number;
+  timeInJumpState = 0.001;
+  timeFallWasEntered = 0;
+  timeInFallState = 0.001;
+
+  JumpPower = 16;
+  minJumpTime = 0.15;
+  maxJumpTime = 0.3;
+  coyoteTime = 0.1;
+  coyoteAvailable = false;
+
   public endedJumpEarly!: boolean;
-  public jumpToConsume!: boolean;
-  public JumpPower!: number;
-  public canUseCoyote!: boolean;
-  public coyoteUseable!: boolean;
-  public bufferJumpUsable!: boolean;
+  groundWithinBufferRange = false;
+  bufferJumpRange = 1;
 
   public constructor(
     size: { width: number; height: number },
@@ -93,7 +96,7 @@ export default class Player extends GameObject {
     /*                       State, animation, and collision                      */
     /* -------------------------------------------------------------------------- */
     this.state = PlayerStates.IDLE;
-    this.direction = PlayerDirection.NEUTRAL;
+    this.horizontalDirection = PlayerDirection.NEUTRAL;
     this.colliderOffset = 0.01;
     this.nextTranslation = new RAPIER.Vector2(0, 0);
 
@@ -125,24 +128,13 @@ export default class Player extends GameObject {
     // Deceleration in air only after stopping input mid-air
     this.fallDeceleration = 30;
 
-    // A constant downward force applied while grounded. Helps on slopes
-    this.groundingForce = -1.5;
-
     /* -------------------------------------------------------------------------- */
     /*                                    Jump                                    */
     /* -------------------------------------------------------------------------- */
-    this.frameLeftGrounded = 0;
     this.JumpEndEarlyGravityModifier = 3;
-    this.JumpBuffer = 0.2;
-    this.HasBufferedJump = false;
-    this.timeJumpWasPressed = 0;
-    this.coyoteTime = 0.15;
-    this.endedJumpEarly = false;
-    this.jumpToConsume = false;
-    this.JumpPower = 36;
-    this.canUseCoyote = false;
-    this.coyoteUseable = false;
-    this.bufferJumpUsable = false;
+    // this.JumpBuffer = 0.2;
+    this.bufferJumpAvailable = false;
+    this.timeJumpWasEntered = 0;
   }
 
   private setSpriteAnimator() {
@@ -162,7 +154,7 @@ export default class Player extends GameObject {
     this.characterController = this.physics?.world?.createCharacterController(
       this.colliderOffset
     );
-    // this.characterController.enableSnapToGround(this.offset);
+    this.characterController.enableSnapToGround(this.colliderOffset);
   }
 
   private updatePlayerState() {
@@ -232,11 +224,28 @@ export default class Player extends GameObject {
       return;
     }
 
-    if (groundHit.toi <= this.colliderOffset && !this.isTouching.ground) {
+    if (
+      groundHit.toi <= this.bufferJumpRange &&
+      !this.isTouching.ground &&
+      this.nextTranslation.y <= 0
+    ) {
+      // console.log({ toi: groundHit.toi });
+      this.groundWithinBufferRange = true;
+    } else {
+      this.groundWithinBufferRange = false;
+    }
+
+    if (
+      groundHit.toi <= this.colliderOffset + 0.001 &&
+      !this.isTouching.ground
+    ) {
       this.isTouching.ground = true;
-    } else if (groundHit!.toi > this.colliderOffset && this.isTouching.ground) {
+    } else if (
+      groundHit.toi > this.colliderOffset + 0.001 &&
+      this.isTouching.ground
+    ) {
       this.isTouching.ground = false;
-      this.frameLeftGrounded = this.time.elapsed;
+      // this.frameLeftGrounded = this.time.elapsed;
     }
   }
 
@@ -255,6 +264,12 @@ export default class Player extends GameObject {
 
     // Wall touched
     if (wallHit && Math.abs(wallHit.toi) <= this.colliderOffset) {
+      // console.log({
+      //   toi: wallHit.toi,
+      //   direction: direction,
+      //   body: wallHit.collider.parent()?.userData,
+      // });
+
       if (direction == PlayerDirection.RIGHT) {
         this.isTouching.rightSide = true;
         return;

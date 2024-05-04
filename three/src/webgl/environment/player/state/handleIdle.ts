@@ -7,7 +7,7 @@ const playerIdle = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                              Handle animation                              */
   /* -------------------------------------------------------------------------- */
-  switch (player.direction) {
+  switch (player.horizontalDirection) {
     case PlayerDirection.LEFT:
       player.nextAnimation = SpriteAnimations.IDLE_LEFT;
       break;
@@ -35,8 +35,16 @@ const playerIdle = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
+  // In a grounded state, give coyote and reset early jump gravity
+  player.coyoteAvailable = true;
+  player.endedJumpEarly = false;
+  if (!player.input.isUp()) {
+    player.bufferJumpAvailable = true;
+  }
+
   // Transition to falling state
   if (!player.isTouching.ground && player.nextTranslation.y <= 0) {
+    player.timeFallWasEntered = player.time.elapsed;
     player.state = PlayerStates.FALLING;
   }
 
@@ -46,8 +54,8 @@ const playerIdle = (player: Player) => {
   }
 
   // Transition to jumping state
-  if (player.input.isUp()) {
-    player.timeJumpWasPressed = player.time.elapsed;
+  if (player.input.isUp() && player.bufferJumpAvailable) {
+    player.timeJumpWasEntered = player.time.elapsed;
     player.state = PlayerStates.JUMPING;
   }
 };

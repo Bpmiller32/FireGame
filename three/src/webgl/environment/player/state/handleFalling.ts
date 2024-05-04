@@ -6,16 +6,21 @@ import GameMath from "../../../utils/gameMath";
 
 const playerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
+  /*                                    Timer                                   */
+  /* -------------------------------------------------------------------------- */
+  player.timeInFallState = player.time.elapsed - player.timeFallWasEntered;
+
+  /* -------------------------------------------------------------------------- */
   /*                         Handle input and animation                         */
   /* -------------------------------------------------------------------------- */
   //   Left
   if (player.input.isLeft()) {
-    player.direction = PlayerDirection.LEFT;
+    player.horizontalDirection = PlayerDirection.LEFT;
     player.nextAnimation = SpriteAnimations.RUN_LEFT;
   }
   //   Right
   else if (player.input.isRight()) {
-    player.direction = PlayerDirection.RIGHT;
+    player.horizontalDirection = PlayerDirection.RIGHT;
     player.nextAnimation = SpriteAnimations.RUN_RIGHT;
   }
   //   Both and neither
@@ -23,14 +28,14 @@ const playerFalling = (player: Player) => {
     player.input.isNeitherLeftRight() ||
     player.input.isLeftRightCombo()
   ) {
-    player.direction = PlayerDirection.NEUTRAL;
+    player.horizontalDirection = PlayerDirection.NEUTRAL;
   }
 
   /* -------------------------------------------------------------------------- */
   /*                               Handle gravity                               */
   /* -------------------------------------------------------------------------- */
   if (player.isTouching.ground && player.nextTranslation.y <= 0) {
-    player.nextTranslation.y = player.groundingForce;
+    player.nextTranslation.y = 0;
   } else {
     let inAirGravity = player.fallAcceleration;
 
@@ -49,11 +54,11 @@ const playerFalling = (player: Player) => {
   /*                               Handle movement                              */
   /* -------------------------------------------------------------------------- */
   // Accelerate
-  if (player.direction != PlayerDirection.NEUTRAL) {
+  if (player.horizontalDirection != PlayerDirection.NEUTRAL) {
     player.nextTranslation.x = GameMath.moveTowardsPoint(
       player.nextTranslation.x,
-      player.direction * player.maxGroundSpeed,
-      player.groundAcceleration * player.time.delta
+      player.horizontalDirection * player.maxGroundSpeed,
+      player.fallAcceleration * player.time.delta
     );
   }
   // Decelerate
@@ -68,8 +73,26 @@ const playerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
-  // Stay in falling state
+  if (player.groundWithinBufferRange && !player.input.isUp()) {
+    console.log("gave buffer jump");
+    player.bufferJumpAvailable = true;
+  }
+
   if (!player.isTouching.ground) {
+    // Allow transition into jumping state when otherwise should be falling
+    // Coyote time
+    if (
+      player.input.isUp() &&
+      player.coyoteAvailable &&
+      player.time.elapsed < player.timeFallWasEntered + player.coyoteTime
+    ) {
+      console.log("COYOTE!");
+      player.coyoteAvailable = false;
+      player.timeJumpWasEntered = player.time.elapsed;
+      player.state = PlayerStates.JUMPING;
+    }
+
+    // Stay in falling state
     return;
   }
 

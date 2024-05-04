@@ -57,7 +57,7 @@ export default class Input {
     window.addEventListener(
       "keydown",
       (event: KeyboardEvent) => {
-        this.onKeyDown(event.code);
+        this.onKeyDown(event.code, event.repeat);
       },
       false
     );
@@ -70,7 +70,7 @@ export default class Input {
     );
   }
 
-  private onKeyDown(keyName: string) {
+  private onKeyDown(keyName: string, isBeingHeld: boolean) {
     for (const keyIndex in this.keys) {
       if (keyName == this.keys[keyIndex].keyCode) {
         this.keys[keyIndex].isPressed(true);
