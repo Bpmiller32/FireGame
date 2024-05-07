@@ -57,13 +57,14 @@ export default class Player extends GameObject {
 
   JumpPower = 16;
   minJumpTime = 0.15;
-  maxJumpTime = 0.3;
+  maxJumpTime = 0.25;
   coyoteTime = 0.1;
   coyoteAvailable = false;
 
   public endedJumpEarly!: boolean;
   groundWithinBufferRange = false;
   bufferJumpRange = 1;
+  debugCoyoteCount = 0;
 
   public constructor(
     size: { width: number; height: number },
@@ -205,51 +206,64 @@ export default class Player extends GameObject {
   }
 
   private detectCollisions() {
-    this.detectGround();
-    this.detectWall(PlayerDirection.LEFT);
-    this.detectWall(PlayerDirection.RIGHT);
+    this.detectVerticalContact(PlayerDirection.UP);
+    this.detectVerticalContact(PlayerDirection.DOWN);
+    this.detectHorizontalContact(PlayerDirection.LEFT);
+    this.detectHorizontalContact(PlayerDirection.RIGHT);
   }
 
-  private detectGround() {
-    const groundHit = this.physics.world.castShape(
+  private detectVerticalContact(direction: number) {
+    const groundCeilingHit = this.physics.world.castShape(
       this.currentTranslation,
       0,
-      { x: 0, y: -1 },
+      { x: 0, y: direction },
       this.body.collider(0).shape,
       1000,
       false
     );
 
-    if (!groundHit) {
+    if (!groundCeilingHit) {
       return;
     }
 
+    // Detect ground buffer within range for buffer jump
     if (
-      groundHit.toi <= this.bufferJumpRange &&
+      groundCeilingHit.toi <= this.bufferJumpRange &&
       !this.isTouching.ground &&
       this.nextTranslation.y <= 0
     ) {
-      // console.log({ toi: groundHit.toi });
       this.groundWithinBufferRange = true;
     } else {
       this.groundWithinBufferRange = false;
     }
 
+    // Detect ground or ceiling touch
     if (
-      groundHit.toi <= this.colliderOffset + 0.001 &&
-      !this.isTouching.ground
+      groundCeilingHit.toi <= this.colliderOffset + 0.001 &&
+      (!this.isTouching.ground || !this.isTouching.ceiling)
     ) {
-      this.isTouching.ground = true;
+      if (direction == PlayerDirection.UP) {
+        this.isTouching.ceiling = true;
+      }
+
+      if (direction == PlayerDirection.DOWN) {
+        this.isTouching.ground = true;
+      }
     } else if (
-      groundHit.toi > this.colliderOffset + 0.001 &&
-      this.isTouching.ground
+      groundCeilingHit.toi > this.colliderOffset + 0.001 &&
+      (this.isTouching.ground || this.isTouching.ceiling)
     ) {
-      this.isTouching.ground = false;
-      // this.frameLeftGrounded = this.time.elapsed;
+      if (direction == PlayerDirection.UP) {
+        this.isTouching.ceiling = false;
+      }
+
+      if (direction == PlayerDirection.DOWN) {
+        this.isTouching.ground = false;
+      }
     }
   }
 
-  private detectWall(direction: number) {
+  private detectHorizontalContact(direction: number) {
     const wallHit = this.physics.world.castShape(
       {
         x: this.currentTranslation.x + this.colliderOffset * direction,
@@ -295,7 +309,7 @@ export default class Player extends GameObject {
   public update() {
     this.updatePlayerState();
     this.updatePlayerSprite();
-    this.syncThreeToRapier();
+    this.syncGraphicsToPhysics();
     this.updateTranslation();
     this.detectCollisions();
   }

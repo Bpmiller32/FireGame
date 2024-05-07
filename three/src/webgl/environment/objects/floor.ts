@@ -22,9 +22,8 @@ export default class Floor extends GameObject {
     this.setMaterial(material);
     this.setMesh();
     this.setPhysics(size, position, rigidBodyType);
+    this.syncGraphicsToPhysics();
 
-    this.mesh.position.x = position.x;
-    this.mesh.position.y = position.y;
     this.body.userData = { name: name };
   }
 }

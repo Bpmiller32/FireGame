@@ -12,7 +12,9 @@ const debugPlayer = (player: Player) => {
   status?.add(player, "state").name("state").listen();
   status?.add(player, "horizontalDirection").name("xDirection").listen();
   status?.add(player.isTouching, "ground").name("isTouchingGround").listen();
+  status?.add(player.isTouching, "ceiling").name("isTouchingCeiling").listen();
   status?.add(player, "coyoteAvailable").name("coyoteAvailable").listen();
+  status?.add(player, "debugCoyoteCount").name("debugCoyoteCount").listen();
   status
     ?.add(player.nextTranslation, "x")
     .name("xVelocity")

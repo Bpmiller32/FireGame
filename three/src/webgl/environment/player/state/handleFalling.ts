@@ -74,7 +74,6 @@ const playerFalling = (player: Player) => {
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
   if (player.groundWithinBufferRange && !player.input.isUp()) {
-    console.log("gave buffer jump");
     player.bufferJumpAvailable = true;
   }
 
@@ -86,7 +85,7 @@ const playerFalling = (player: Player) => {
       player.coyoteAvailable &&
       player.time.elapsed < player.timeFallWasEntered + player.coyoteTime
     ) {
-      console.log("COYOTE!");
+      player.debugCoyoteCount += 1;
       player.coyoteAvailable = false;
       player.timeJumpWasEntered = player.time.elapsed;
       player.state = PlayerStates.JUMPING;

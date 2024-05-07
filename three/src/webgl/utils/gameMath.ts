@@ -32,8 +32,19 @@ export default class GameMath {
     if (magnitude <= maxDelta || magnitude == 0) {
       return target;
     }
-
     // // const newTarget = new Vector2(current.x + distance.x, current.y + distance.y)
     //     return current + a / magnitude * maxDistanceDelta;
+  }
+
+  public static lerp(start: number, end: number, t: number): number {
+    return start + (end - start) * t;
+  }
+
+  public static getRandomNumber(min: number, max: number): number {
+    return Math.random() * (max - min) + min;
+  }
+
+  public static clamp(min: number, max: number): number {
+    return Math.random() * (max - min) + min;
   }
 }

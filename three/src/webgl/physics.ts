@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import * as THREE from "three";
-import Experience from "../experience";
+import Experience from "./experience";
 import RAPIER from "@dimforge/rapier2d";
 
 export default class Physics {

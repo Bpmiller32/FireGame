@@ -11,7 +11,7 @@ import Renderer from "./renderer";
 import World from "./environment/world";
 import Debug from "./utils/debug";
 import Input from "./utils/input";
-import Physics from "./environment/physics";
+import Physics from "./physics";
 
 export default class Experience {
   // Class prop instance and "new" blocking constructor for Singleton

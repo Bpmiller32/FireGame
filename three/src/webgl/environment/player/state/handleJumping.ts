@@ -61,12 +61,17 @@ const playerJumping = (player: Player) => {
   }
   // Decelerate
   else {
-    console.log("do i ever hit this?");
     player.nextTranslation.x = GameMath.moveTowardsPoint(
       player.nextTranslation.x,
       0,
       player.fallDeceleration * player.time.delta
     );
+  }
+
+  // Hitting a ceiling
+  if (player.isTouching.ceiling && player.nextTranslation.y >= 0) {
+    player.nextTranslation.y = 0;
+    player.state = PlayerStates.FALLING;
   }
 
   // // Check if ended jump early

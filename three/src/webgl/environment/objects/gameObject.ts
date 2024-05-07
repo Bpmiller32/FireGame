@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
-import Physics from "../physics";
+import Physics from "../../physics";
 import RigidBodyUserData from "../../utils/types/rigidbodyUserData";
 
 export default class GameObject {
@@ -104,7 +104,7 @@ export default class GameObject {
     this.physics.world.createCollider(shape!, this.body);
   }
 
-  protected syncThreeToRapier() {
+  protected syncGraphicsToPhysics() {
     this.currentTranslation = this.body.translation();
     this.mesh.position.set(
       this.currentTranslation.x,

@@ -22,6 +22,6 @@ export default class Sphere extends GameObject {
   }
 
   public update() {
-    this.syncThreeToRapier();
+    this.syncGraphicsToPhysics();
   }
 }
