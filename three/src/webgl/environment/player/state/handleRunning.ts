@@ -56,6 +56,8 @@ const playerRunning = (player: Player) => {
     player.nextTranslation.x = 0;
   }
 
+  player.nextAnimationDuration = 1 / (Math.abs(player.nextTranslation.x) / 3);
+
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */

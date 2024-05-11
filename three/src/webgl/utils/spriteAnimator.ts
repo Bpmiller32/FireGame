@@ -55,6 +55,10 @@ export default class SpriteAnimator {
     this.elapsedTime = this.maxDisplayTime; // force to play new animation
   }
 
+  public changeCurrentAnimationDuration(loopDuration: number) {
+    this.maxDisplayTime = loopDuration / this.spriteIndices.length;
+  }
+
   public update(deltaTime: number) {
     this.elapsedTime += deltaTime;
 

@@ -30,7 +30,8 @@ export default class Player extends GameObject {
 
   public currentAnimation!: number[];
   public nextAnimation!: number[];
-  public animationDuration!: number;
+  public currentAnimationDuration!: number;
+  public nextAnimationDuration!: number;
 
   public isTouching!: {
     ground: boolean;
@@ -103,7 +104,8 @@ export default class Player extends GameObject {
 
     this.currentAnimation = SpriteAnimations.IDLE_RIGHT;
     this.nextAnimation = SpriteAnimations.IDLE_RIGHT;
-    this.animationDuration = 1;
+    this.currentAnimationDuration = 1;
+    this.nextAnimationDuration = 1;
 
     this.isTouching = {
       ground: false,
@@ -144,7 +146,7 @@ export default class Player extends GameObject {
     // Set initial sprite loop
     this.spriteAnimator.spritesToLoop(
       this.currentAnimation,
-      this.animationDuration
+      this.currentAnimationDuration
     );
 
     this.material = this.spriteAnimator.material;
@@ -182,7 +184,15 @@ export default class Player extends GameObject {
 
       this.spriteAnimator.spritesToLoop(
         this.currentAnimation,
-        this.animationDuration
+        this.currentAnimationDuration
+      );
+    }
+
+    if (this.currentAnimationDuration !== this.nextAnimationDuration) {
+      this.currentAnimationDuration = this.nextAnimationDuration;
+
+      this.spriteAnimator.changeCurrentAnimationDuration(
+        this.currentAnimationDuration
       );
     }
 
@@ -239,20 +249,20 @@ export default class Player extends GameObject {
 
     // Detect ground or ceiling touch
     if (
-      groundCeilingHit.toi <= this.colliderOffset + 0.001 &&
+      groundCeilingHit.toi <= this.colliderOffset &&
       (!this.isTouching.ground || !this.isTouching.ceiling)
     ) {
       if (direction == PlayerDirection.UP) {
         this.isTouching.ceiling = true;
+        return;
       }
 
       if (direction == PlayerDirection.DOWN) {
         this.isTouching.ground = true;
       }
-    } else if (
-      groundCeilingHit.toi > this.colliderOffset + 0.001 &&
-      (this.isTouching.ground || this.isTouching.ceiling)
-    ) {
+    }
+    // Ground or ceiling not touched/too far away
+    else {
       if (direction == PlayerDirection.UP) {
         this.isTouching.ceiling = false;
       }
@@ -278,12 +288,6 @@ export default class Player extends GameObject {
 
     // Wall touched
     if (wallHit && Math.abs(wallHit.toi) <= this.colliderOffset) {
-      // console.log({
-      //   toi: wallHit.toi,
-      //   direction: direction,
-      //   body: wallHit.collider.parent()?.userData,
-      // });
-
       if (direction == PlayerDirection.RIGHT) {
         this.isTouching.rightSide = true;
         return;
