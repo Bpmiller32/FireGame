@@ -27,10 +27,22 @@ const debugPlayer = (player: Player) => {
     .min(0.001)
     .step(0.001)
     .listen();
+  status
+    ?.add(player, "debugMaxHeightJumped")
+    .name("maxHeightJumped")
+    .min(0.001)
+    .step(0.001)
+    .listen();
+  status
+    ?.add(player, "debugSpriteAnimationMultiplier")
+    .name("spriteTiming")
+    .min(0.001)
+    .step(0.001)
+    .listen();
 
   // Statemanager debug
-  const stateDebug = playerDebug?.addFolder("stateDebug");
-  stateDebug?.open();
+  // const stateDebug = playerDebug?.addFolder("stateDebug");
+  // stateDebug?.open();
 
   // stateDebug
   //   ?.add(player.time, "elapsed")

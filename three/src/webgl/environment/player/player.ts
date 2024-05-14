@@ -28,11 +28,6 @@ export default class Player extends GameObject {
   public colliderOffset!: number;
   public nextTranslation!: RAPIER.Vector2;
 
-  public currentAnimation!: number[];
-  public nextAnimation!: number[];
-  public currentAnimationDuration!: number;
-  public nextAnimationDuration!: number;
-
   public isTouching!: {
     ground: boolean;
     ceiling: boolean;
@@ -47,25 +42,29 @@ export default class Player extends GameObject {
   public maxFallSpeed!: number;
   public fallAcceleration!: number;
   public fallDeceleration!: number;
+  public jumpEndedEarlyGravityModifier!: number;
 
-  public JumpEndEarlyGravityModifier!: number;
+  public jumpPower!: number;
+  public jumpAcceleration!: number;
+  public coyoteAvailable!: boolean;
+  public endedJumpEarly!: boolean;
+
+  public bufferJumpRange!: number;
+  public groundWithinBufferRange!: boolean;
   public bufferJumpAvailable!: boolean;
 
   public timeJumpWasEntered!: number;
-  timeInJumpState = 0.001;
-  timeFallWasEntered = 0;
-  timeInFallState = 0.001;
+  public timeInJumpState!: number;
+  public timeFallWasEntered!: number;
+  public timeInFallState!: number;
+  public minJumpTime!: number;
+  public maxJumpTime!: number;
+  public coyoteTime!: number;
 
-  JumpPower = 16;
-  minJumpTime = 0.15;
-  maxJumpTime = 0.25;
-  coyoteTime = 0.1;
-  coyoteAvailable = false;
-
-  public endedJumpEarly!: boolean;
-  groundWithinBufferRange = false;
-  bufferJumpRange = 1;
+  // Debug
   debugCoyoteCount = 0;
+  debugMaxHeightJumped = 0;
+  debugSpriteAnimationMultiplier = 0;
 
   public constructor(
     size: { width: number; height: number },
@@ -88,7 +87,7 @@ export default class Player extends GameObject {
     );
 
     // Debug
-    if (this.experience.debug?.isActive) {
+    if (this.experience.debug.isActive) {
       debugPlayer(this);
     }
   }
@@ -101,11 +100,6 @@ export default class Player extends GameObject {
     this.horizontalDirection = PlayerDirection.NEUTRAL;
     this.colliderOffset = 0.01;
     this.nextTranslation = new RAPIER.Vector2(0, 0);
-
-    this.currentAnimation = SpriteAnimations.IDLE_RIGHT;
-    this.nextAnimation = SpriteAnimations.IDLE_RIGHT;
-    this.currentAnimationDuration = 1;
-    this.nextAnimationDuration = 1;
 
     this.isTouching = {
       ground: false,
@@ -130,31 +124,44 @@ export default class Player extends GameObject {
     this.fallAcceleration = 110;
     // Deceleration in air only after stopping input mid-air
     this.fallDeceleration = 30;
+    // Multiplier on fallAcceleration if player ended their jump early
+    this.jumpEndedEarlyGravityModifier = 3;
 
     /* -------------------------------------------------------------------------- */
     /*                                    Jump                                    */
     /* -------------------------------------------------------------------------- */
-    this.JumpEndEarlyGravityModifier = 3;
-    // this.JumpBuffer = 0.2;
+    this.jumpPower = 25;
+    this.jumpAcceleration = 9000;
+    this.coyoteAvailable = false;
     this.bufferJumpAvailable = false;
+
+    this.bufferJumpRange = 1;
+    this.groundWithinBufferRange = false;
+    this.bufferJumpAvailable = false;
+
+    /* -------------------------------------------------------------------------- */
+    /*                            Jump and fall timers                            */
+    /* -------------------------------------------------------------------------- */
     this.timeJumpWasEntered = 0;
+    this.timeInJumpState = 0;
+    this.timeFallWasEntered = 0;
+    this.timeInFallState = 0;
+
+    this.minJumpTime = 0.15;
+    this.maxJumpTime = 0.25;
+    this.coyoteTime = 0.07;
   }
 
   private setSpriteAnimator() {
-    this.spriteAnimator = new SpriteAnimator(this.resources.items.test, 8, 8);
-
     // Set initial sprite loop
-    this.spriteAnimator.spritesToLoop(
-      this.currentAnimation,
-      this.currentAnimationDuration
-    );
-
+    this.spriteAnimator = new SpriteAnimator(this.resources.items.test, 8, 8);
+    this.spriteAnimator.state = SpriteAnimations.IDLE_RIGHT;
     this.material = this.spriteAnimator.material;
   }
 
   private setCharacterController() {
     // Independent character controller attached to physics world, attaching here since this one is exclusively used for Player
-    this.characterController = this.physics?.world?.createCharacterController(
+    this.characterController = this.physics.world.createCharacterController(
       this.colliderOffset
     );
     this.characterController.enableSnapToGround(this.colliderOffset);
@@ -175,71 +182,42 @@ export default class Player extends GameObject {
         handleJumping(this);
         break;
     }
-  }
 
-  private updatePlayerSprite() {
-    // Don't call spritesToLoop every frame
-    if (this.currentAnimation !== this.nextAnimation) {
-      this.currentAnimation = this.nextAnimation;
-
-      this.spriteAnimator.spritesToLoop(
-        this.currentAnimation,
-        this.currentAnimationDuration
-      );
-    }
-
-    if (this.currentAnimationDuration !== this.nextAnimationDuration) {
-      this.currentAnimationDuration = this.nextAnimationDuration;
-
-      this.spriteAnimator.changeCurrentAnimationDuration(
-        this.currentAnimationDuration
-      );
-    }
-
+    // Update the sprite state
     this.spriteAnimator.update(this.time.delta);
   }
 
   private updateTranslation() {
     // Given a desired translation, compute the actual translation that we can apply to the collider based on the obstacles.
-    this.characterController?.computeColliderMovement(this.body!.collider(0), {
+    this.characterController.computeColliderMovement(this.body.collider(0), {
       x: this.nextTranslation.x * this.time.delta,
       y: this.nextTranslation.y * this.time.delta,
     });
 
-    const correctiveMovement = this.characterController?.computedMovement();
+    const correctiveMovement = this.characterController.computedMovement();
 
     // Apply the actual translation to the next kinematic translation
-    this.body?.setNextKinematicTranslation({
-      x: this.currentTranslation.x + correctiveMovement!.x,
-      y: this.currentTranslation.y + correctiveMovement!.y,
+    this.body.setNextKinematicTranslation({
+      x: this.currentTranslation.x + correctiveMovement.x,
+      y: this.currentTranslation.y + correctiveMovement.y,
     });
   }
 
   private detectCollisions() {
-    this.detectVerticalContact(PlayerDirection.UP);
-    this.detectVerticalContact(PlayerDirection.DOWN);
-    this.detectHorizontalContact(PlayerDirection.LEFT);
-    this.detectHorizontalContact(PlayerDirection.RIGHT);
-  }
+    // Get the collisions from the character controller
+    this.getCollisionEvents();
 
-  private detectVerticalContact(direction: number) {
-    const groundCeilingHit = this.physics.world.castShape(
-      this.currentTranslation,
-      0,
-      { x: 0, y: direction },
-      this.body.collider(0).shape,
-      1000,
-      false
-    );
-
-    if (!groundCeilingHit) {
-      return;
-    }
+    // ShapeCast downward
+    const downCast = this.shapeCast({
+      x: PlayerDirection.NEUTRAL,
+      y: PlayerDirection.DOWN,
+    });
 
     // Detect ground buffer within range for buffer jump
     if (
-      groundCeilingHit.toi <= this.bufferJumpRange &&
       !this.isTouching.ground &&
+      downCast &&
+      downCast.toi <= this.bufferJumpRange &&
       this.nextTranslation.y <= 0
     ) {
       this.groundWithinBufferRange = true;
@@ -247,72 +225,97 @@ export default class Player extends GameObject {
       this.groundWithinBufferRange = false;
     }
 
-    // Detect ground or ceiling touch
+    // Detect touching ground via shapeCast in case collision didn't
     if (
-      groundCeilingHit.toi <= this.colliderOffset &&
-      (!this.isTouching.ground || !this.isTouching.ceiling)
+      !this.isTouching.ground &&
+      downCast &&
+      downCast.toi <= this.colliderOffset + 0.001
     ) {
-      if (direction == PlayerDirection.UP) {
-        this.isTouching.ceiling = true;
-        return;
-      }
-
-      if (direction == PlayerDirection.DOWN) {
-        this.isTouching.ground = true;
-      }
+      this.isTouching.ground = true;
     }
-    // Ground or ceiling not touched/too far away
-    else {
-      if (direction == PlayerDirection.UP) {
-        this.isTouching.ceiling = false;
-      }
 
-      if (direction == PlayerDirection.DOWN) {
-        this.isTouching.ground = false;
-      }
+    // ShapeCast left and right, detect touching ground via shapeCast in case collision didn't
+    const leftCast = this.shapeCast({
+      x: PlayerDirection.LEFT,
+      y: PlayerDirection.NEUTRAL,
+    });
+    if (
+      !this.isTouching.leftSide &&
+      leftCast &&
+      leftCast.toi <= this.colliderOffset + 0.001
+    ) {
+      this.isTouching.leftSide = true;
+    }
+    const rightCast = this.shapeCast({
+      x: PlayerDirection.RIGHT,
+      y: PlayerDirection.NEUTRAL,
+    });
+    if (
+      !this.isTouching.rightSide &&
+      rightCast &&
+      rightCast.toi <= this.colliderOffset + 0.001
+    ) {
+      this.isTouching.rightSide = true;
     }
   }
 
-  private detectHorizontalContact(direction: number) {
-    const wallHit = this.physics.world.castShape(
+  private shapeCast(direction: { x: number; y: number }) {
+    const hit = this.physics.world.castShape(
       {
-        x: this.currentTranslation.x + this.colliderOffset * direction,
+        // Without offset here, the x shapeCast collides with the shape's inner wall?
+        x: this.currentTranslation.x + this.colliderOffset * direction.x,
         y: this.currentTranslation.y,
       },
       0,
-      { x: direction, y: 0 },
+      { x: direction.x, y: direction.y },
       this.body.collider(0).shape,
       1000,
       false
     );
 
-    // Wall touched
-    if (wallHit && Math.abs(wallHit.toi) <= this.colliderOffset) {
-      if (direction == PlayerDirection.RIGHT) {
-        this.isTouching.rightSide = true;
-        return;
-      }
-
-      if (direction == PlayerDirection.LEFT) {
-        this.isTouching.leftSide = true;
-      }
+    if (hit) {
+      return hit;
     }
-    // Wall not touched/too far away
-    else {
-      if (direction == PlayerDirection.RIGHT) {
-        this.isTouching.rightSide = false;
+  }
+
+  private getCollisionEvents() {
+    // Reset collisions, none detected
+    this.isTouching.ground = false;
+    this.isTouching.ceiling = false;
+    this.isTouching.leftSide = false;
+    this.isTouching.rightSide = false;
+
+    for (
+      let i = 0;
+      i < this.characterController!.numComputedCollisions();
+      i++
+    ) {
+      const collision = this.characterController.computedCollision(i);
+
+      if (!collision) {
         return;
       }
 
-      if (direction == PlayerDirection.LEFT) {
-        this.isTouching.leftSide = false;
+      // y axis
+      if (collision.normal2.y == -1) {
+        this.isTouching.ground = true;
+      }
+      if (collision.normal2.y == 1) {
+        this.isTouching.ceiling = true;
+      }
+
+      // x axis
+      if (collision.normal2.x == 1) {
+        this.isTouching.rightSide = true;
+      }
+      if (collision.normal2.x == -1) {
+        this.isTouching.leftSide = true;
       }
     }
   }
 
   public update() {
     this.updatePlayerState();
-    this.updatePlayerSprite();
     this.syncGraphicsToPhysics();
     this.updateTranslation();
     this.detectCollisions();

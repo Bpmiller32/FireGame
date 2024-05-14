@@ -59,17 +59,13 @@ export default class World {
       );
 
       // Imported platforms
-      for (const [key, value] of Object.entries(blenderData)) {
+      for (const [_, value] of Object.entries(blenderData)) {
         this.importedPlatforms.push(
           new Box(
             { width: value.width, height: value.depth },
             { x: value.position[0], y: value.position[2] },
             // undefined,
-            new THREE.MeshBasicMaterial({
-              color: "blue",
-              opacity: 1,
-              transparent: true,
-            }),
+            new THREE.MeshBasicMaterial({ visible: false }),
             RAPIER.RigidBodyDesc.fixed()
           )
         );
@@ -113,7 +109,7 @@ export default class World {
       //   new THREE.MeshBasicMaterial({ color: "yellow" })
       // );
 
-      this.player = new Player({ width: 0.5, height: 1 }, { x: 2, y: 100 });
+      this.player = new Player({ width: 0.5, height: 1 }, { x: 4, y: -0.5 });
     });
   }
 
@@ -132,6 +128,18 @@ export default class World {
       this.experience.camera.instance.position.x = this.player.mesh.position.x;
 
       // this.experience.camera.instance.position.y = this.player.mesh.position.y;
+    }
+
+    if (
+      this.player &&
+      this.player.mesh.position.y > this.player.debugMaxHeightJumped
+    ) {
+      this.player.debugMaxHeightJumped = this.player.mesh.position.y;
+    }
+
+    if (this.player) {
+      this.player.debugSpriteAnimationMultiplier =
+        this.player.spriteAnimator.timingMultiplier;
     }
   }
 

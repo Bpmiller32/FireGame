@@ -7,12 +7,15 @@ import * as THREE from "three";
 export default class SpriteAnimator {
   private currentTile: number;
   private elapsedTime: number;
-  private maxDisplayTime: number;
   private runningTileIndex: number;
-  private spriteIndices: number[];
   private tilesHorizontal: number;
   private tilesVertical: number;
 
+  public state: {
+    indicies: number[];
+    timing: number[];
+  };
+  public timingMultiplier: number;
   public material!: THREE.SpriteMaterial;
 
   constructor(
@@ -21,14 +24,16 @@ export default class SpriteAnimator {
     tilesVerical: number
   ) {
     this.currentTile = 0;
-
     this.elapsedTime = 0;
-    this.maxDisplayTime = 0;
     this.runningTileIndex = 0;
-    this.spriteIndices = [];
-
     this.tilesHorizontal = tilesHorizontal;
     this.tilesVertical = tilesVerical;
+
+    this.state = {
+      indicies: [],
+      timing: [],
+    };
+    this.timingMultiplier = 1;
 
     this.setMaterial(spriteSheet);
   }
@@ -47,26 +52,40 @@ export default class SpriteAnimator {
     );
   }
 
-  public spritesToLoop(spriteIndices: number[], loopDuration: number) {
-    this.spriteIndices = spriteIndices;
+  public changeState(newState: { indicies: number[]; timing: number[] }) {
+    // Don't call spritesToLoop every frame
+    if (this.state == newState) {
+      return;
+    }
+
+    this.state = newState;
+    this.timingMultiplier = 1;
     this.runningTileIndex = 0;
-    this.currentTile = spriteIndices[this.runningTileIndex];
-    this.maxDisplayTime = loopDuration / this.spriteIndices.length;
-    this.elapsedTime = this.maxDisplayTime; // force to play new animation
+    this.currentTile = this.state.indicies[this.runningTileIndex];
+    this.elapsedTime = this.state.timing[this.runningTileIndex]; // force to play new animation instead of waiting a loop
   }
 
-  public changeCurrentAnimationDuration(loopDuration: number) {
-    this.maxDisplayTime = loopDuration / this.spriteIndices.length;
+  public changeAnimationTiming(newTimingMultiplier: number) {
+    // Don't change timing unless needed
+    if (this.timingMultiplier == newTimingMultiplier) {
+      return;
+    }
+
+    this.timingMultiplier = newTimingMultiplier;
   }
 
   public update(deltaTime: number) {
     this.elapsedTime += deltaTime;
 
-    if (this.maxDisplayTime > 0 && this.elapsedTime >= this.maxDisplayTime) {
+    if (
+      this.state.timing[this.runningTileIndex] * this.timingMultiplier > 0 &&
+      this.elapsedTime >=
+        this.state.timing[this.runningTileIndex] * this.timingMultiplier
+    ) {
       this.elapsedTime = 0;
       this.runningTileIndex =
-        (this.runningTileIndex + 1) % this.spriteIndices.length;
-      this.currentTile = this.spriteIndices[this.runningTileIndex];
+        (this.runningTileIndex + 1) % this.state.indicies.length;
+      this.currentTile = this.state.indicies[this.runningTileIndex];
 
       const offsetX =
         (this.currentTile % this.tilesHorizontal) / this.tilesHorizontal;
