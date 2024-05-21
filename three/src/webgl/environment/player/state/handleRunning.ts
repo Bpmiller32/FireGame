@@ -65,6 +65,19 @@ const playerRunning = (player: Player) => {
     player.input.isLeftRightCombo()
   ) {
     player.horizontalDirection = PlayerDirection.NEUTRAL;
+
+    if (
+      player.spriteAnimator.state == SpriteAnimations.JUMP_LEFT ||
+      player.spriteAnimator.state == SpriteAnimations.FALL_LEFT
+    ) {
+      player.spriteAnimator.changeState(SpriteAnimations.RUN_LEFT);
+    }
+    if (
+      player.spriteAnimator.state == SpriteAnimations.JUMP_RIGHT ||
+      player.spriteAnimator.state == SpriteAnimations.FALL_RIGHT
+    ) {
+      player.spriteAnimator.changeState(SpriteAnimations.RUN_RIGHT);
+    }
   }
 
   /* -------------------------------------------------------------------------- */

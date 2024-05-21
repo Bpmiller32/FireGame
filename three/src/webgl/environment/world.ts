@@ -6,135 +6,114 @@ import * as THREE from "three";
 import Experience from "../experience";
 import ResourceLoader from "../utils/resourceLoader.ts";
 import Box from "./objects/box.ts";
-import Floor from "./objects/floor.ts";
-import Sphere from "./objects/sphere.ts";
 import Player from "./player/player.ts";
-import ImportedGeometry from "./objects/importedGeometry.ts";
-import blenderData from "./objects/blenderExport.json";
+import BlenderExport from "./objects/blenderExport.json";
+import Camera from "../camera.ts";
+import GameSensor from "./objects/gameSensor.ts";
+import GameObjectType from "../utils/types/gameObjectType.ts";
+import Sphere from "./objects/sphere.ts";
 import RAPIER from "@dimforge/rapier2d";
+import CameraSensor from "./objects/cameraSensor.ts";
 
 export default class World {
   private experience: Experience;
   private resources: ResourceLoader;
+  private camera: Camera;
 
   // World assets
   public player?: Player;
-
-  public box1?: Box;
-  public box2?: Box;
-  public sphere?: Sphere;
-  importedGeometry?: ImportedGeometry;
-
-  public allPlatforms: Floor[];
-  public importedPlatforms: Box[];
-  public mediumSizedPlatforms: THREE.Vec2[];
+  public platforms: Box[];
+  public sensors: CameraSensor[];
+  sensor?: GameSensor;
+  ball?: Sphere;
 
   constructor() {
     this.experience = Experience.getInstance();
     this.resources = this.experience.resources;
-    this.allPlatforms = [];
-    this.importedPlatforms = [];
-    this.mediumSizedPlatforms = [
-      { x: -5.0, y: 3.0 },
-      { x: -10.0, y: 6.0 },
-      { x: -12.5, y: 9.0 },
-    ];
+    this.camera = this.experience.camera;
+
+    this.platforms = [];
+    this.sensors = [];
+
+    const randomColors = ["red", "orange", "yellow", "green", "blue", "purple"];
+    this.camera.changeXLookahead(12.5);
+    this.camera.changePositionZ(65);
 
     // Resources
     this.resources?.on("ready", () => {
-      // this.importedGeometry = new ImportedGeometry();
+      // Player
+      this.player = new Player({ width: 2, height: 4 }, { x: -20, y: 20 });
 
-      // Initial floor
-      this.allPlatforms.push(
-        new Floor(
-          { width: 200, height: 0.75, depth: 2 },
-          { x: 0, y: -2 },
-          new THREE.MeshBasicMaterial({
-            color: "green",
-            opacity: 1,
-            transparent: true,
-          }),
-          "MainFloor"
-        )
+      // Test dynamic ball
+      this.ball = new Sphere(
+        2,
+        { x: 10, y: 25 },
+        true,
+        undefined,
+        RAPIER.RigidBodyDesc.dynamic()
       );
 
       // Imported platforms
-      for (const [_, value] of Object.entries(blenderData)) {
-        this.importedPlatforms.push(
+      for (const [_, value] of Object.entries(BlenderExport)) {
+        if (value.type != "platform") {
+          continue;
+        }
+
+        this.platforms.push(
           new Box(
-            { width: value.width, height: value.depth },
+            { width: value.width, height: value.depth, depth: value.height },
             { x: value.position[0], y: value.position[2] },
-            // undefined,
-            new THREE.MeshBasicMaterial({ visible: false }),
-            RAPIER.RigidBodyDesc.fixed()
+            true,
+            new THREE.MeshBasicMaterial({
+              color:
+                randomColors[Math.floor(Math.random() * randomColors.length)],
+            })
           )
         );
       }
 
-      // // Platforms
-      // for (let i = 0; i < this.mediumSizedPlatforms.length; i++) {
-      //   this.allPlatforms.push(
-      //     new Floor(
-      //       { width: 1.5, height: 0.75, depth: 2 },
-      //       {
-      //         x: this.mediumSizedPlatforms[i].x,
-      //         y: this.mediumSizedPlatforms[i].y,
-      //       },
-      //       new THREE.MeshBasicMaterial({
-      //         color: "green",
-      //         opacity: 1,
-      //         transparent: true,
-      //       }),
-      //       "Floor:" + i
-      //     )
-      //   );
-      // }
+      // Imported sensors
+      for (const [_, value] of Object.entries(BlenderExport)) {
+        if (value.type != "sensor") {
+          continue;
+        }
 
-      // // Random dynamic objects
-      // this.box1 = new Box(
-      //   { width: 1, height: 1 },
-      //   { x: 7, y: 3 },
-      //   new THREE.MeshBasicMaterial({ color: "blue" })
-      // );
-
-      // this.box2 = new Box(
-      //   { width: 1, height: 1 },
-      //   { x: 3, y: 3 },
-      //   new THREE.MeshBasicMaterial({ color: "blue" })
-      // );
-
-      // this.sphere = new Sphere(
-      //   1,
-      //   { x: 5, y: 2 },
-      //   new THREE.MeshBasicMaterial({ color: "yellow" })
-      // );
-
-      this.player = new Player({ width: 0.5, height: 1 }, { x: 4, y: -0.5 });
+        this.sensors.push(
+          new CameraSensor(
+            GameObjectType.CUBE,
+            { width: value.width, height: value.depth },
+            { x: value.position[0], y: value.position[2] },
+            new THREE.Vector3(0, value.value, 0),
+            this.player.body
+          )
+        );
+      }
     });
   }
 
   public update() {
-    this.box1?.update();
-    this.box2?.update();
-    this.sphere?.update();
     this.player?.update();
 
-    this.importedPlatforms.forEach((element) => {
+    this.camera.update(
+      this.player?.currentTranslation,
+      this.player?.spriteAnimator.state
+    );
+
+    this.sensors.forEach((element) => {
       element.update();
+      if (element.isIntersectingTarget) {
+        this.camera.changePositionY(element.cameraValue.y);
+      }
     });
 
-    // Camera follow
-    if (this.player?.mesh.position) {
-      this.experience.camera.instance.position.x = this.player.mesh.position.x;
+    this.ball?.update();
 
-      // this.experience.camera.instance.position.y = this.player.mesh.position.y;
-    }
-
+    // TODO: remove after debug
     if (
       this.player &&
-      this.player.mesh.position.y > this.player.debugMaxHeightJumped
+      this.player.mesh!.position.y > this.player.debugMaxHeightJumped
     ) {
-      this.player.debugMaxHeightJumped = this.player.mesh.position.y;
+      this.player.debugMaxHeightJumped = this.player.mesh!.position.y;
     }
 
     if (this.player) {
@@ -144,11 +123,6 @@ export default class World {
   }
 
   public destroy() {
-    this.box1?.destroy();
-    this.box2?.destroy();
-
-    this.sphere?.destroy();
-
     this.player?.destroy();
   }
 }

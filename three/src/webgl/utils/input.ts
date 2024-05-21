@@ -11,6 +11,11 @@ export default class Input {
   public isDownKeyPressed: boolean;
   public isSpacebarPressed: boolean;
 
+  public isWKeyPressed: boolean;
+  public isAKeyPressed: boolean;
+  public isSKeyPressed: boolean;
+  public isDKeyPressed: boolean;
+
   public keys: Key[];
 
   constructor() {
@@ -19,6 +24,11 @@ export default class Input {
     this.isUpKeyPressed = false;
     this.isDownKeyPressed = false;
     this.isSpacebarPressed = false;
+
+    this.isWKeyPressed = false;
+    this.isAKeyPressed = false;
+    this.isSKeyPressed = false;
+    this.isDKeyPressed = false;
 
     this.keys = [
       {
@@ -49,6 +59,32 @@ export default class Input {
         keyCode: "Space",
         isPressed: (eventResult: boolean) => {
           this.isSpacebarPressed = eventResult;
+        },
+      },
+
+      // WASD
+      {
+        keyCode: "KeyW",
+        isPressed: (eventResult: boolean) => {
+          this.isWKeyPressed = eventResult;
+        },
+      },
+      {
+        keyCode: "KeyA",
+        isPressed: (eventResult: boolean) => {
+          this.isAKeyPressed = eventResult;
+        },
+      },
+      {
+        keyCode: "KeyS",
+        isPressed: (eventResult: boolean) => {
+          this.isSKeyPressed = eventResult;
+        },
+      },
+      {
+        keyCode: "KeyD",
+        isPressed: (eventResult: boolean) => {
+          this.isDKeyPressed = eventResult;
         },
       },
     ];

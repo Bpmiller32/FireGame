@@ -1,10 +1,10 @@
-import Player from "./player";
+import Player from "../../environment/player/player";
 
 const debugPlayer = (player: Player) => {
   player.debug = player.experience.debug;
 
   const playerDebug = player.debug.ui?.addFolder("playerDebug");
-  playerDebug?.open();
+  // playerDebug?.open();
   playerDebug?.add(player, "state").name("state").listen();
   playerDebug?.add(player, "horizontalDirection").name("xDirection").listen();
   playerDebug
@@ -27,7 +27,7 @@ const debugPlayer = (player: Player) => {
     .listen();
 
   const isTouching = playerDebug?.addFolder("isTouching");
-  isTouching?.close();
+  // isTouching?.open();
   isTouching
     ?.add(player.isTouching, "ground")
     .name("isTouchingGround")
@@ -46,7 +46,7 @@ const debugPlayer = (player: Player) => {
     .listen();
 
   const jumping = playerDebug?.addFolder("jumping");
-  jumping?.open();
+  // jumping?.open();
   jumping?.add(player, "coyoteAvailable").name("coyoteAvailable").listen();
   jumping?.add(player, "debugCoyoteCount").name("coyoteCount").listen();
   jumping

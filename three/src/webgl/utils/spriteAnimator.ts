@@ -3,6 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import * as THREE from "three";
+import SpriteState from "./types/spriteState";
 
 export default class SpriteAnimator {
   private currentTile: number;
@@ -10,12 +11,10 @@ export default class SpriteAnimator {
   private runningTileIndex: number;
   private tilesHorizontal: number;
   private tilesVertical: number;
-
-  public state: {
-    indicies: number[];
-    timing: number[];
-  };
+  // TODO: change back to private after debug
   public timingMultiplier: number;
+
+  public state: SpriteState;
   public material!: THREE.SpriteMaterial;
 
   constructor(

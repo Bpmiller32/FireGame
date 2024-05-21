@@ -12,7 +12,9 @@ import handleFalling from "./state/handleFalling";
 import handleRunning from "./state/handleRunning";
 import handleJumping from "./state/handleJumping";
 import GameObject from "../objects/gameObject";
-import debugPlayer from "./debugPlayer";
+import debugPlayer from "../../utils/debug/debugPlayer";
+import ContactPoints from "../../utils/types/contactPoints";
+import GameObjectType from "../../utils/types/gameObjectType";
 
 export default class Player extends GameObject {
   public time: Time;
@@ -28,12 +30,7 @@ export default class Player extends GameObject {
   public colliderOffset!: number;
   public nextTranslation!: RAPIER.Vector2;
 
-  public isTouching!: {
-    ground: boolean;
-    ceiling: boolean;
-    leftSide: boolean;
-    rightSide: boolean;
-  };
+  public isTouching!: ContactPoints;
 
   public maxGroundSpeed!: number;
   public groundAcceleration!: number;
@@ -61,7 +58,7 @@ export default class Player extends GameObject {
   public maxJumpTime!: number;
   public coyoteTime!: number;
 
-  // Debug
+  // TODO: remove after debug
   debugCoyoteCount = 0;
   debugMaxHeightJumped = 0;
   debugSpriteAnimationMultiplier = 0;
@@ -79,8 +76,8 @@ export default class Player extends GameObject {
     this.setPlayerVariables();
     this.setSpriteAnimator();
     this.setCharacterController();
-    this.setMesh();
-    this.setPhysics(
+    this.createObject(
+      GameObjectType.SPRITE,
       size,
       position,
       RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
@@ -112,30 +109,30 @@ export default class Player extends GameObject {
     /*                          Speeds and accelerations                          */
     /* -------------------------------------------------------------------------- */
     // The top horizontal movement speed
-    this.maxGroundSpeed = 14;
+    this.maxGroundSpeed = 25;
     // The player's capacity to gain horizontal speed
     this.groundAcceleration = 120;
     // The pace at which the player comes to a stop
-    this.groundDeceleration = 60;
+    this.groundDeceleration = 30;
 
     // The maximum vertical movement speed
     this.maxFallSpeed = 40;
     // The player's capacity to gain fall speed. a.k.a. In Air Gravity
     this.fallAcceleration = 110;
     // Deceleration in air only after stopping input mid-air
-    this.fallDeceleration = 30;
+    this.fallDeceleration = 50;
     // Multiplier on fallAcceleration if player ended their jump early
     this.jumpEndedEarlyGravityModifier = 3;
 
     /* -------------------------------------------------------------------------- */
     /*                                    Jump                                    */
     /* -------------------------------------------------------------------------- */
-    this.jumpPower = 25;
-    this.jumpAcceleration = 9000;
+    this.jumpPower = 64;
+    this.jumpAcceleration = 9001;
     this.coyoteAvailable = false;
     this.bufferJumpAvailable = false;
 
-    this.bufferJumpRange = 1;
+    this.bufferJumpRange = 4;
     this.groundWithinBufferRange = false;
     this.bufferJumpAvailable = false;
 
@@ -147,16 +144,16 @@ export default class Player extends GameObject {
     this.timeFallWasEntered = 0;
     this.timeInFallState = 0;
 
-    this.minJumpTime = 0.15;
-    this.maxJumpTime = 0.25;
+    this.minJumpTime = 0.13;
+    this.maxJumpTime = 0.29;
     this.coyoteTime = 0.07;
   }
 
   private setSpriteAnimator() {
     // Set initial sprite loop
-    this.spriteAnimator = new SpriteAnimator(this.resources.items.test, 8, 8);
+    this.spriteAnimator = new SpriteAnimator(this.resources.items.randy, 4, 6);
     this.spriteAnimator.state = SpriteAnimations.IDLE_RIGHT;
-    this.material = this.spriteAnimator.material;
+    this.setMaterial(this.spriteAnimator.material, 4);
   }
 
   private setCharacterController() {
@@ -165,6 +162,7 @@ export default class Player extends GameObject {
       this.colliderOffset
     );
     this.characterController.enableSnapToGround(this.colliderOffset);
+    this.characterController.enableAutostep(0.5, 0.2, true);
   }
 
   private updatePlayerState() {
@@ -189,10 +187,22 @@ export default class Player extends GameObject {
 
   private updateTranslation() {
     // Given a desired translation, compute the actual translation that we can apply to the collider based on the obstacles.
-    this.characterController.computeColliderMovement(this.body.collider(0), {
-      x: this.nextTranslation.x * this.time.delta,
-      y: this.nextTranslation.y * this.time.delta,
-    });
+    this.characterController.computeColliderMovement(
+      this.body.collider(0),
+      {
+        x: this.nextTranslation.x * this.time.delta,
+        y: this.nextTranslation.y * this.time.delta,
+      },
+      undefined,
+      undefined,
+      (collider) => {
+        if (collider.isSensor()) {
+          return false;
+        }
+
+        return true;
+      }
+    );
 
     const correctiveMovement = this.characterController.computedMovement();
 
@@ -234,7 +244,7 @@ export default class Player extends GameObject {
       this.isTouching.ground = true;
     }
 
-    // ShapeCast left and right, detect touching ground via shapeCast in case collision didn't
+    // ShapeCast left and right, detect touching walls via shapeCast in case collision didn't
     const leftCast = this.shapeCast({
       x: PlayerDirection.LEFT,
       y: PlayerDirection.NEUTRAL,
@@ -262,7 +272,7 @@ export default class Player extends GameObject {
   private shapeCast(direction: { x: number; y: number }) {
     const hit = this.physics.world.castShape(
       {
-        // Without offset here, the x shapeCast collides with the shape's inner wall?
+        // Without offset here, the x shapeCast collides with the shape's inner wall for some reason
         x: this.currentTranslation.x + this.colliderOffset * direction.x,
         y: this.currentTranslation.y,
       },
@@ -270,7 +280,17 @@ export default class Player extends GameObject {
       { x: direction.x, y: direction.y },
       this.body.collider(0).shape,
       1000,
-      false
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      (collider) => {
+        if (collider.isSensor()) {
+          return false;
+        }
+        return true;
+      }
     );
 
     if (hit) {

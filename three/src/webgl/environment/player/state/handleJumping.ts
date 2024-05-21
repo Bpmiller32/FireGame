@@ -110,6 +110,16 @@ const playerJumping = (player: Player) => {
       player.groundDeceleration * player.time.delta
     );
   }
+
+  // Hitting a wall
+  if (
+    (player.isTouching.leftSide &&
+      player.horizontalDirection == PlayerDirection.LEFT) ||
+    (player.isTouching.rightSide &&
+      player.horizontalDirection == PlayerDirection.RIGHT)
+  ) {
+    player.nextTranslation.x = 0;
+  }
 };
 
 export default playerJumping;

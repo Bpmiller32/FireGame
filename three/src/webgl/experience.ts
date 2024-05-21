@@ -48,8 +48,8 @@ export default class Experience {
     this.input = new Input();
     this.resources = new ResourceLoader([
       { name: "boat", type: "gltfModel", path: "/boat.glb" },
-      { name: "mario", type: "texture", path: "/mario.png" },
       { name: "test", type: "texture", path: "/testSheet.png" },
+      { name: "randy", type: "texture", path: "/randySpriteSheet.png" },
     ]);
 
     this.targetElement = canvas;
@@ -82,7 +82,7 @@ export default class Experience {
       this.debug.stats?.begin();
     }
 
-    this.camera.update();
+    // this.camera.update();
     this.physics.update();
     this.world.update();
     this.renderer.update();
@@ -99,10 +99,8 @@ export default class Experience {
 
     // Scene items first
     this.world.destroy();
-    // this.physics.destroy();
 
     // Camera then renderer
-    this.camera.destroy();
     this.renderer.destroy();
 
     // Debug menu

@@ -36,8 +36,16 @@ export default class GameMath {
     //     return current + a / magnitude * maxDistanceDelta;
   }
 
-  public static lerp(start: number, end: number, t: number): number {
-    return start + (end - start) * t;
+  public static lerp(
+    start: number,
+    end: number,
+    t: number,
+    deltaTime: number,
+    duration: number
+  ): number {
+    const clampedT = Math.min(Math.max(t, 0), 1); // Clamp t to [0, 1]
+    const easedT = 0.5 * (1 - Math.cos(Math.PI * clampedT));
+    return start + (end - start) * easedT * deltaTime * (1 / duration);
   }
 
   public static getRandomNumber(min: number, max: number): number {
@@ -46,5 +54,9 @@ export default class GameMath {
 
   public static clamp(min: number, max: number): number {
     return Math.random() * (max - min) + min;
+  }
+
+  public static easeInOutSin(time: number) {
+    return 0.5 * (1 - Math.cos(Math.PI * time));
   }
 }
