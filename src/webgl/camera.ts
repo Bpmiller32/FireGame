@@ -136,7 +136,23 @@ export default class Camera {
         this.targetX.x = -this.xLookahead;
         this.xLerpTiming = 1;
         break;
+      case SpriteAnimations.JUMP_LEFT:
+        this.targetX.x = -this.xLookahead;
+        this.xLerpTiming = 1;
+        break;
+      case SpriteAnimations.FALL_LEFT:
+        this.targetX.x = -this.xLookahead;
+        this.xLerpTiming = 1;
+        break;
       case SpriteAnimations.RUN_RIGHT:
+        this.targetX.x = this.xLookahead;
+        this.xLerpTiming = 1;
+        break;
+      case SpriteAnimations.JUMP_RIGHT:
+        this.targetX.x = this.xLookahead;
+        this.xLerpTiming = 1;
+        break;
+      case SpriteAnimations.FALL_RIGHT:
         this.targetX.x = this.xLookahead;
         this.xLerpTiming = 1;
         break;

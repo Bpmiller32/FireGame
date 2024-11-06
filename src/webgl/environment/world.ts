@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import * as THREE from "three";
-import Experience from "../experience";
+import Experience from "../experience.ts";
 import ResourceLoader from "../utils/resourceLoader.ts";
 import Box from "./objects/box.ts";
 import Player from "./player/player.ts";
