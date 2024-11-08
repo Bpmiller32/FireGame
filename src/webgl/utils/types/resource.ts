@@ -1,7 +1,5 @@
-type Resource = {
+export default interface Resource {
   name: string;
   type: string;
   path: string;
-};
-
-export default Resource;
+}

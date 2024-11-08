@@ -25,27 +25,53 @@ export default class Physics {
     const rapier = await import("@dimforge/rapier2d");
     this.world = new rapier.World({ x: 0.0, y: -9.81 });
 
+    // Set debug mesh if nessasary
     if (this.experience.debug.isActive) {
       this.mesh = new THREE.LineSegments(
         new THREE.BufferGeometry(),
         new THREE.LineBasicMaterial({ color: "lime" })
       );
       this.mesh.frustumCulled = false;
-      this.scene?.add(this.mesh);
+      this.scene.add(this.mesh);
     }
   }
 
   public update() {
-    this.world!.timestep = Math.min(this.experience.time!.delta, 0.1);
-    this.world?.step();
+    // Set the physics simulation timestep, advance the simulation one step
+    this.world.timestep = Math.min(this.experience.time.delta, 0.1);
+    this.world.step();
 
     if (this.experience.debug.isActive) {
-      const { vertices } = this.world!.debugRender();
-      this.mesh?.geometry.setAttribute(
+      // Extracts just the verticies out of the physics debug render
+      const { vertices } = this.world.debugRender();
+
+      // Sends those verticies to the vertex shader's position attribute
+      this.mesh!.geometry.setAttribute(
         "position",
         new THREE.BufferAttribute(vertices, 2)
       );
       this.mesh!.visible = true;
     }
+  }
+
+  public destroy() {
+    // Dispose of the Rapier world
+    this.world.free();
+
+    // Dispose of the debug mesh if it exists
+    if (this.mesh) {
+      // Remove the mesh from the scene
+      this.scene.remove(this.mesh);
+
+      // Dispose of the geometry and material
+      this.mesh.geometry.dispose();
+      this.mesh.material.dispose();
+    }
+
+    // Nullify references to properties
+    this.experience = null as any;
+    this.scene = null as any;
+    this.world = null as any;
+    this.mesh = null as any;
   }
 }

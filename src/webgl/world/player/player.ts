@@ -11,7 +11,7 @@ import handleIdle from "./state/handleIdle";
 import handleFalling from "./state/handleFalling";
 import handleRunning from "./state/handleRunning";
 import handleJumping from "./state/handleJumping";
-import GameObject from "../objects/gameObject";
+import GameObject from "../gameElements/gameObject";
 import debugPlayer from "../../utils/debug/debugPlayer";
 import ContactPoints from "../../utils/types/contactPoints";
 import GameObjectType from "../../utils/types/gameObjectType";
@@ -85,7 +85,8 @@ export default class Player extends GameObject {
 
     // Debug
     if (this.experience.debug.isActive) {
-      debugPlayer(this);
+      this.debug = this.experience.debug;
+      debugPlayer(this, this.debug);
     }
   }
 
@@ -144,8 +145,8 @@ export default class Player extends GameObject {
     this.timeFallWasEntered = 0;
     this.timeInFallState = 0;
 
-    this.minJumpTime = 0.13;
-    this.maxJumpTime = 0.29;
+    this.minJumpTime = 0.19;
+    this.maxJumpTime = 0.25;
     this.coyoteTime = 0.07;
   }
 
@@ -188,7 +189,7 @@ export default class Player extends GameObject {
   private updateTranslation() {
     // Given a desired translation, compute the actual translation that we can apply to the collider based on the obstacles.
     this.characterController.computeColliderMovement(
-      this.body.collider(0),
+      this.physicsBody.collider(0),
       {
         x: this.nextTranslation.x * this.time.delta,
         y: this.nextTranslation.y * this.time.delta,
@@ -207,7 +208,7 @@ export default class Player extends GameObject {
     const correctiveMovement = this.characterController.computedMovement();
 
     // Apply the actual translation to the next kinematic translation
-    this.body.setNextKinematicTranslation({
+    this.physicsBody.setNextKinematicTranslation({
       x: this.currentTranslation.x + correctiveMovement.x,
       y: this.currentTranslation.y + correctiveMovement.y,
     });
@@ -278,7 +279,7 @@ export default class Player extends GameObject {
       },
       0,
       { x: direction.x, y: direction.y },
-      this.body.collider(0).shape,
+      this.physicsBody.collider(0).shape,
       1000,
       false,
       undefined,

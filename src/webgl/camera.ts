@@ -6,9 +6,8 @@ import * as THREE from "three";
 import Experience from "./experience";
 import Sizes from "./utils/sizes";
 import SpriteState from "./utils/types/spriteState";
-import SpriteAnimations from "./environment/player/state/spriteAnimations";
+import SpriteAnimations from "./world/player/state/spriteAnimations";
 import Debug from "./utils/debug";
-import Input from "./utils/input";
 import debugCamera from "./utils/debug/debugCamera";
 
 export default class Camera {
@@ -16,8 +15,7 @@ export default class Camera {
   private sizes: Sizes;
   private scene: THREE.Scene;
 
-  private debug?: Debug;
-  private input?: Input;
+  private debug!: Debug;
 
   private currentX!: THREE.Vector2;
   private currentY!: THREE.Vector2;
@@ -43,7 +41,8 @@ export default class Camera {
     this.setLookAhead();
 
     if (this.experience.debug.isActive) {
-      debugCamera(this);
+      this.debug = this.experience.debug;
+      debugCamera(this, this.debug);
     }
   }
 
@@ -59,10 +58,10 @@ export default class Camera {
   }
 
   private setLookAhead() {
+    // Using Vector2's from THREE because they have built in lerping function, save needing to import a library
     this.currentX = new THREE.Vector2(0, 0);
     this.currentY = new THREE.Vector2(0, 0);
-    this.currentZ = new THREE.Vector2(40, 40);
-    // Z of 40 makes player ~15% of screen
+    this.currentZ = new THREE.Vector2(40, 40); // Z of 40 makes player ~15% of screen
 
     this.targetX = new THREE.Vector2(0, 0);
     this.targetY = new THREE.Vector2(0, 0);
@@ -75,7 +74,7 @@ export default class Camera {
     this.zLerpTiming = 1;
   }
 
-  public changeXLookahead(newOffset: number) {
+  public changeLookaheadX(newOffset: number) {
     this.xLookahead = newOffset;
   }
 
@@ -111,21 +110,11 @@ export default class Camera {
       playerPosition = { x: 0, y: 0 };
     }
 
-    // Debug manual controls
-    if (this.experience.debug.isActive) {
-      if (this.input?.isWKeyPressed) {
-        this.changePositionY(this.instance.position.y + 1);
-      }
-      if (this.input?.isSKeyPressed) {
-        this.changePositionY(this.instance.position.y - 1);
-      }
-    }
-
-    // X lookahead based on player state
+    // Set X lookahead and timing to move to lookahead target based on player state
     switch (playerState) {
+      // Slower x lerp for resting/idle transition that movement
       case SpriteAnimations.IDLE_LEFT:
         this.targetX.x = 0;
-        // Slower x lerp for resting/idle transition that movement
         this.xLerpTiming = 0.5;
         break;
       case SpriteAnimations.IDLE_RIGHT:
@@ -157,6 +146,7 @@ export default class Camera {
         this.xLerpTiming = 1;
         break;
 
+      // Default lookahead right
       default:
         this.targetX.x = this.xLookahead;
         this.xLerpTiming = 1;
@@ -179,11 +169,29 @@ export default class Camera {
       this.zLerpTiming * this.experience.time.delta
     );
 
-    // Set camera final position
+    // Set camera position after lerp calculations
     this.instance.position.set(
       playerPosition.x + this.currentX.x,
       this.currentY.y,
       this.currentZ.x
     );
+  }
+
+  public destroy() {
+    // Remove camera instance from the scene
+    this.scene.remove(this.instance);
+
+    // Nullify references to properties
+    this.experience = null as any;
+    this.sizes = null as any;
+    this.scene = null as any;
+    this.debug = null as any;
+    this.currentX = null as any;
+    this.currentY = null as any;
+    this.currentZ = null as any;
+    this.targetX = null as any;
+    this.targetY = null as any;
+    this.targetZ = null as any;
+    this.instance = null as any;
   }
 }

@@ -1,6 +1,4 @@
-type SpriteState = {
+export default interface SpriteState {
   indicies: number[];
   timing: number[];
-};
-
-export default SpriteState;
+}

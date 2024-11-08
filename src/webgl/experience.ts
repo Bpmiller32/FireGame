@@ -8,7 +8,7 @@ import Time from "./utils/time";
 import ResourceLoader from "./utils/resourceLoader";
 import Camera from "./camera";
 import Renderer from "./renderer";
-import World from "./environment/world";
+import World from "./world/world";
 import Debug from "./utils/debug";
 import Input from "./utils/input";
 import Physics from "./physics";
@@ -96,16 +96,34 @@ export default class Experience {
     // Event listeners
     this.sizes.destroy();
     this.time.destroy();
+    this.input.destroy();
 
     // Scene items first
     this.world.destroy();
 
-    // Camera then renderer
+    // Camera then physics then renderer
+    this.camera.destroy();
+    this.physics.destroy();
     this.renderer.destroy();
+    // this.resources.destroy();
 
     // Debug menu
-    if (this.debug.isActive) {
+    if (this.debug && this.debug.isActive) {
       this.debug.destroy();
     }
+
+    // Nullify references to properties
+    Experience.instance = null as any;
+    this.debug = null as any;
+    this.sizes = null as any;
+    this.time = null as any;
+    this.input = null as any;
+    this.resources = null as any;
+    this.targetElement = null;
+    this.scene = null as any;
+    this.camera = null as any;
+    this.renderer = null as any;
+    this.physics = null as any;
+    this.world = null as any;
   }
 }

@@ -11,6 +11,8 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Build files
+package-lock.json
 node_modules
 dist
 dist-ssr
@@ -26,3 +28,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env

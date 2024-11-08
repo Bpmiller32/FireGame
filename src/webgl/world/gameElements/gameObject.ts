@@ -15,9 +15,10 @@ export default class GameObject {
     | THREE.CapsuleGeometry;
   public material?: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
   public mesh?: THREE.Mesh | THREE.Sprite;
+
   public spriteScale?: number;
 
-  public body!: RAPIER.RigidBody;
+  public physicsBody!: RAPIER.RigidBody;
   public currentTranslation!: RAPIER.Vector;
 
   constructor() {
@@ -33,11 +34,11 @@ export default class GameObject {
     position: { x: number; y: number },
     specifiedRigidBodyType?: RAPIER.RigidBodyDesc
   ) {
-    let shape;
+    let physicsShape;
 
     switch (gameObjectType) {
       case GameObjectType.SPRITE:
-        // Three
+        // Graphics
         this.mesh = new THREE.Sprite(this.material as THREE.SpriteMaterial);
         if (this.spriteScale) {
           this.mesh.scale.set(
@@ -48,33 +49,53 @@ export default class GameObject {
         }
         this.scene.add(this.mesh);
 
-        // Rapier
-        shape = RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
+        // Physics
+        physicsShape = RAPIER.ColliderDesc.cuboid(
+          size.width / 2,
+          size.height / 2
+        );
         break;
       case GameObjectType.CUBE:
+        // Graphics
         this.geometry = this.geometry as THREE.BoxGeometry;
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         this.scene.add(this.mesh);
 
-        shape = RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
+        // Physics
+        physicsShape = RAPIER.ColliderDesc.cuboid(
+          size.width / 2,
+          size.height / 2
+        );
         break;
       case GameObjectType.SPHERE:
+        // Graphics
         this.geometry = this.geometry as THREE.SphereGeometry;
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         this.scene.add(this.mesh);
 
-        shape = RAPIER.ColliderDesc.ball(size.width);
+        // Physics
+        physicsShape = RAPIER.ColliderDesc.ball(size.width);
         break;
       case GameObjectType.CAPSULE:
+        // Graphics
         this.geometry = this.geometry as THREE.CapsuleGeometry;
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         this.scene.add(this.mesh);
 
-        shape = RAPIER.ColliderDesc.capsule(size.height / 2, size.width);
+        // Physics
+        physicsShape = RAPIER.ColliderDesc.capsule(size.height / 2, size.width);
         break;
       case GameObjectType.MAP_STRUCTURE:
-        shape = RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
+        // Physics
+        physicsShape = RAPIER.ColliderDesc.cuboid(
+          size.width / 2,
+          size.height / 2
+        );
         break;
+
+      default:
+        // Physics, default value to avoid undefined when creating collider
+        physicsShape = RAPIER.ColliderDesc.cuboid(1, 1);
     }
 
     // Default rigidbody type is the cheapest - fixed
@@ -82,11 +103,13 @@ export default class GameObject {
       specifiedRigidBodyType = RAPIER.RigidBodyDesc.fixed();
     }
 
-    this.body = this.physics.world.createRigidBody(specifiedRigidBodyType);
-    this.body.setTranslation({ x: position.x, y: position.y }, true);
-    this.body.userData = { name: this.constructor.name };
+    this.physicsBody = this.physics.world.createRigidBody(
+      specifiedRigidBodyType
+    );
+    this.physicsBody.setTranslation({ x: position.x, y: position.y }, true);
+    this.physicsBody.userData = { name: this.constructor.name };
 
-    this.physics.world.createCollider(shape!, this.body);
+    this.physics.world.createCollider(physicsShape, this.physicsBody);
   }
 
   protected setGeometry(
@@ -104,7 +127,7 @@ export default class GameObject {
   }
 
   protected syncGraphicsToPhysics() {
-    this.currentTranslation = this.body.translation();
+    this.currentTranslation = this.physicsBody.translation();
     this.mesh?.position.set(
       this.currentTranslation.x,
       this.currentTranslation.y,
@@ -113,7 +136,25 @@ export default class GameObject {
   }
 
   public destroy() {
+    // Remove mesh from the scene if it exists
+    if (this.mesh) {
+      this.scene.remove(this.mesh);
+    }
+
+    // Dispose of geometry and material if they exist
     this.geometry?.dispose();
     this.material?.dispose();
+
+    // Remove physics body from the physics world
+    if (this.physicsBody) {
+      this.physics.world.removeRigidBody(this.physicsBody);
+    }
+
+    // Set all properties to undefined or null to aid garbage collection
+    this.geometry = null as any;
+    this.material = null as any;
+    this.mesh = null as any;
+    this.physicsBody = null as any;
+    this.currentTranslation = null as any;
   }
 }

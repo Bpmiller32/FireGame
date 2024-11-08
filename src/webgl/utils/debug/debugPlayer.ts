@@ -1,9 +1,8 @@
-import Player from "../../environment/player/player";
+import Player from "../../world/player/player";
+import Debug from "../debug";
 
-const debugPlayer = (player: Player) => {
-  player.debug = player.experience.debug;
-
-  const playerDebug = player.debug.ui?.addFolder("playerDebug");
+const debugPlayer = (player: Player, debug: Debug) => {
+  const playerDebug = debug.ui?.addFolder("playerDebug");
   // playerDebug?.open();
   playerDebug?.add(player, "state").name("state").listen();
   playerDebug?.add(player, "horizontalDirection").name("xDirection").listen();

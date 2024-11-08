@@ -5,15 +5,15 @@
 import * as THREE from "three";
 import Experience from "../experience.ts";
 import ResourceLoader from "../utils/resourceLoader.ts";
-import Box from "./objects/box.ts";
+import Box from "./gameEntities/box.ts";
 import Player from "./player/player.ts";
-import BlenderExport from "./objects/blenderExport.json";
+import BlenderExport from "./levels/testLevel0.json";
 import Camera from "../camera.ts";
-import GameSensor from "./objects/gameSensor.ts";
+import GameSensor from "./gameElements/gameSensor.ts";
 import GameObjectType from "../utils/types/gameObjectType.ts";
-import Sphere from "./objects/sphere.ts";
+import Sphere from "./gameEntities/sphere.ts";
 import RAPIER from "@dimforge/rapier2d";
-import CameraSensor from "./objects/cameraSensor.ts";
+import CameraSensor from "./gameElements/cameraSensor.ts";
 
 export default class World {
   private experience: Experience;
@@ -36,7 +36,7 @@ export default class World {
     this.sensors = [];
 
     const randomColors = ["red", "orange", "yellow", "green", "blue", "purple"];
-    this.camera.changeXLookahead(12.5);
+    this.camera.changeLookaheadX(12.5);
     this.camera.changePositionZ(65);
 
     // Resources
@@ -84,7 +84,7 @@ export default class World {
             { width: value.width, height: value.depth },
             { x: value.position[0], y: value.position[2] },
             new THREE.Vector3(0, value.value, 0),
-            this.player.body
+            this.player.physicsBody
           )
         );
       }

@@ -48,6 +48,15 @@ export default class Renderer {
   }
 
   public destroy() {
-    this.instance?.dispose();
+    // Dispose of the WebGL renderer
+    this.instance.dispose();
+
+    // Nullify references to properties
+    this.experience = null as any;
+    this.canvas = null as any;
+    this.sizes = null as any;
+    this.scene = null as any;
+    this.camera = null as any;
+    this.instance = null as any;
   }
 }
