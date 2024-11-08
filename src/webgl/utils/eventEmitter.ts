@@ -1,34 +1,24 @@
 /* -------------------------------------------------------------------------- */
-/*                          Typescript event emitter                          */
+/*             Typescript event emitter using Mitt and events list            */
 /* -------------------------------------------------------------------------- */
 
-// Great resource for when you forget....
-// https://www.youtube.com/watch?v=Pl7pDjWd830&pp=ygUXdHlwZXNjcmlwdCBldmVudGVtaXR0ZXI%3D
+import mitt from "mitt";
 
-type Listener<T extends Array<any>> = (...args: T) => void;
+type EventMap = {
+  // app state
+  startApp: void;
+  indicateLoading: void;
+  appReady: void;
+  appError: void;
+  // time
+  tick: void;
+  // sizes
+  resize: void;
+  // resourceLoader
+  resourcesReady: void;
+};
 
-export default class EventEmitter<EventMap extends Record<string, Array<any>>> {
-  private eventListeners: {
-    [K in keyof EventMap]?: Set<Listener<EventMap[K]>>;
-  } = {};
+// Create an emitter instance
+const Emitter = mitt<EventMap>();
 
-  public on<K extends keyof EventMap>(
-    eventName: K,
-    listener: Listener<EventMap[K]>
-  ) {
-    const listeners = this.eventListeners[eventName] ?? new Set();
-    listeners.add(listener);
-    this.eventListeners[eventName] = listeners;
-  }
-
-  public emit<K extends keyof EventMap>(eventName: K, ...args: EventMap[K]) {
-    const listeners = this.eventListeners[eventName] ?? new Set();
-    for (const listener of listeners) {
-      listener(...args);
-    }
-  }
-
-  public off<K extends keyof EventMap>(eventName: K) {
-    this.eventListeners[eventName]?.clear();
-  }
-}
+export default Emitter;

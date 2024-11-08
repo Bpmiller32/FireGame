@@ -3,6 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import * as THREE from "three";
+import Emitter from "./utils/eventEmitter";
 import Sizes from "./utils/sizes";
 import Time from "./utils/time";
 import ResourceLoader from "./utils/resourceLoader";
@@ -62,12 +63,12 @@ export default class Experience {
     this.world = new World();
 
     // Sizes resize event
-    this.sizes.on("resize", () => {
+    Emitter.on("resize", () => {
       this.resize();
     });
 
     // Time tick event
-    this.time.on("tick", () => {
+    Emitter.on("tick", () => {
       this.update();
     });
   }
@@ -105,7 +106,7 @@ export default class Experience {
     this.camera.destroy();
     this.physics.destroy();
     this.renderer.destroy();
-    // this.resources.destroy();
+    this.resources.destroy();
 
     // Debug menu
     if (this.debug && this.debug.isActive) {

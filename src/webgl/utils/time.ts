@@ -2,11 +2,10 @@
 /*    Used to pass all time and tick related to Experience and its children   */
 /* -------------------------------------------------------------------------- */
 
-import EventEmitter from "./eventEmitter";
-import EventMap from "./types/eventMap";
 import * as THREE from "three";
+import Emitter from "./eventEmitter";
 
-export default class Time extends EventEmitter<EventMap> {
+export default class Time {
   public clock: THREE.Clock;
   public start: number;
   public elapsed: number;
@@ -15,7 +14,6 @@ export default class Time extends EventEmitter<EventMap> {
   private previous: number;
 
   constructor() {
-    super();
     this.clock = new THREE.Clock();
     this.start = this.clock.startTime;
     this.elapsed = this.clock.getElapsedTime();
@@ -34,7 +32,7 @@ export default class Time extends EventEmitter<EventMap> {
     this.delta = Math.min(this.elapsed - this.previous, 1 / 30);
     this.previous = this.elapsed;
 
-    this.emit("tick");
+    Emitter.emit("tick");
 
     // Recursively keep calling tick
     window.requestAnimationFrame(() => {
@@ -43,6 +41,10 @@ export default class Time extends EventEmitter<EventMap> {
   }
 
   public destroy() {
-    this.off("tick");
+    // Clear event listeners
+    Emitter.off("tick");
+
+    // Nullify references to properties
+    this.clock = null as any;
   }
 }

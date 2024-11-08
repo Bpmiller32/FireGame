@@ -2,17 +2,14 @@
 /*    Used to pass all window/dom element sizes to Element and its children   */
 /* -------------------------------------------------------------------------- */
 
-import EventEmitter from "./eventEmitter";
-import EventMap from "./types/eventMap";
+import Emitter from "./eventEmitter";
 
-export default class Sizes extends EventEmitter<EventMap> {
+export default class Sizes {
   public width: number;
   public height: number;
   public pixelRatio: number;
 
   constructor() {
-    super();
-
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.pixelRatio = Math.min(window.devicePixelRatio, 2);
@@ -23,12 +20,13 @@ export default class Sizes extends EventEmitter<EventMap> {
       this.height = window.innerHeight;
       this.pixelRatio = Math.min(window.devicePixelRatio, 2);
 
-      this.emit("resize");
+      Emitter.emit("resize");
     });
   }
 
   public destroy() {
-    this.off("resize");
+    // Clear event listeners
+    Emitter.off("resize");
     window.addEventListener("resize", () => {});
   }
 }

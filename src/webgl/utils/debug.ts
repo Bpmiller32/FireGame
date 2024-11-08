@@ -15,7 +15,7 @@ export default class Debug {
 
     if (this.isActive) {
       // Debug gui
-      this.ui = new dat.GUI();
+      this.ui = new dat.GUI({ width: 300, hideable: false });
 
       // FPS counter
       this.stats = new Stats();
@@ -27,5 +27,9 @@ export default class Debug {
   public destroy() {
     this.ui?.destroy();
     this.stats?.dom.parentNode?.removeChild(this.stats.dom);
+
+    // Nullify references to properties
+    this.ui = null as any;
+    this.stats = null as any;
   }
 }

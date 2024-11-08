@@ -11,8 +11,7 @@ export default class SpriteAnimator {
   private runningTileIndex: number;
   private tilesHorizontal: number;
   private tilesVertical: number;
-  // TODO: change back to private after debug
-  public timingMultiplier: number;
+  private timingMultiplier: number;
 
   public state: SpriteState;
   public material!: THREE.SpriteMaterial;
@@ -61,7 +60,7 @@ export default class SpriteAnimator {
     this.timingMultiplier = 1;
     this.runningTileIndex = 0;
     this.currentTile = this.state.indicies[this.runningTileIndex];
-    this.elapsedTime = this.state.timing[this.runningTileIndex]; // force to play new animation instead of waiting a loop
+    this.elapsedTime = this.state.timing[this.runningTileIndex]; // Force to play new animation instead of waiting a loop
   }
 
   public changeAnimationTiming(newTimingMultiplier: number) {
@@ -97,5 +96,19 @@ export default class SpriteAnimator {
       this.material.map!.offset.x = offsetX;
       this.material.map!.offset.y = offsetY;
     }
+  }
+
+  public destroy() {
+    // Remove the reference to the texture to prevent memory leaks
+    if (this.material.map) {
+      this.material.map.dispose();
+    }
+
+    // Nullify the material to break references
+    this.material.dispose();
+
+    // Nullify references to properties
+    this.material = null as any;
+    this.state = null as any;
   }
 }

@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
 import Physics from "../../physics";
@@ -13,11 +14,14 @@ export default class GameSensor {
   public targetBody?: RAPIER.RigidBody;
   public isIntersectingTarget?: boolean;
 
+  public cameraPosition?: THREE.Vector3;
+
   constructor(
     gameObjectType: string,
     size: { width: number; height: number },
     position: { x: number; y: number },
-    targetBody?: RAPIER.RigidBody
+    targetBody?: RAPIER.RigidBody,
+    cameraPosition?: THREE.Vector3
   ) {
     this.experience = Experience.getInstance();
     this.physics = this.experience.physics;
@@ -27,6 +31,11 @@ export default class GameSensor {
     // Optional set target in constructor
     if (targetBody) {
       this.setIntersectingTarget(targetBody);
+    }
+
+    // Optional set camera in constructor
+    if (cameraPosition) {
+      this.cameraPosition = cameraPosition;
     }
   }
 

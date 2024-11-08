@@ -15,14 +15,14 @@ export default class Camera {
   private sizes: Sizes;
   private scene: THREE.Scene;
 
-  private debug!: Debug;
+  private debug?: Debug;
 
-  private currentX!: THREE.Vector2;
-  private currentY!: THREE.Vector2;
-  private currentZ!: THREE.Vector2;
-  private targetX!: THREE.Vector2;
-  private targetY!: THREE.Vector2;
-  private targetZ!: THREE.Vector2;
+  private currentX!: THREE.Vector3;
+  private currentY!: THREE.Vector3;
+  private currentZ!: THREE.Vector3;
+  private targetX!: THREE.Vector3;
+  private targetY!: THREE.Vector3;
+  private targetZ!: THREE.Vector3;
 
   private xLookahead!: number;
 
@@ -58,14 +58,14 @@ export default class Camera {
   }
 
   private setLookAhead() {
-    // Using Vector2's from THREE because they have built in lerping function, save needing to import a library
-    this.currentX = new THREE.Vector2(0, 0);
-    this.currentY = new THREE.Vector2(0, 0);
-    this.currentZ = new THREE.Vector2(40, 40); // Z of 40 makes player ~15% of screen
+    // Using Vector3's from THREE because they have built in lerping function, save needing to import a library
+    this.currentX = new THREE.Vector3(0, 0, 0);
+    this.currentY = new THREE.Vector3(0, 0, 0);
+    this.currentZ = new THREE.Vector3(40, 40, 40); // Z of 40 makes player ~15% of screen
 
-    this.targetX = new THREE.Vector2(0, 0);
-    this.targetY = new THREE.Vector2(0, 0);
-    this.targetZ = new THREE.Vector2(40, 40);
+    this.targetX = new THREE.Vector3(0, 0, 0);
+    this.targetY = new THREE.Vector3(0, 0, 0);
+    this.targetZ = new THREE.Vector3(40, 40, 40);
 
     this.xLookahead = 12.5;
 
@@ -89,11 +89,11 @@ export default class Camera {
 
   public changePositionZ(newOffset: number) {
     // Return early if unnessasary
-    if (this.targetZ.x == newOffset) {
+    if (this.targetZ.z == newOffset) {
       return;
     }
 
-    this.targetZ.setX(newOffset);
+    this.targetZ.setZ(newOffset);
   }
 
   public resize() {
@@ -173,7 +173,7 @@ export default class Camera {
     this.instance.position.set(
       playerPosition.x + this.currentX.x,
       this.currentY.y,
-      this.currentZ.x
+      this.currentZ.z
     );
   }
 

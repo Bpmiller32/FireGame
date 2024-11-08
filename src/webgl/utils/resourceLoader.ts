@@ -4,23 +4,19 @@
 
 import * as THREE from "three";
 import { DRACOLoader, GLTFLoader } from "three/examples/jsm/Addons.js";
-import EventEmitter from "./eventEmitter";
-import EventMap from "./types/eventMap";
+import Emitter from "./eventEmitter";
 import Resource from "./types/resource";
 
-export default class ResourceLoader extends EventEmitter<EventMap> {
+export default class ResourceLoader {
   private sources: Resource[];
   public items: { [key: string]: any };
   public toLoad: number;
   public loaded: number;
 
   private gltfLoader?: GLTFLoader;
-  // private dracoLoader?: DRACOLoader;
   private textureLoader?: THREE.TextureLoader;
 
   constructor(sources: Resource[]) {
-    super();
-
     this.sources = sources;
     this.items = {};
     this.toLoad = this.sources.length;
@@ -66,7 +62,39 @@ export default class ResourceLoader extends EventEmitter<EventMap> {
     this.loaded++;
 
     if (this.loaded === this.toLoad) {
-      this.emit("ready");
+      Emitter.emit("resourcesReady");
     }
+  }
+
+  public destroy() {
+    // Clear event listeners
+    Emitter.off("resourcesReady");
+
+    // Dispose of loaded textures
+    for (const key in this.items) {
+      const item = this.items[key];
+
+      if (item instanceof THREE.Texture) {
+        // Dispose of texture
+        item.dispose();
+      } else if (item instanceof THREE.Mesh) {
+        // Dispose of the meshes if loaded (to free geometries, materials, etc.)
+        if (item.geometry) {
+          item.geometry.dispose();
+        }
+
+        if (item.material) {
+          item.material.dispose();
+        }
+      }
+    }
+
+    // Nullify items and sources to release references
+    this.items = {};
+    this.sources = [];
+
+    // Nullify loaders
+    this.gltfLoader = null as any;
+    this.textureLoader = null as any;
   }
 }

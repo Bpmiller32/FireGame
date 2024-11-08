@@ -21,7 +21,6 @@ export default class Box extends GameObject {
     }
 
     this.createObject(GameObjectType.CUBE, size, position, rigidBodyType);
-    this.syncGraphicsToPhysics();
   }
 
   public update() {
