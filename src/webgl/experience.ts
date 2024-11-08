@@ -48,15 +48,13 @@ export default class Experience {
     this.time = new Time();
     this.input = new Input();
     this.resources = new ResourceLoader([
-      { name: "boat", type: "gltfModel", path: "/boat.glb" },
-      { name: "test", type: "texture", path: "/testSheet.png" },
       { name: "randy", type: "texture", path: "/randySpriteSheet.png" },
     ]);
 
     this.targetElement = canvas;
 
     this.scene = new THREE.Scene();
-    this.camera = new Camera();
+    this.camera = new Camera(new THREE.Vector3(-20, 21, 65));
     this.renderer = new Renderer();
     this.physics = new Physics();
     await this.physics.configure();
@@ -102,7 +100,7 @@ export default class Experience {
     // Scene items first
     this.world.destroy();
 
-    // Camera then physics then renderer
+    // Camera then physics then renderer then resources
     this.camera.destroy();
     this.physics.destroy();
     this.renderer.destroy();

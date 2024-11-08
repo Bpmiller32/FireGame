@@ -5,10 +5,10 @@
 import * as THREE from "three";
 import Experience from "./experience";
 import Sizes from "./utils/sizes";
-import SpriteState from "./utils/types/spriteState";
 import SpriteAnimations from "./world/player/state/spriteAnimations";
 import Debug from "./utils/debug";
 import debugCamera from "./utils/debug/debugCamera";
+import Player from "./world/player/player";
 
 export default class Camera {
   private experience: Experience;
@@ -16,6 +16,8 @@ export default class Camera {
   private scene: THREE.Scene;
 
   private debug?: Debug;
+
+  private initialPosition!: THREE.Vector3;
 
   private currentX!: THREE.Vector3;
   private currentY!: THREE.Vector3;
@@ -32,12 +34,12 @@ export default class Camera {
 
   public instance!: THREE.PerspectiveCamera;
 
-  constructor() {
+  constructor(initialPosition?: THREE.Vector3) {
     this.experience = Experience.getInstance();
     this.sizes = this.experience.sizes;
     this.scene = this.experience.scene;
 
-    this.setInstance();
+    this.setInstance(initialPosition);
     this.setLookAhead();
 
     if (this.experience.debug.isActive) {
@@ -46,7 +48,7 @@ export default class Camera {
     }
   }
 
-  private setInstance() {
+  private setInstance(initialPosition?: THREE.Vector3) {
     this.instance = new THREE.PerspectiveCamera(
       35,
       this.sizes.width / this.sizes.height,
@@ -54,18 +56,26 @@ export default class Camera {
       500
     );
 
+    if (initialPosition) {
+      this.initialPosition = initialPosition;
+      this.instance.position.copy(this.initialPosition);
+    } else {
+      this.initialPosition = new THREE.Vector3(0, 0, 0);
+    }
+
     this.scene.add(this.instance);
   }
 
   private setLookAhead() {
     // Using Vector3's from THREE because they have built in lerping function, save needing to import a library
-    this.currentX = new THREE.Vector3(0, 0, 0);
-    this.currentY = new THREE.Vector3(0, 0, 0);
-    this.currentZ = new THREE.Vector3(40, 40, 40); // Z of 40 makes player ~15% of screen
+    this.currentX = new THREE.Vector3().copy(this.initialPosition);
+    this.currentY = new THREE.Vector3().copy(this.initialPosition);
+    this.currentZ = new THREE.Vector3().copy(this.initialPosition);
+    // this.currentZ = new THREE.Vector3(40, 40, 40); // Z of 40 makes player ~15% of screen
 
-    this.targetX = new THREE.Vector3(0, 0, 0);
-    this.targetY = new THREE.Vector3(0, 0, 0);
-    this.targetZ = new THREE.Vector3(40, 40, 40);
+    this.targetX = new THREE.Vector3().copy(this.initialPosition);
+    this.targetY = new THREE.Vector3().copy(this.initialPosition);
+    this.targetZ = new THREE.Vector3().copy(this.initialPosition);
 
     this.xLookahead = 12.5;
 
@@ -101,17 +111,16 @@ export default class Camera {
     this.instance.updateProjectionMatrix();
   }
 
-  public update(
-    playerPosition?: { x: number; y: number },
-    playerState?: SpriteState
-  ) {
+  public update(player?: Player) {
     // Guard against player not loaded yet
-    if (!playerPosition) {
-      playerPosition = { x: 0, y: 0 };
+    if (!player) {
+      // Slightly prevents initial camera X movement positioning, better would be to not go into switch statement below until check but this is fine
+      this.currentX.x = 0;
+      return;
     }
 
     // Set X lookahead and timing to move to lookahead target based on player state
-    switch (playerState) {
+    switch (player.spriteAnimator.state) {
       // Slower x lerp for resting/idle transition that movement
       case SpriteAnimations.IDLE_LEFT:
         this.targetX.x = 0;
@@ -169,9 +178,12 @@ export default class Camera {
       this.zLerpTiming * this.experience.time.delta
     );
 
+    console.log("currentX: ", this.currentX.x);
+    console.log("targetX: ", this.targetX.x);
+
     // Set camera position after lerp calculations
     this.instance.position.set(
-      playerPosition.x + this.currentX.x,
+      player.currentTranslation.x + this.currentX.x,
       this.currentY.y,
       this.currentZ.z
     );

@@ -19,23 +19,6 @@ export default class GameMath {
     return current + Math.sign(target - current) * maxDelta;
   }
 
-  public static moveTowardsVector(
-    current: Vector2,
-    target: Vector2,
-    maxDelta: number
-  ) {
-    const distance = new Vector2(target.x - current.x, target.y - current.y);
-    const magnitude = Math.sqrt(
-      distance.x * distance.x + distance.y * distance.y
-    );
-
-    if (magnitude <= maxDelta || magnitude == 0) {
-      return target;
-    }
-    // // const newTarget = new Vector2(current.x + distance.x, current.y + distance.y)
-    //     return current + a / magnitude * maxDistanceDelta;
-  }
-
   public static lerp(
     start: number,
     end: number,

@@ -3,7 +3,7 @@ import PlayerStates from "../../../utils/types/playerStates";
 import SpriteAnimations from "./spriteAnimations";
 import PlayerDirection from "../../../utils/types/playerDirection";
 
-const playerIdle = (player: Player) => {
+const handlePlayerIdle = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
@@ -72,4 +72,4 @@ const playerIdle = (player: Player) => {
   }
 };
 
-export default playerIdle;
+export default handlePlayerIdle;

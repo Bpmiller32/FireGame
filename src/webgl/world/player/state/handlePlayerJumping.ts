@@ -4,7 +4,7 @@ import SpriteAnimations from "./spriteAnimations";
 import PlayerDirection from "../../../utils/types/playerDirection";
 import GameMath from "../../../utils/gameMath";
 
-const playerJumping = (player: Player) => {
+const handlePlayerJumping = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
@@ -122,4 +122,4 @@ const playerJumping = (player: Player) => {
   }
 };
 
-export default playerJumping;
+export default handlePlayerJumping;

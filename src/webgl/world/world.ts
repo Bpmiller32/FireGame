@@ -7,7 +7,7 @@ import Emitter from "../utils/eventEmitter.ts";
 import Experience from "../experience.ts";
 import Box from "./gameEntities/box.ts";
 import Player from "./player/player.ts";
-import BlenderExport from "./levels/testLevel0.json";
+import TestLevel0 from "./levels/testLevel0.json";
 import Camera from "../camera.ts";
 import GameSensor from "./gameElements/gameSensor.ts";
 import GameObjectType from "../utils/types/gameObjectType.ts";
@@ -39,7 +39,7 @@ export default class World {
     // Resources
     Emitter.on("resourcesReady", () => {
       // Player
-      this.player = new Player({ width: 2, height: 4 }, { x: -20, y: 20 });
+      this.player = new Player({ width: 2, height: 4 }, { x: -20, y: 7 });
 
       // Test dynamic ball
       this.ball = new Sphere(
@@ -51,7 +51,7 @@ export default class World {
       );
 
       // Imported platforms
-      for (const [_, value] of Object.entries(BlenderExport)) {
+      for (const [_, value] of Object.entries(TestLevel0)) {
         if (value.type != "platform") {
           continue;
         }
@@ -70,7 +70,7 @@ export default class World {
       }
 
       // Imported sensors
-      for (const [_, value] of Object.entries(BlenderExport)) {
+      for (const [_, value] of Object.entries(TestLevel0)) {
         if (value.type != "sensor") {
           continue;
         }
@@ -91,15 +91,12 @@ export default class World {
   public update() {
     this.player?.update();
 
-    this.camera.update(
-      this.player?.currentTranslation,
-      this.player?.spriteAnimator.state
-    );
+    this.camera.update(this.player);
 
     this.sensors.forEach((sensor) => {
       sensor.update();
       if (sensor.isIntersectingTarget) {
-        this.camera.changePositionY(sensor.cameraPosition!.y);
+        this.camera.changePositionY(sensor.targetCameraPosition!.y);
       }
     });
 
@@ -112,11 +109,6 @@ export default class World {
     ) {
       this.player.debugMaxHeightJumped = this.player.mesh!.position.y;
     }
-
-    // if (this.player) {
-    //   this.player.debugSpriteAnimationMultiplier =
-    //     this.player.spriteAnimator.timingMultiplier;
-    // }
   }
 
   public destroy() {

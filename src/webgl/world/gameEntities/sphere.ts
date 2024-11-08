@@ -24,6 +24,7 @@ export default class Sphere extends GameObject {
       position,
       rigidBodyType
     );
+    this.syncGraphicsToPhysics();
   }
 
   public update() {

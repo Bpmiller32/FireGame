@@ -8,20 +8,20 @@ export default class GameSensor {
   protected experience: Experience;
   protected physics: Physics;
 
-  public body!: RAPIER.RigidBody;
+  public physicsBody!: RAPIER.RigidBody;
   public currentTranslation!: RAPIER.Vector;
 
-  public targetBody?: RAPIER.RigidBody;
+  public targetPhysicsBody?: RAPIER.RigidBody;
   public isIntersectingTarget?: boolean;
 
-  public cameraPosition?: THREE.Vector3;
+  public targetCameraPosition?: THREE.Vector3;
 
   constructor(
     gameObjectType: string,
     size: { width: number; height: number },
     position: { x: number; y: number },
     targetBody?: RAPIER.RigidBody,
-    cameraPosition?: THREE.Vector3
+    targetCameraPosition?: THREE.Vector3
   ) {
     this.experience = Experience.getInstance();
     this.physics = this.experience.physics;
@@ -34,8 +34,8 @@ export default class GameSensor {
     }
 
     // Optional set camera in constructor
-    if (cameraPosition) {
-      this.cameraPosition = cameraPosition;
+    if (targetCameraPosition) {
+      this.targetCameraPosition = targetCameraPosition;
     }
   }
 
@@ -64,7 +64,7 @@ export default class GameSensor {
           .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED);
         break;
 
-      // TODO, sensor can't be a sprite or Map_Structure, guard against better somehow
+      // Sensor can't be a Sprite or Map_Structure
       default:
         shape = RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2)
           .setSensor(true)
@@ -72,27 +72,28 @@ export default class GameSensor {
         break;
     }
 
-    this.body = this.physics.world.createRigidBody(
+    this.physicsBody = this.physics.world.createRigidBody(
       RAPIER.RigidBodyDesc.fixed()
     );
-    this.body.setTranslation({ x: position.x, y: position.y }, true);
-    this.currentTranslation = this.body.translation();
-    this.body.userData = { name: this.constructor.name };
+    this.physicsBody.setTranslation({ x: position.x, y: position.y }, true);
+    this.currentTranslation = this.physicsBody.translation();
+    this.physicsBody.userData = { name: this.constructor.name };
 
-    this.physics.world.createCollider(shape!, this.body);
+    this.physics.world.createCollider(shape!, this.physicsBody);
   }
 
   public setIntersectingTarget(target: RAPIER.RigidBody) {
     this.isIntersectingTarget = false;
-    this.targetBody = target;
+    this.targetPhysicsBody = target;
   }
 
   public update() {
+    // Check that targetPhysicsBody first exists, and then check if they are intersecting
     if (
-      this.targetBody &&
+      this.targetPhysicsBody &&
       this.experience.physics.world.intersectionPair(
-        this.body.collider(0),
-        this.targetBody.collider(0)
+        this.physicsBody.collider(0),
+        this.targetPhysicsBody.collider(0)
       )
     ) {
       this.isIntersectingTarget = true;

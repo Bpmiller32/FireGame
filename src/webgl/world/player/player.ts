@@ -7,10 +7,10 @@ import PlayerDirection from "../../utils/types/playerDirection";
 import SpriteAnimator from "../../utils/spriteAnimator";
 import SpriteAnimations from "./state/spriteAnimations";
 import PlayerStates from "../../utils/types/playerStates";
-import handleIdle from "./state/handleIdle";
-import handleFalling from "./state/handleFalling";
-import handleRunning from "./state/handleRunning";
-import handleJumping from "./state/handleJumping";
+import handlePlayerIdle from "./state/handlePlayerIdle";
+import handlePlayerFalling from "./state/handlePlayerFalling";
+import handlePlayerRunning from "./state/handlePlayerRunning";
+import handlePlayerJumping from "./state/handlePlayerJumping";
 import GameObject from "../gameElements/gameObject";
 import debugPlayer from "../../utils/debug/debugPlayer";
 import ContactPoints from "../../utils/types/contactPoints";
@@ -118,7 +118,7 @@ export default class Player extends GameObject {
 
     // The maximum vertical movement speed
     this.maxFallSpeed = 40;
-    // The player's capacity to gain fall speed. a.k.a. In Air Gravity
+    // The player's capacity to gain fall speed aka In Air Gravity
     this.fallAcceleration = 110;
     // Deceleration in air only after stopping input mid-air
     this.fallDeceleration = 50;
@@ -163,22 +163,23 @@ export default class Player extends GameObject {
       this.colliderOffset
     );
     this.characterController.enableSnapToGround(this.colliderOffset);
-    this.characterController.enableAutostep(0.5, 0.2, true);
+    // this.characterController.enableAutostep(0.5, 0.2, true);
+    this.characterController.enableAutostep(5, 0.2, true);
   }
 
   private updatePlayerState() {
     switch (this.state) {
       case PlayerStates.IDLE:
-        handleIdle(this);
+        handlePlayerIdle(this);
         break;
       case PlayerStates.RUNNING:
-        handleRunning(this);
+        handlePlayerRunning(this);
         break;
       case PlayerStates.FALLING:
-        handleFalling(this);
+        handlePlayerFalling(this);
         break;
       case PlayerStates.JUMPING:
-        handleJumping(this);
+        handlePlayerJumping(this);
         break;
     }
 
@@ -205,6 +206,7 @@ export default class Player extends GameObject {
       }
     );
 
+    // Get the actual translation possible from the physics computation
     const correctiveMovement = this.characterController.computedMovement();
 
     // Apply the actual translation to the next kinematic translation
@@ -222,6 +224,18 @@ export default class Player extends GameObject {
     const downCast = this.shapeCast({
       x: PlayerDirection.NEUTRAL,
       y: PlayerDirection.DOWN,
+    });
+
+    // ShapeCast leftward
+    const leftCast = this.shapeCast({
+      x: PlayerDirection.LEFT,
+      y: PlayerDirection.NEUTRAL,
+    });
+
+    // ShapeCast rightward
+    const rightCast = this.shapeCast({
+      x: PlayerDirection.RIGHT,
+      y: PlayerDirection.NEUTRAL,
     });
 
     // Detect ground buffer within range for buffer jump
@@ -245,11 +259,7 @@ export default class Player extends GameObject {
       this.isTouching.ground = true;
     }
 
-    // ShapeCast left and right, detect touching walls via shapeCast in case collision didn't
-    const leftCast = this.shapeCast({
-      x: PlayerDirection.LEFT,
-      y: PlayerDirection.NEUTRAL,
-    });
+    // Detect touching walls via shapeCast in case collision didn't
     if (
       !this.isTouching.leftSide &&
       leftCast &&
@@ -257,10 +267,7 @@ export default class Player extends GameObject {
     ) {
       this.isTouching.leftSide = true;
     }
-    const rightCast = this.shapeCast({
-      x: PlayerDirection.RIGHT,
-      y: PlayerDirection.NEUTRAL,
-    });
+
     if (
       !this.isTouching.rightSide &&
       rightCast &&
@@ -317,7 +324,7 @@ export default class Player extends GameObject {
         return;
       }
 
-      // y axis
+      // y axis collision that happened to the character controller
       if (collision.normal2.y == -1) {
         this.isTouching.ground = true;
       }

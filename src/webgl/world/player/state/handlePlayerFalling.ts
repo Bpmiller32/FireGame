@@ -4,47 +4,55 @@ import SpriteAnimations from "./spriteAnimations";
 import PlayerDirection from "../../../utils/types/playerDirection";
 import GameMath from "../../../utils/gameMath";
 
-const playerRunning = (player: Player) => {
+const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
-  // Transition to falling state
-  if (!player.isTouching.ground) {
-    player.timeFallWasEntered = player.time.elapsed;
-    player.state = PlayerStates.FALLING;
+  // Transition to idle or running state
+  if (player.isTouching.ground) {
+    if (
+      player.input.isNeitherLeftRight() &&
+      Math.abs(player.nextTranslation.x) < player.maxGroundSpeed * 0.01
+    ) {
+      player.state = PlayerStates.IDLE;
+    } else {
+      player.state = PlayerStates.RUNNING;
+    }
+
+    player.nextTranslation.y = 0;
     return;
   }
 
-  // Transition to idle state
+  // Allow transition into jumping state when otherwise should be falling - coyote time
   if (
-    Math.abs(player.nextTranslation.x) <= player.maxGroundSpeed * 0.01 &&
-    (player.input.isNeitherLeftRight() || player.input.isLeftRightCombo())
+    player.input.isUp() &&
+    player.coyoteAvailable &&
+    player.time.elapsed < player.timeFallWasEntered + player.coyoteTime
   ) {
-    player.nextTranslation.x = 0;
-    player.state = PlayerStates.IDLE;
-    return;
-  }
+    player.debugCoyoteCount += 1;
 
-  // Transition to jumping state
-  if (player.input.isUp() && player.bufferJumpAvailable) {
+    player.nextTranslation.y = 0;
+    player.coyoteAvailable = false;
     player.timeJumpWasEntered = player.time.elapsed;
     player.state = PlayerStates.JUMPING;
     return;
   }
 
   /* -------------------------------------------------------------------------- */
-  /*                            Handle Running state                            */
+  /*                            Handle Falling state                            */
   /* -------------------------------------------------------------------------- */
-  // In a grounded state, give coyote and reset early jump gravity
-  player.coyoteAvailable = true;
-  player.endedJumpEarly = false;
-  if (!player.input.isUp()) {
+  // Timer
+  player.timeInFallState = player.time.elapsed - player.timeFallWasEntered;
+
+  // Give buffer jump
+  if (player.groundWithinBufferRange && !player.input.isUp()) {
     player.bufferJumpAvailable = true;
   }
 
-  player.spriteAnimator.changeAnimationTiming(
-    1 / (Math.abs(player.nextTranslation.x) / 3)
-  );
+  // Take coyote jump if too much time has passed falling
+  if (player.time.elapsed >= player.timeFallWasEntered + player.coyoteTime) {
+    player.coyoteAvailable = false;
+  }
 
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
@@ -52,12 +60,12 @@ const playerRunning = (player: Player) => {
   //   Left
   if (player.input.isLeft()) {
     player.horizontalDirection = PlayerDirection.LEFT;
-    player.spriteAnimator.changeState(SpriteAnimations.RUN_LEFT);
+    player.spriteAnimator.changeState(SpriteAnimations.FALL_LEFT);
   }
   //   Right
   else if (player.input.isRight()) {
     player.horizontalDirection = PlayerDirection.RIGHT;
-    player.spriteAnimator.changeState(SpriteAnimations.RUN_RIGHT);
+    player.spriteAnimator.changeState(SpriteAnimations.FALL_RIGHT);
   }
   //   Both and neither
   else if (
@@ -67,18 +75,35 @@ const playerRunning = (player: Player) => {
     player.horizontalDirection = PlayerDirection.NEUTRAL;
 
     if (
-      player.spriteAnimator.state == SpriteAnimations.JUMP_LEFT ||
-      player.spriteAnimator.state == SpriteAnimations.FALL_LEFT
+      player.spriteAnimator.state == SpriteAnimations.IDLE_LEFT ||
+      player.spriteAnimator.state == SpriteAnimations.RUN_LEFT ||
+      player.spriteAnimator.state == SpriteAnimations.JUMP_LEFT
     ) {
-      player.spriteAnimator.changeState(SpriteAnimations.RUN_LEFT);
+      player.spriteAnimator.changeState(SpriteAnimations.FALL_LEFT);
     }
     if (
-      player.spriteAnimator.state == SpriteAnimations.JUMP_RIGHT ||
-      player.spriteAnimator.state == SpriteAnimations.FALL_RIGHT
+      player.spriteAnimator.state == SpriteAnimations.IDLE_RIGHT ||
+      player.spriteAnimator.state == SpriteAnimations.RUN_RIGHT ||
+      player.spriteAnimator.state == SpriteAnimations.JUMP_RIGHT
     ) {
-      player.spriteAnimator.changeState(SpriteAnimations.RUN_RIGHT);
+      player.spriteAnimator.changeState(SpriteAnimations.FALL_RIGHT);
     }
   }
+
+  /* -------------------------------------------------------------------------- */
+  /*                                   Gravity                                  */
+  /* -------------------------------------------------------------------------- */
+  let inAirGravity = player.fallAcceleration;
+
+  if (player.endedJumpEarly && player.nextTranslation.y > 0) {
+    inAirGravity *= player.jumpEndedEarlyGravityModifier;
+  }
+
+  player.nextTranslation.y = GameMath.moveTowardsPoint(
+    player.nextTranslation.y,
+    -player.maxFallSpeed,
+    inAirGravity * player.time.delta
+  );
 
   /* -------------------------------------------------------------------------- */
   /*                                  Movement                                  */
@@ -111,4 +136,4 @@ const playerRunning = (player: Player) => {
   }
 };
 
-export default playerRunning;
+export default handlePlayerFalling;

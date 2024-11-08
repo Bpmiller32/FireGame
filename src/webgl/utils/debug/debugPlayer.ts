@@ -3,7 +3,7 @@ import Debug from "../debug";
 
 const debugPlayer = (player: Player, debug: Debug) => {
   const playerDebug = debug.ui?.addFolder("playerDebug");
-  // playerDebug?.open();
+  playerDebug?.open();
   playerDebug?.add(player, "state").name("state").listen();
   playerDebug?.add(player, "horizontalDirection").name("xDirection").listen();
   playerDebug
@@ -26,7 +26,7 @@ const debugPlayer = (player: Player, debug: Debug) => {
     .listen();
 
   const isTouching = playerDebug?.addFolder("isTouching");
-  // isTouching?.open();
+  isTouching?.open();
   isTouching
     ?.add(player.isTouching, "ground")
     .name("isTouchingGround")
