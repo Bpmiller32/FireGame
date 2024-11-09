@@ -8,6 +8,17 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
+  // // Timer
+  // player.timeInFallState = 0;
+  // player.timeInFallState = player.time.elapsed - player.timeFallWasEntered;
+
+  // // Transition to idle or running state if
+  // if (player.timeInFallState < 1) {
+  //   player.state = PlayerStates.RUNNING;
+  // }
+
+  console.log("Entered fall state");
+
   // Transition to idle or running state
   if (player.isTouching.ground) {
     if (
@@ -41,9 +52,6 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                            Handle Falling state                            */
   /* -------------------------------------------------------------------------- */
-  // Timer
-  player.timeInFallState = player.time.elapsed - player.timeFallWasEntered;
-
   // Give buffer jump
   if (player.groundWithinBufferRange && !player.input.isUp()) {
     player.bufferJumpAvailable = true;

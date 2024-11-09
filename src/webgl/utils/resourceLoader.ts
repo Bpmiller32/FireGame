@@ -9,12 +9,13 @@ import Resource from "./types/resource";
 
 export default class ResourceLoader {
   private sources: Resource[];
-  public items: { [key: string]: any };
-  public toLoad: number;
-  public loaded: number;
 
   private gltfLoader?: GLTFLoader;
   private textureLoader?: THREE.TextureLoader;
+
+  public items: { [key: string]: any };
+  public toLoad: number;
+  public loaded: number;
 
   constructor(sources: Resource[]) {
     this.sources = sources;

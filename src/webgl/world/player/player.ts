@@ -77,9 +77,12 @@ export default class Player extends GameObject {
     this.setSpriteAnimator();
     this.setCharacterController();
     this.createObject(
+      "Player",
       GameObjectType.SPRITE,
       size,
       position,
+      0,
+      // RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations().setCcdEnabled(true)
       RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
     );
 
@@ -162,9 +165,14 @@ export default class Player extends GameObject {
     this.characterController = this.physics.world.createCharacterController(
       this.colliderOffset
     );
+    // Snap to the ground if the vertical distance to the ground is smaller than collider offset.
     this.characterController.enableSnapToGround(this.colliderOffset);
-    // this.characterController.enableAutostep(0.5, 0.2, true);
-    this.characterController.enableAutostep(5, 0.2, true);
+    // Autostep if the step height is smaller than 0.5, its width is larger than 0.2, and allow stepping on dynamic bodies.
+    this.characterController.enableAutostep(0.5, 0.2, true);
+    // Don’t allow climbing slopes larger than 45 degrees.
+    this.characterController.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
+    // Automatically slide down on slopes smaller than 30 degrees.
+    this.characterController.setMinSlopeSlideAngle((30 * Math.PI) / 180);
   }
 
   private updatePlayerState() {
@@ -216,6 +224,22 @@ export default class Player extends GameObject {
     });
   }
 
+  // Teleport player by x units relative from current location
+  public teleportRelative(newX: number, newY: number) {
+    // this.physicsBody.setNextKinematicTranslation({
+    //   x: this.currentTranslation.x + newX,
+    //   y: this.currentTranslation.y + newY,
+    // });
+
+    this.physicsBody.setTranslation(
+      {
+        x: this.currentTranslation.x + newX,
+        y: this.currentTranslation.y + newY,
+      },
+      true
+    );
+  }
+
   private detectCollisions() {
     // Get the collisions from the character controller
     this.getCollisionEvents();
@@ -256,6 +280,7 @@ export default class Player extends GameObject {
       downCast &&
       downCast.toi <= this.colliderOffset + 0.001
     ) {
+      // console.log("Set via shapeCast");
       this.isTouching.ground = true;
     }
 
@@ -265,7 +290,7 @@ export default class Player extends GameObject {
       leftCast &&
       leftCast.toi <= this.colliderOffset + 0.001
     ) {
-      this.isTouching.leftSide = true;
+      // this.isTouching.leftSide = true;
     }
 
     if (
@@ -273,7 +298,7 @@ export default class Player extends GameObject {
       rightCast &&
       rightCast.toi <= this.colliderOffset + 0.001
     ) {
-      this.isTouching.rightSide = true;
+      // this.isTouching.rightSide = true;
     }
   }
 
@@ -320,29 +345,31 @@ export default class Player extends GameObject {
     ) {
       const collision = this.characterController.computedCollision(i);
 
-      if (!collision) {
-        return;
-      }
-
       // y axis collision that happened to the character controller
-      if (collision.normal2.y == -1) {
+      if (collision!.normal2.y == -1) {
+        // console.log("Set via characterController");
         this.isTouching.ground = true;
       }
-      if (collision.normal2.y == 1) {
+      if (collision!.normal2.y == 1) {
         this.isTouching.ceiling = true;
       }
 
       // x axis
-      if (collision.normal2.x == 1) {
+      if (collision!.normal2.x == 1) {
         this.isTouching.rightSide = true;
       }
-      if (collision.normal2.x == -1) {
+      if (collision!.normal2.x == -1) {
         this.isTouching.leftSide = true;
       }
     }
   }
 
   public update() {
+    // Exit early if object is destroyed
+    if (!this.mesh || !this.physicsBody) {
+      return;
+    }
+
     this.updatePlayerState();
     this.syncGraphicsToPhysics();
     this.updateTranslation();

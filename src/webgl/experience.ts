@@ -9,7 +9,7 @@ import Time from "./utils/time";
 import ResourceLoader from "./utils/resourceLoader";
 import Camera from "./camera";
 import Renderer from "./renderer";
-import World from "./world/world";
+import World from "./world/levels/world";
 import Debug from "./utils/debug";
 import Input from "./utils/input";
 import Physics from "./physics";
@@ -54,7 +54,8 @@ export default class Experience {
     this.targetElement = canvas;
 
     this.scene = new THREE.Scene();
-    this.camera = new Camera(new THREE.Vector3(-20, 21, 65));
+    // this.camera = new Camera(new THREE.Vector3(-20, 21, 65));
+    this.camera = new Camera(new THREE.Vector3(0, 0, 65));
     this.renderer = new Renderer();
     this.physics = new Physics();
     await this.physics.configure();

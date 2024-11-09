@@ -3,22 +3,24 @@
 /* -------------------------------------------------------------------------- */
 
 import * as THREE from "three";
-import Emitter from "../utils/eventEmitter.ts";
-import Experience from "../experience.ts";
-import Box from "./gameEntities/box.ts";
-import Player from "./player/player.ts";
-import TestLevel0 from "./levels/testLevel0.json";
-import Camera from "../camera.ts";
-import GameSensor from "./gameElements/gameSensor.ts";
-import GameObjectType from "../utils/types/gameObjectType.ts";
-import Sphere from "./gameEntities/sphere.ts";
+import Emitter from "../../utils/eventEmitter.ts";
+import Experience from "../../experience.ts";
+import Box from "../gameEntities/box.ts";
+import Player from "../player/player.ts";
+import TestLevel0 from "../levels/blenderExport.json";
+import Camera from "../../camera.ts";
+import GameSensor from "../gameElements/gameSensor.ts";
+import GameObjectType from "../../utils/types/gameObjectType.ts";
+import Sphere from "../gameEntities/sphere.ts";
 import RAPIER from "@dimforge/rapier2d";
+import GameDirector from "../gameElements/gameDirector.ts";
 
 export default class World {
   private experience: Experience;
   private camera: Camera;
 
   // World assets
+  public gameManager?: GameDirector;
   public player?: Player;
   public platforms: Box[];
   public sensors: GameSensor[];
@@ -39,12 +41,13 @@ export default class World {
     // Resources
     Emitter.on("resourcesReady", () => {
       // Player
-      this.player = new Player({ width: 2, height: 4 }, { x: -20, y: 7 });
+      this.player = new Player({ width: 2, height: 4 }, { x: 0, y: 10 });
 
       // Test dynamic ball
       this.ball = new Sphere(
         2,
         { x: -5, y: 25 },
+        "Enemy",
         true,
         undefined,
         RAPIER.RigidBodyDesc.dynamic()
@@ -58,8 +61,14 @@ export default class World {
 
         this.platforms.push(
           new Box(
-            { width: value.width, height: value.depth, depth: value.height },
+            {
+              width: value.width * 2,
+              height: value.depth,
+              depth: value.height,
+            },
             { x: value.position[0], y: value.position[2] },
+            -value.rotation[1],
+            "Platform",
             true,
             new THREE.MeshBasicMaterial({
               color:
@@ -78,20 +87,27 @@ export default class World {
         this.sensors.push(
           new GameSensor(
             GameObjectType.CUBE,
-            { width: value.width, height: value.depth },
+            { width: value.bb_width, height: value.bb_depth },
             { x: value.position[0], y: value.position[2] },
             this.player.physicsBody,
             new THREE.Vector3(0, value.value, 0)
           )
         );
       }
+
+      // Game manager
+      this.gameManager = new GameDirector();
     });
   }
 
   public update() {
-    this.player?.update();
+    if (!this.gameManager?.isGameUpdating) {
+      return;
+    }
 
+    this.gameManager?.update();
     this.camera.update(this.player);
+    this.player?.update();
 
     this.sensors.forEach((sensor) => {
       sensor.update();
@@ -101,17 +117,7 @@ export default class World {
     });
 
     this.ball?.update();
-
-    // TODO: remove after debug
-    if (
-      this.player &&
-      this.player.mesh!.position.y > this.player.debugMaxHeightJumped
-    ) {
-      this.player.debugMaxHeightJumped = this.player.mesh!.position.y;
-    }
   }
 
-  public destroy() {
-    this.player?.destroy();
-  }
+  public destroy() {}
 }

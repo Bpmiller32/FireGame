@@ -10,12 +10,14 @@ export default class Physics {
   private experience!: Experience;
   private scene!: THREE.Scene;
 
-  public world!: RAPIER.World;
   private mesh?: THREE.LineSegments<
     THREE.BufferGeometry<THREE.NormalBufferAttributes>,
     THREE.LineBasicMaterial,
     THREE.Object3DEventMap
   >;
+
+  public world!: RAPIER.World;
+  public isPaused!: boolean;
 
   // Replacement constructor to accomodate async
   public async configure() {
@@ -24,6 +26,7 @@ export default class Physics {
 
     const rapier = await import("@dimforge/rapier2d");
     this.world = new rapier.World({ x: 0.0, y: -9.81 });
+    this.isPaused = false;
 
     // Set debug mesh if nessasary
     if (this.experience.debug.isActive) {
@@ -37,6 +40,10 @@ export default class Physics {
   }
 
   public update() {
+    if (this.isPaused) {
+      return;
+    }
+
     // Set the physics simulation timestep, advance the simulation one step
     this.world.timestep = Math.min(this.experience.time.delta, 0.1);
     this.world.step();

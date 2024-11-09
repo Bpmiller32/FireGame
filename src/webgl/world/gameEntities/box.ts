@@ -7,6 +7,8 @@ export default class Box extends GameObject {
   constructor(
     size: { width: number; height: number; depth: number },
     position: { x: number; y: number },
+    rotation: number,
+    name: string = "BoxObject",
     drawGraphics?: boolean,
     material?: THREE.MeshBasicMaterial,
     rigidBodyType?: RAPIER.RigidBodyDesc
@@ -20,7 +22,14 @@ export default class Box extends GameObject {
       this.setMaterial(material);
     }
 
-    this.createObject(GameObjectType.CUBE, size, position, rigidBodyType);
+    this.createObject(
+      name,
+      GameObjectType.CUBE,
+      size,
+      position,
+      rotation,
+      rigidBodyType
+    );
     this.syncGraphicsToPhysics();
   }
 

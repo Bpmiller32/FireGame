@@ -119,6 +119,10 @@ export default class Camera {
       return;
     }
 
+    if (!player.currentTranslation) {
+      return;
+    }
+
     // Set X lookahead and timing to move to lookahead target based on player state
     switch (player.spriteAnimator.state) {
       // Slower x lerp for resting/idle transition that movement
@@ -177,9 +181,6 @@ export default class Camera {
       this.targetZ,
       this.zLerpTiming * this.experience.time.delta
     );
-
-    console.log("currentX: ", this.currentX.x);
-    console.log("targetX: ", this.targetX.x);
 
     // Set camera position after lerp calculations
     this.instance.position.set(

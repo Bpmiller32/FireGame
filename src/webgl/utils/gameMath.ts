@@ -2,8 +2,6 @@
 /*                  Convenience functions and utils for game                  */
 /* -------------------------------------------------------------------------- */
 
-import { Vector2 } from "@dimforge/rapier2d";
-
 export default class GameMath {
   // Moves a value current towards target
   // current: the current value, target: the value to move towards, maxDelta: the maximum change applied to the current value
@@ -17,6 +15,10 @@ export default class GameMath {
     }
 
     return current + Math.sign(target - current) * maxDelta;
+  }
+
+  public static radiansToDegrees(radians: number): number {
+    return radians * (180 / Math.PI);
   }
 
   public static lerp(

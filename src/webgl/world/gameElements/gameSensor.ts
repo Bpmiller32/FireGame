@@ -3,6 +3,7 @@ import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
 import Physics from "../../physics";
 import GameObjectType from "../../utils/types/gameObjectType";
+import UserData from "../../utils/types/userData";
 
 export default class GameSensor {
   protected experience: Experience;
@@ -77,7 +78,9 @@ export default class GameSensor {
     );
     this.physicsBody.setTranslation({ x: position.x, y: position.y }, true);
     this.currentTranslation = this.physicsBody.translation();
-    this.physicsBody.userData = { name: this.constructor.name };
+    this.physicsBody.userData = {
+      gameEntityType: this.constructor.name,
+    } as UserData;
 
     this.physics.world.createCollider(shape!, this.physicsBody);
   }
@@ -91,7 +94,8 @@ export default class GameSensor {
     // Check that targetPhysicsBody first exists, and then check if they are intersecting
     if (
       this.targetPhysicsBody &&
-      this.experience.physics.world.intersectionPair(
+      this.targetPhysicsBody.collider(0) &&
+      this.physics.world.intersectionPair(
         this.physicsBody.collider(0),
         this.targetPhysicsBody.collider(0)
       )

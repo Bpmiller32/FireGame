@@ -3,6 +3,7 @@ import * as RAPIER from "@dimforge/rapier2d";
 import Experience from "../../experience";
 import Physics from "../../physics";
 import GameObjectType from "../../utils/types/gameObjectType";
+import UserData from "../../utils/types/userData";
 
 export default class GameObject {
   protected experience: Experience;
@@ -20,6 +21,7 @@ export default class GameObject {
 
   public physicsBody!: RAPIER.RigidBody;
   public currentTranslation!: RAPIER.Vector;
+  public currentRotation!: number;
 
   constructor() {
     this.experience = Experience.getInstance();
@@ -29,9 +31,11 @@ export default class GameObject {
 
   // Combines setMesh and setPhysics, hopefully less ambiguous with gameObjectType
   protected createObject(
+    name: string,
     gameObjectType: string,
     size: { width: number; height: number },
     position: { x: number; y: number },
+    rotation: number,
     specifiedRigidBodyType?: RAPIER.RigidBodyDesc
   ) {
     let physicsShape;
@@ -49,11 +53,13 @@ export default class GameObject {
         }
         this.scene.add(this.mesh);
 
+        // TODO: revert this after testing and debug
         // Physics
         physicsShape = RAPIER.ColliderDesc.cuboid(
           size.width / 2,
           size.height / 2
         );
+        // physicsShape = RAPIER.ColliderDesc.capsule(size.height / 2, size.width);
         break;
       case GameObjectType.CUBE:
         // Graphics
@@ -103,12 +109,21 @@ export default class GameObject {
       specifiedRigidBodyType = RAPIER.RigidBodyDesc.fixed();
     }
 
+    // Create physicsBody/rigidBody, set type, position, rotation (in radians), userdata,
     this.physicsBody = this.physics.world.createRigidBody(
       specifiedRigidBodyType
     );
-    this.physicsBody.setTranslation({ x: position.x, y: position.y }, true);
-    this.physicsBody.userData = { name: this.constructor.name };
 
+    this.physicsBody.setTranslation({ x: position.x, y: position.y }, true);
+
+    this.physicsBody.setRotation(rotation, true);
+
+    this.physicsBody.userData = {
+      name: name,
+      gameEntityType: this.constructor.name,
+    } as UserData;
+
+    // Create and attach collider to physicsBody/rigidbody
     this.physics.world.createCollider(physicsShape, this.physicsBody);
   }
 
@@ -127,12 +142,20 @@ export default class GameObject {
   }
 
   protected syncGraphicsToPhysics() {
+    // Exit early if object is destroyed
+    if (!this.mesh || !this.physicsBody) {
+      return;
+    }
+
     this.currentTranslation = this.physicsBody.translation();
     this.mesh?.position.set(
       this.currentTranslation.x,
       this.currentTranslation.y,
       0
     );
+
+    this.currentRotation = this.physicsBody.rotation();
+    this.mesh.rotation.z = this.currentRotation;
   }
 
   public destroy() {
@@ -145,10 +168,9 @@ export default class GameObject {
     this.geometry?.dispose();
     this.material?.dispose();
 
-    // Remove physics body from the physics world
-    if (this.physicsBody) {
-      this.physics.world.removeRigidBody(this.physicsBody);
-    }
+    // Remove physics body and collider from the physics world
+    this.physics.world.removeCollider(this.physicsBody.collider(0), true);
+    this.physics.world.removeRigidBody(this.physicsBody);
 
     // Set all properties to undefined or null to aid garbage collection
     this.geometry = null as any;

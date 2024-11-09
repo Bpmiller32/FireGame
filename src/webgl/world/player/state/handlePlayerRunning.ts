@@ -10,6 +10,8 @@ const handlePlayerRunning = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Transition to falling state
   if (!player.isTouching.ground) {
+    player.nextTranslation.y = 0;
+
     player.timeFallWasEntered = player.time.elapsed;
     player.state = PlayerStates.FALLING;
     return;
@@ -21,12 +23,15 @@ const handlePlayerRunning = (player: Player) => {
     (player.input.isNeitherLeftRight() || player.input.isLeftRightCombo())
   ) {
     player.nextTranslation.x = 0;
+    player.nextTranslation.y = 0;
     player.state = PlayerStates.IDLE;
     return;
   }
 
   // Transition to jumping state
   if (player.input.isUp() && player.bufferJumpAvailable) {
+    player.nextTranslation.y = 0;
+
     player.timeJumpWasEntered = player.time.elapsed;
     player.state = PlayerStates.JUMPING;
     return;
@@ -101,6 +106,13 @@ const handlePlayerRunning = (player: Player) => {
     );
   }
 
+  // Simple Gravity in non-vertical state to fix movement downward on slopes, maintain touching ground
+  player.nextTranslation.y = GameMath.moveTowardsPoint(
+    player.nextTranslation.y,
+    -player.maxFallSpeed,
+    player.fallAcceleration * player.time.delta
+  );
+
   // Hitting a wall
   if (
     (player.isTouching.leftSide &&
@@ -111,6 +123,7 @@ const handlePlayerRunning = (player: Player) => {
     player.nextTranslation.x = 0;
 
     // Play running animation even though hitting a wall (didn't want to put another if above for the same check)
+    console.log(player.spriteAnimator);
     player.spriteAnimator.changeAnimationTiming(0.12);
   }
 };

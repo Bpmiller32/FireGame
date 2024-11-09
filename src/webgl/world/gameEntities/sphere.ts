@@ -7,6 +7,7 @@ export default class Sphere extends GameObject {
   constructor(
     size: number,
     position: { x: number; y: number },
+    name: string = "SphereObject",
     drawGraphics?: boolean,
     material?: THREE.MeshBasicMaterial,
     rigidBodyType?: RAPIER.RigidBodyDesc
@@ -19,9 +20,11 @@ export default class Sphere extends GameObject {
     }
 
     this.createObject(
+      name,
       GameObjectType.SPHERE,
       { width: size, height: size },
       position,
+      0,
       rigidBodyType
     );
     this.syncGraphicsToPhysics();
