@@ -42,25 +42,24 @@ const handlePlayerJumping = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                            Handle Jumping state                            */
   /* -------------------------------------------------------------------------- */
-  // Timer
-  player.timeInJumpState = player.time.elapsed - player.timeJumpWasEntered;
+  // Timers
   player.coyoteAvailable = false;
   player.bufferJumpAvailable = false;
 
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
-  //   Left
+  // Left
   if (player.input.isLeft()) {
     player.horizontalDirection = PlayerDirection.LEFT;
     player.spriteAnimator.changeState(SpriteAnimations.JUMP_LEFT);
   }
-  //   Right
+  // Right
   else if (player.input.isRight()) {
     player.horizontalDirection = PlayerDirection.RIGHT;
     player.spriteAnimator.changeState(SpriteAnimations.JUMP_RIGHT);
   }
-  //   Both and neither
+  // Both and neither
   else if (
     player.input.isNeitherLeftRight() ||
     player.input.isLeftRightCombo()

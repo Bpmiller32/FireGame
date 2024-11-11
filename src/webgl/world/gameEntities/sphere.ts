@@ -5,9 +5,9 @@ import GameObjectType from "../../utils/types/gameObjectType";
 
 export default class Sphere extends GameObject {
   constructor(
+    name: string = "SphereObject",
     size: number,
     position: { x: number; y: number },
-    name: string = "SphereObject",
     drawGraphics?: boolean,
     material?: THREE.MeshBasicMaterial,
     rigidBodyType?: RAPIER.RigidBodyDesc

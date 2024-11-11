@@ -48,24 +48,26 @@ const handlePlayerRunning = (player: Player) => {
   }
 
   // Controls accelerating or decellerating the sprite animation transitions
+  // Denominator determines the scaling factor relative to player speed, faster/slower move horizontally - faster/slower animation updates
+  // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
   player.spriteAnimator.changeAnimationTiming(
-    1 / (Math.abs(player.nextTranslation.x) / 3)
+    1 / (Math.abs(player.nextTranslation.x) / 2)
   );
 
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
-  //   Left
+  // Left
   if (player.input.isLeft()) {
     player.horizontalDirection = PlayerDirection.LEFT;
     player.spriteAnimator.changeState(SpriteAnimations.RUN_LEFT);
   }
-  //   Right
+  // Right
   else if (player.input.isRight()) {
     player.horizontalDirection = PlayerDirection.RIGHT;
     player.spriteAnimator.changeState(SpriteAnimations.RUN_RIGHT);
   }
-  //   Both and neither
+  // Both and neither
   else if (
     player.input.isNeitherLeftRight() ||
     player.input.isLeftRightCombo()
@@ -106,12 +108,8 @@ const handlePlayerRunning = (player: Player) => {
     );
   }
 
-  // Simple Gravity in non-vertical state to fix movement downward on slopes, maintain touching ground
-  player.nextTranslation.y = GameMath.moveTowardsPoint(
-    player.nextTranslation.y,
-    -player.maxFallSpeed,
-    player.fallAcceleration * player.time.delta
-  );
+  // Simple max gravity in non-vertical state to fix movement downward on slopes, maintain touching ground
+  player.nextTranslation.y = -player.maxFallSpeed;
 
   // Hitting a wall
   if (
@@ -122,9 +120,10 @@ const handlePlayerRunning = (player: Player) => {
   ) {
     player.nextTranslation.x = 0;
 
-    // Play running animation even though hitting a wall (didn't want to put another if above for the same check)
-    console.log(player.spriteAnimator);
-    player.spriteAnimator.changeAnimationTiming(0.12);
+    // Play running animation even though hitting a wall (should be in animation section above but I didn't want 2 identical checks)
+    player.spriteAnimator.changeAnimationTiming(
+      1 / (player.maxGroundSpeed / 2)
+    );
   }
 };
 

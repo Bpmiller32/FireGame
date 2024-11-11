@@ -8,29 +8,18 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
-  // // Timer
-  // player.timeInFallState = 0;
-  // player.timeInFallState = player.time.elapsed - player.timeFallWasEntered;
-
-  // // Transition to idle or running state if
-  // if (player.timeInFallState < 1) {
-  //   player.state = PlayerStates.RUNNING;
-  // }
-
-  console.log("Entered fall state");
-
   // Transition to idle or running state
   if (player.isTouching.ground) {
     if (
       player.input.isNeitherLeftRight() &&
       Math.abs(player.nextTranslation.x) < player.maxGroundSpeed * 0.01
     ) {
+      player.nextTranslation.y = 0;
       player.state = PlayerStates.IDLE;
     } else {
       player.state = PlayerStates.RUNNING;
     }
 
-    player.nextTranslation.y = 0;
     return;
   }
 
@@ -65,17 +54,17 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
-  //   Left
+  // Left
   if (player.input.isLeft()) {
     player.horizontalDirection = PlayerDirection.LEFT;
     player.spriteAnimator.changeState(SpriteAnimations.FALL_LEFT);
   }
-  //   Right
+  // Right
   else if (player.input.isRight()) {
     player.horizontalDirection = PlayerDirection.RIGHT;
     player.spriteAnimator.changeState(SpriteAnimations.FALL_RIGHT);
   }
-  //   Both and neither
+  // Both and neither
   else if (
     player.input.isNeitherLeftRight() ||
     player.input.isLeftRightCombo()

@@ -75,10 +75,12 @@ export default class Physics {
       this.mesh.material.dispose();
     }
 
-    // Nullify references to properties
+    // Nullify all properties to release references
     this.experience = null as any;
     this.scene = null as any;
-    this.world = null as any;
     this.mesh = null as any;
+    this.world = null as any;
+
+    this.isPaused = null as any;
   }
 }

@@ -55,7 +55,7 @@ export default class Experience {
 
     this.scene = new THREE.Scene();
     // this.camera = new Camera(new THREE.Vector3(-20, 21, 65));
-    this.camera = new Camera(new THREE.Vector3(0, 0, 65));
+    this.camera = new Camera(new THREE.Vector3(0, 15, 65));
     this.renderer = new Renderer();
     this.physics = new Physics();
     await this.physics.configure();
@@ -93,7 +93,7 @@ export default class Experience {
   }
 
   public destroy() {
-    // Event listeners
+    // Clear event listeners
     this.sizes.destroy();
     this.time.destroy();
     this.input.destroy();
@@ -112,7 +112,7 @@ export default class Experience {
       this.debug.destroy();
     }
 
-    // Nullify references to properties
+    // Nullify all properties to release references
     Experience.instance = null as any;
     this.debug = null as any;
     this.sizes = null as any;

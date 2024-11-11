@@ -28,5 +28,10 @@ export default class Sizes {
     // Clear event listeners
     Emitter.off("resize");
     window.addEventListener("resize", () => {});
+
+    // Nullify properties to clear references
+    this.width = null as any;
+    this.height = null as any;
+    this.pixelRatio = null as any;
   }
 }

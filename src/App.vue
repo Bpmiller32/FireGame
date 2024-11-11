@@ -11,5 +11,8 @@ onMounted(async () => {
 </script>
 
 <template>
+  <div class="absolute w-full h-full">
+    <p class="text-white">firePlatformerEngine v0.1.0</p>
+  </div>
   <canvas ref="webglRef" class=""></canvas>
 </template>

@@ -53,13 +53,11 @@ export default class GameObject {
         }
         this.scene.add(this.mesh);
 
-        // TODO: revert this after testing and debug
         // Physics
         physicsShape = RAPIER.ColliderDesc.cuboid(
           size.width / 2,
           size.height / 2
         );
-        // physicsShape = RAPIER.ColliderDesc.capsule(size.height / 2, size.width);
         break;
       case GameObjectType.CUBE:
         // Graphics
@@ -82,26 +80,12 @@ export default class GameObject {
         // Physics
         physicsShape = RAPIER.ColliderDesc.ball(size.width);
         break;
-      case GameObjectType.CAPSULE:
-        // Graphics
-        this.geometry = this.geometry as THREE.CapsuleGeometry;
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        this.scene.add(this.mesh);
-
-        // Physics
-        physicsShape = RAPIER.ColliderDesc.capsule(size.height / 2, size.width);
-        break;
-      case GameObjectType.MAP_STRUCTURE:
-        // Physics
+      default:
+        // Physics, default value to avoid undefined when creating collider
         physicsShape = RAPIER.ColliderDesc.cuboid(
           size.width / 2,
           size.height / 2
         );
-        break;
-
-      default:
-        // Physics, default value to avoid undefined when creating collider
-        physicsShape = RAPIER.ColliderDesc.cuboid(1, 1);
     }
 
     // Default rigidbody type is the cheapest - fixed
@@ -172,11 +156,17 @@ export default class GameObject {
     this.physics.world.removeCollider(this.physicsBody.collider(0), true);
     this.physics.world.removeRigidBody(this.physicsBody);
 
-    // Set all properties to undefined or null to aid garbage collection
+    // Nullify all properties to release references
     this.geometry = null as any;
     this.material = null as any;
     this.mesh = null as any;
     this.physicsBody = null as any;
     this.currentTranslation = null as any;
+    this.experience = null as any;
+    this.physics = null as any;
+    this.scene = null as any;
+
+    this.currentRotation = null as any;
+    this.spriteScale = null as any;
   }
 }

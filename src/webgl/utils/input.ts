@@ -93,7 +93,7 @@ export default class Input {
     window.addEventListener(
       "keydown",
       (event: KeyboardEvent) => {
-        this.onKeyDown(event.code, event.repeat);
+        this.onKeyDown(event.code);
       },
       false
     );
@@ -106,7 +106,7 @@ export default class Input {
     );
   }
 
-  private onKeyDown(keyName: string, isBeingHeld: boolean) {
+  private onKeyDown(keyName: string) {
     for (const keyIndex in this.keys) {
       if (keyName == this.keys[keyIndex].keyCode) {
         this.keys[keyIndex].isPressed(true);
@@ -177,7 +177,22 @@ export default class Input {
   }
 
   public destroy() {
-    window.addEventListener("keydown", () => {});
-    window.addEventListener("keyup", () => {});
+    // Clear event listeners
+    window.removeEventListener("keydown", () => {});
+    window.removeEventListener("keyup", () => {});
+
+    // Nullify all properties to release references
+    this.isLeftKeyPressed = null as any;
+    this.isRightKeyPressed = null as any;
+    this.isUpKeyPressed = null as any;
+    this.isDownKeyPressed = null as any;
+    this.isSpacebarPressed = null as any;
+
+    this.isWKeyPressed = null as any;
+    this.isAKeyPressed = null as any;
+    this.isSKeyPressed = null as any;
+    this.isDKeyPressed = null as any;
+
+    this.keys = null as any;
   }
 }

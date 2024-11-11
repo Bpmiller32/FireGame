@@ -90,12 +90,13 @@ export default class ResourceLoader {
       }
     }
 
-    // Nullify items and sources to release references
-    this.items = {};
-    this.sources = [];
-
-    // Nullify loaders
+    // Nullify all properties to release references
+    this.items = null as any;
+    this.sources = null as any;
     this.gltfLoader = null as any;
     this.textureLoader = null as any;
+
+    this.toLoad = null as any;
+    this.loaded = null as any;
   }
 }

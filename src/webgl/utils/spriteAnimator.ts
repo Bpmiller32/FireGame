@@ -60,7 +60,7 @@ export default class SpriteAnimator {
     this.timingMultiplier = 1;
     this.runningTileIndex = 0;
     this.currentTile = this.state.indicies[this.runningTileIndex];
-    this.elapsedTime = this.state.timing[this.runningTileIndex]; // Force to play new animation instead of waiting a loop
+    this.elapsedTime = this.state.timing[this.runningTileIndex]; // Force play new animation instead of waiting a loop
   }
 
   public changeAnimationTiming(newTimingMultiplier: number) {
@@ -75,16 +75,23 @@ export default class SpriteAnimator {
   public update(deltaTime: number) {
     this.elapsedTime += deltaTime;
 
+    // Check if there is a timing interval and if the elapsed time has reached it
     if (
       this.state.timing[this.runningTileIndex] * this.timingMultiplier > 0 &&
       this.elapsedTime >=
         this.state.timing[this.runningTileIndex] * this.timingMultiplier
     ) {
+      // Reset elapsed time
       this.elapsedTime = 0;
+
+      // Move to the next tile index, looping back to the beginning if necessary
       this.runningTileIndex =
         (this.runningTileIndex + 1) % this.state.indicies.length;
+
+      // Set the current tile to the new index
       this.currentTile = this.state.indicies[this.runningTileIndex];
 
+      // Calculate the texture offset based on the current tile position
       const offsetX =
         (this.currentTile % this.tilesHorizontal) / this.tilesHorizontal;
       const offsetY =
@@ -93,6 +100,7 @@ export default class SpriteAnimator {
           1) /
         this.tilesVertical;
 
+      // Update the texture's offset on the material to show the new tile
       this.material.map!.offset.x = offsetX;
       this.material.map!.offset.y = offsetY;
     }
@@ -107,8 +115,17 @@ export default class SpriteAnimator {
     // Nullify the material to break references
     this.material.dispose();
 
-    // Nullify references to properties
+    // Nullify all properties to release references
+    this.state = null as any;
+    this.material.map = null as any;
     this.material = null as any;
+
+    this.currentTile = null as any;
+    this.elapsedTime = null as any;
+    this.runningTileIndex = null as any;
+    this.tilesHorizontal = null as any;
+    this.tilesVertical = null as any;
+    this.timingMultiplier = null as any;
     this.state = null as any;
   }
 }

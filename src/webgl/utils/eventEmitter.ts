@@ -16,6 +16,9 @@ type EventMap = {
   resize: void;
   // resourceLoader
   resourcesReady: void;
+
+  // Game events
+  objectRemoved: string;
 };
 
 // Create an emitter instance

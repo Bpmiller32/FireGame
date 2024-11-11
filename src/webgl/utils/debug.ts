@@ -20,6 +20,10 @@ export default class Debug {
       // FPS counter
       this.stats = new Stats();
       this.stats.showPanel(0);
+
+      this.stats.dom.style.left = "";
+      this.stats.dom.style.right = "315px";
+
       document.body.appendChild(this.stats.dom);
     }
   }
@@ -31,5 +35,7 @@ export default class Debug {
     // Nullify references to properties
     this.ui = null as any;
     this.stats = null as any;
+
+    this.isActive = null as any;
   }
 }

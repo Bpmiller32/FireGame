@@ -111,6 +111,18 @@ export default class Camera {
     this.instance.updateProjectionMatrix();
   }
 
+  public teleportToPosition(x: number, y: number, z: number) {
+    this.currentX.set(x, 0, 0);
+    this.currentY.set(0, y, 0);
+    this.currentZ.set(0, 0, z);
+
+    this.targetX.set(x, 0, 0);
+    this.targetY.set(0, y, 0);
+    this.targetZ.set(0, 0, z);
+
+    this.instance.position.set(x, y, z);
+  }
+
   public update(player?: Player) {
     // Guard against player not loaded yet
     if (!player) {
@@ -139,10 +151,18 @@ export default class Camera {
         this.xLerpTiming = 1;
         break;
       case SpriteAnimations.JUMP_LEFT:
+        if (player.nextTranslation.x <= 0) {
+          break;
+        }
+
         this.targetX.x = -this.xLookahead;
         this.xLerpTiming = 1;
         break;
       case SpriteAnimations.FALL_LEFT:
+        if (Math.abs(player.nextTranslation.x) <= 0) {
+          break;
+        }
+
         this.targetX.x = -this.xLookahead;
         this.xLerpTiming = 1;
         break;
@@ -151,10 +171,18 @@ export default class Camera {
         this.xLerpTiming = 1;
         break;
       case SpriteAnimations.JUMP_RIGHT:
+        if (Math.abs(player.nextTranslation.x) <= 0) {
+          break;
+        }
+
         this.targetX.x = this.xLookahead;
         this.xLerpTiming = 1;
         break;
       case SpriteAnimations.FALL_RIGHT:
+        if (Math.abs(player.nextTranslation.x) <= 0) {
+          break;
+        }
+
         this.targetX.x = this.xLookahead;
         this.xLerpTiming = 1;
         break;
@@ -194,7 +222,7 @@ export default class Camera {
     // Remove camera instance from the scene
     this.scene.remove(this.instance);
 
-    // Nullify references to properties
+    // Nullify all properties to release references
     this.experience = null as any;
     this.sizes = null as any;
     this.scene = null as any;
@@ -206,5 +234,10 @@ export default class Camera {
     this.targetY = null as any;
     this.targetZ = null as any;
     this.instance = null as any;
+
+    this.xLookahead = null as any;
+    this.xLerpTiming = null as any;
+    this.yLerpTiming = null as any;
+    this.zLerpTiming = null as any;
   }
 }

@@ -15,6 +15,8 @@ import GameObject from "../gameElements/gameObject";
 import debugPlayer from "../../utils/debug/debugPlayer";
 import ContactPoints from "../../utils/types/contactPoints";
 import GameObjectType from "../../utils/types/gameObjectType";
+import Emitter from "../../utils/eventEmitter";
+import UserData from "../../utils/types/userData";
 
 export default class Player extends GameObject {
   public time: Time;
@@ -38,7 +40,6 @@ export default class Player extends GameObject {
 
   public maxFallSpeed!: number;
   public fallAcceleration!: number;
-  public fallDeceleration!: number;
   public jumpEndedEarlyGravityModifier!: number;
 
   public jumpPower!: number;
@@ -51,17 +52,16 @@ export default class Player extends GameObject {
   public bufferJumpAvailable!: boolean;
 
   public timeJumpWasEntered!: number;
-  public timeInJumpState!: number;
   public timeFallWasEntered!: number;
-  public timeInFallState!: number;
   public minJumpTime!: number;
   public maxJumpTime!: number;
   public coyoteTime!: number;
 
+  // public MOVEMENT_SCALING: number = 0.4645;
+  public MOVEMENT_SCALING: number = 1;
+
   // TODO: remove after debug
   debugCoyoteCount = 0;
-  debugMaxHeightJumped = 0;
-  debugSpriteAnimationMultiplier = 0;
 
   public constructor(
     size: { width: number; height: number },
@@ -82,7 +82,6 @@ export default class Player extends GameObject {
       size,
       position,
       0,
-      // RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations().setCcdEnabled(true)
       RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
     );
 
@@ -113,30 +112,28 @@ export default class Player extends GameObject {
     /*                          Speeds and accelerations                          */
     /* -------------------------------------------------------------------------- */
     // The top horizontal movement speed
-    this.maxGroundSpeed = 25;
+    this.maxGroundSpeed = 25 * this.MOVEMENT_SCALING;
     // The player's capacity to gain horizontal speed
-    this.groundAcceleration = 120;
+    this.groundAcceleration = 120 * this.MOVEMENT_SCALING;
     // The pace at which the player comes to a stop
-    this.groundDeceleration = 30;
+    this.groundDeceleration = 30 * this.MOVEMENT_SCALING;
 
     // The maximum vertical movement speed
-    this.maxFallSpeed = 40;
+    this.maxFallSpeed = 40 * this.MOVEMENT_SCALING;
     // The player's capacity to gain fall speed aka In Air Gravity
-    this.fallAcceleration = 110;
-    // Deceleration in air only after stopping input mid-air
-    this.fallDeceleration = 50;
+    this.fallAcceleration = 110 * this.MOVEMENT_SCALING;
     // Multiplier on fallAcceleration if player ended their jump early
-    this.jumpEndedEarlyGravityModifier = 3;
+    this.jumpEndedEarlyGravityModifier = 3 * this.MOVEMENT_SCALING;
 
     /* -------------------------------------------------------------------------- */
     /*                                    Jump                                    */
     /* -------------------------------------------------------------------------- */
-    this.jumpPower = 64;
-    this.jumpAcceleration = 9001;
+    this.jumpPower = 64 * this.MOVEMENT_SCALING;
+    this.jumpAcceleration = 9001 * this.MOVEMENT_SCALING;
     this.coyoteAvailable = false;
     this.bufferJumpAvailable = false;
 
-    this.bufferJumpRange = 4;
+    this.bufferJumpRange = 4 * this.MOVEMENT_SCALING;
     this.groundWithinBufferRange = false;
     this.bufferJumpAvailable = false;
 
@@ -144,13 +141,11 @@ export default class Player extends GameObject {
     /*                            Jump and fall timers                            */
     /* -------------------------------------------------------------------------- */
     this.timeJumpWasEntered = 0;
-    this.timeInJumpState = 0;
     this.timeFallWasEntered = 0;
-    this.timeInFallState = 0;
 
-    this.minJumpTime = 0.19;
-    this.maxJumpTime = 0.25;
-    this.coyoteTime = 0.07;
+    this.minJumpTime = 0.19 * this.MOVEMENT_SCALING;
+    this.maxJumpTime = 0.25 * this.MOVEMENT_SCALING;
+    this.coyoteTime = 0.07 * this.MOVEMENT_SCALING;
   }
 
   private setSpriteAnimator() {
@@ -226,11 +221,6 @@ export default class Player extends GameObject {
 
   // Teleport player by x units relative from current location
   public teleportRelative(newX: number, newY: number) {
-    // this.physicsBody.setNextKinematicTranslation({
-    //   x: this.currentTranslation.x + newX,
-    //   y: this.currentTranslation.y + newY,
-    // });
-
     this.physicsBody.setTranslation(
       {
         x: this.currentTranslation.x + newX,
@@ -280,7 +270,6 @@ export default class Player extends GameObject {
       downCast &&
       downCast.toi <= this.colliderOffset + 0.001
     ) {
-      // console.log("Set via shapeCast");
       this.isTouching.ground = true;
     }
 
@@ -288,17 +277,19 @@ export default class Player extends GameObject {
     if (
       !this.isTouching.leftSide &&
       leftCast &&
-      leftCast.toi <= this.colliderOffset + 0.001
+      leftCast.toi <= this.colliderOffset + 0.001 &&
+      (leftCast.collider.parent()?.userData as UserData).name != "Platform"
     ) {
-      // this.isTouching.leftSide = true;
+      this.isTouching.leftSide = true;
     }
 
     if (
       !this.isTouching.rightSide &&
       rightCast &&
-      rightCast.toi <= this.colliderOffset + 0.001
+      rightCast.toi <= this.colliderOffset + 0.001 &&
+      (rightCast.collider.parent()?.userData as UserData).name != "Platform"
     ) {
-      // this.isTouching.rightSide = true;
+      this.isTouching.rightSide = true;
     }
   }
 
@@ -347,7 +338,6 @@ export default class Player extends GameObject {
 
       // y axis collision that happened to the character controller
       if (collision!.normal2.y == -1) {
-        // console.log("Set via characterController");
         this.isTouching.ground = true;
       }
       if (collision!.normal2.y == 1) {
@@ -370,9 +360,56 @@ export default class Player extends GameObject {
       return;
     }
 
-    this.updatePlayerState();
     this.syncGraphicsToPhysics();
+    this.updatePlayerState();
     this.updateTranslation();
     this.detectCollisions();
+  }
+
+  public destroy() {
+    // Emit an event to signal the player's removal
+    Emitter.emit("objectRemoved", (this.physicsBody.userData as UserData).name);
+
+    // Remove character controller from the physics world
+    this.physics.world.removeCharacterController(this.characterController);
+
+    // Dispose of the sprite animator
+    this.spriteAnimator.destroy();
+
+    // Nullify all properties to release references
+    this.MOVEMENT_SCALING = null as any;
+    this.bufferJumpAvailable = null as any;
+    this.bufferJumpRange = null as any;
+    this.characterController = null as any;
+    this.colliderOffset = null as any;
+    this.coyoteAvailable = null as any;
+    this.coyoteTime = null as any;
+    this.debug = null as any;
+    this.debugCoyoteCount = null as any;
+    this.endedJumpEarly = null as any;
+    this.fallAcceleration = null as any;
+    this.groundAcceleration = null as any;
+    this.groundDeceleration = null as any;
+    this.groundWithinBufferRange = null as any;
+    this.horizontalDirection = null as any;
+    this.input = null as any;
+    this.isTouching = null as any;
+    this.jumpAcceleration = null as any;
+    this.jumpEndedEarlyGravityModifier = null as any;
+    this.jumpPower = null as any;
+    this.maxFallSpeed = null as any;
+    this.maxGroundSpeed = null as any;
+    this.maxJumpTime = null as any;
+    this.minJumpTime = null as any;
+    this.nextTranslation = null as any;
+    this.resources = null as any;
+    this.spriteAnimator = null as any;
+    this.state = null as any;
+    this.time = null as any;
+    this.timeFallWasEntered = null as any;
+    this.timeJumpWasEntered = null as any;
+
+    // Destroy base class resources
+    super.destroy();
   }
 }
