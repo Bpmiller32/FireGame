@@ -37,6 +37,9 @@ const handlePlayerIdle = (player: Player) => {
     player.bufferJumpAvailable = true;
   }
 
+  // Simple max gravity, TODO: explain and/or make section
+  player.nextTranslation.y = -player.maxFallSpeed;
+
   /* -------------------------------------------------------------------------- */
   /*                                  Animation                                 */
   /* -------------------------------------------------------------------------- */

@@ -2,7 +2,7 @@ import Player from "../player";
 import PlayerStates from "../../../utils/types/playerStates";
 import SpriteAnimations from "./spriteAnimations";
 import PlayerDirection from "../../../utils/types/playerDirection";
-import GameMath from "../../../utils/gameMath";
+import GameUtils from "../../../utils/gameUtils";
 
 const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
@@ -14,7 +14,7 @@ const handlePlayerFalling = (player: Player) => {
       player.input.isNeitherLeftRight() &&
       Math.abs(player.nextTranslation.x) < player.maxGroundSpeed * 0.01
     ) {
-      player.nextTranslation.y = 0;
+      // player.nextTranslation.y = 0;
       player.state = PlayerStates.IDLE;
     } else {
       player.state = PlayerStates.RUNNING;
@@ -96,7 +96,7 @@ const handlePlayerFalling = (player: Player) => {
     inAirGravity *= player.jumpEndedEarlyGravityModifier;
   }
 
-  player.nextTranslation.y = GameMath.moveTowardsPoint(
+  player.nextTranslation.y = GameUtils.moveTowardsPoint(
     player.nextTranslation.y,
     -player.maxFallSpeed,
     inAirGravity * player.time.delta
@@ -107,7 +107,7 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Accelerate
   if (player.horizontalDirection != PlayerDirection.NEUTRAL) {
-    player.nextTranslation.x = GameMath.moveTowardsPoint(
+    player.nextTranslation.x = GameUtils.moveTowardsPoint(
       player.nextTranslation.x,
       player.horizontalDirection * player.maxGroundSpeed,
       player.groundAcceleration * player.time.delta
@@ -115,7 +115,7 @@ const handlePlayerFalling = (player: Player) => {
   }
   // Decelerate
   else {
-    player.nextTranslation.x = GameMath.moveTowardsPoint(
+    player.nextTranslation.x = GameUtils.moveTowardsPoint(
       player.nextTranslation.x,
       0,
       player.groundDeceleration * player.time.delta

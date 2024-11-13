@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
-import GameObject from "../gameElements/gameObject";
+import GameObject from "../gameComponents/gameObject";
 import GameObjectType from "../../utils/types/gameObjectType";
 
 export default class Cube extends GameObject {

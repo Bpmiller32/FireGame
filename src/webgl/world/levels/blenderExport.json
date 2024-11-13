@@ -1,4 +1,22 @@
 {
+    "Cube.128": {
+        "width": 4.0,
+        "height": 2.0,
+        "depth": 2.0,
+        "position": [
+            -21.75276756286621,
+            -2.384185791015625e-07,
+            2.0
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "wall",
+        "visible": true,
+        "value": 0
+    },
     "Cube": {
         "width": 28.0,
         "height": 2.0,

@@ -5,16 +5,31 @@ const debugPlayer = (player: Player, debug: Debug) => {
   const playerDebug = debug.ui?.addFolder("playerDebug");
   playerDebug?.open();
   playerDebug?.add(player, "state").name("state").listen();
-  playerDebug?.add(player, "horizontalDirection").name("xDirection").listen();
-  playerDebug
-    ?.add(player.nextTranslation, "x")
-    .name("xVelocity")
+
+  const movement = playerDebug?.addFolder("movement");
+  movement?.open();
+  movement?.add(player, "horizontalDirection").name("xDirection").listen();
+  movement
+    ?.add(player, "currentPositionX")
+    .name("positionX")
     .min(0.001)
     .step(0.001)
     .listen();
-  playerDebug
+  movement
+    ?.add(player, "currentPositionY")
+    .name("positionY")
+    .min(0.001)
+    .step(0.001)
+    .listen();
+  movement
+    ?.add(player.nextTranslation, "x")
+    .name("velocityX")
+    .min(0.001)
+    .step(0.001)
+    .listen();
+  movement
     ?.add(player.nextTranslation, "y")
-    .name("yVelocity")
+    .name("velocityY")
     .min(0.001)
     .step(0.001)
     .listen();
@@ -43,19 +58,15 @@ const debugPlayer = (player: Player, debug: Debug) => {
   jumping?.add(player, "coyoteAvailable").name("coyoteAvailable").listen();
   jumping?.add(player, "debugCoyoteCount").name("coyoteCount").listen();
 
-  const stateDebug = playerDebug?.addFolder("stateDebug");
-  // stateDebug?.open();
-  stateDebug
-    ?.add(player.time, "elapsed")
-    .name("elapsedTime")
-    .min(0.001)
-    .listen();
-  stateDebug
+  const timers = playerDebug?.addFolder("timers");
+  // timers?.open();
+  timers?.add(player.time, "elapsed").name("elapsedTime").min(0.001).listen();
+  timers
     ?.add(player, "timeJumpWasEntered")
     .name("timeJumpWasEntered")
     .min(0.001)
     .listen();
-  stateDebug
+  timers
     ?.add(player, "timeFallWasEntered")
     .name("timeFallWasEntered")
     .min(0.001)

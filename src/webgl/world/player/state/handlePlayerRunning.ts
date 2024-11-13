@@ -2,7 +2,7 @@ import Player from "../player";
 import PlayerStates from "../../../utils/types/playerStates";
 import SpriteAnimations from "./spriteAnimations";
 import PlayerDirection from "../../../utils/types/playerDirection";
-import GameMath from "../../../utils/gameMath";
+import GameUtils from "../../../utils/gameUtils";
 
 const handlePlayerRunning = (player: Player) => {
   /* -------------------------------------------------------------------------- */
@@ -51,7 +51,7 @@ const handlePlayerRunning = (player: Player) => {
   // Denominator determines the scaling factor relative to player speed, faster/slower move horizontally - faster/slower animation updates
   // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
   player.spriteAnimator.changeAnimationTiming(
-    1 / (Math.abs(player.nextTranslation.x) / 2)
+    1 / (Math.abs(player.nextTranslation.x) / 1.6)
   );
 
   /* -------------------------------------------------------------------------- */
@@ -93,7 +93,7 @@ const handlePlayerRunning = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Accelerate
   if (player.horizontalDirection != PlayerDirection.NEUTRAL) {
-    player.nextTranslation.x = GameMath.moveTowardsPoint(
+    player.nextTranslation.x = GameUtils.moveTowardsPoint(
       player.nextTranslation.x,
       player.horizontalDirection * player.maxGroundSpeed,
       player.groundAcceleration * player.time.delta
@@ -101,7 +101,7 @@ const handlePlayerRunning = (player: Player) => {
   }
   // Decelerate
   else {
-    player.nextTranslation.x = GameMath.moveTowardsPoint(
+    player.nextTranslation.x = GameUtils.moveTowardsPoint(
       player.nextTranslation.x,
       0,
       player.groundDeceleration * player.time.delta
@@ -122,7 +122,7 @@ const handlePlayerRunning = (player: Player) => {
 
     // Play running animation even though hitting a wall (should be in animation section above but I didn't want 2 identical checks)
     player.spriteAnimator.changeAnimationTiming(
-      1 / (player.maxGroundSpeed / 2)
+      1 / (player.maxGroundSpeed / 1.6)
     );
   }
 };
