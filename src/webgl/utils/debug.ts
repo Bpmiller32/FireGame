@@ -31,11 +31,5 @@ export default class Debug {
   public destroy() {
     this.ui?.destroy();
     this.stats?.dom.parentNode?.removeChild(this.stats.dom);
-
-    // Nullify references to properties
-    this.ui = null as any;
-    this.stats = null as any;
-
-    this.isActive = null as any;
   }
 }

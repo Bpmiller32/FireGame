@@ -21,9 +21,28 @@ const handlePlayerIdle = (player: Player) => {
   }
 
   // Transition to jumping state
-  if (player.input.isUp() && player.bufferJumpAvailable) {
+  if (player.input.isJump() && player.bufferJumpAvailable) {
     player.timeJumpWasEntered = player.time.elapsed;
     player.state = PlayerStates.JUMPING;
+    return;
+  }
+
+  // Transition to climbing state
+  if (
+    player.isTouching.ladder &&
+    (player.input.isUp() || player.input.isDown())
+  ) {
+    if (player.isTouching.ladderTop && player.input.isUp()) {
+      return;
+    }
+
+    if (player.isTouching.ladderBottom && player.input.isDown()) {
+      return;
+    }
+
+    player.nextTranslation.y = 0;
+
+    player.state = PlayerStates.CLIMBING;
     return;
   }
 
@@ -33,17 +52,17 @@ const handlePlayerIdle = (player: Player) => {
   // In a grounded state, give coyote and reset early jump gravity
   player.coyoteAvailable = true;
   player.endedJumpEarly = false;
-  if (!player.input.isUp()) {
+  if (!player.input.isJump()) {
     player.bufferJumpAvailable = true;
   }
 
-  // Simple max gravity, TODO: explain and/or make section
-  player.nextTranslation.y = -player.maxFallSpeed;
+  // Set to zero to cancel any residual gravity, fall, climb translation
+  player.nextTranslation.y = 0;
 
   /* -------------------------------------------------------------------------- */
   /*                                  Animation                                 */
   /* -------------------------------------------------------------------------- */
-  switch (player.horizontalDirection) {
+  switch (player.direction) {
     case PlayerDirection.LEFT:
       player.spriteAnimator.changeState(SpriteAnimations.IDLE_LEFT);
       break;

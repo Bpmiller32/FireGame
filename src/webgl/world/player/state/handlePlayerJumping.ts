@@ -28,7 +28,7 @@ const handlePlayerJumping = (player: Player) => {
 
   // Min jump time exceeded and not holding jump
   if (
-    !player.input.isUp() &&
+    !player.input.isJump() &&
     player.time.elapsed > player.timeJumpWasEntered + player.minJumpTime
   ) {
     player.endedJumpEarly = true;
@@ -51,12 +51,12 @@ const handlePlayerJumping = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Left
   if (player.input.isLeft()) {
-    player.horizontalDirection = PlayerDirection.LEFT;
+    player.direction = PlayerDirection.LEFT;
     player.spriteAnimator.changeState(SpriteAnimations.JUMP_LEFT);
   }
   // Right
   else if (player.input.isRight()) {
-    player.horizontalDirection = PlayerDirection.RIGHT;
+    player.direction = PlayerDirection.RIGHT;
     player.spriteAnimator.changeState(SpriteAnimations.JUMP_RIGHT);
   }
   // Both and neither
@@ -64,7 +64,7 @@ const handlePlayerJumping = (player: Player) => {
     player.input.isNeitherLeftRight() ||
     player.input.isLeftRightCombo()
   ) {
-    player.horizontalDirection = PlayerDirection.NEUTRAL;
+    player.direction = PlayerDirection.NEUTRAL;
 
     if (
       player.spriteAnimator.state == SpriteAnimations.IDLE_LEFT ||
@@ -94,10 +94,10 @@ const handlePlayerJumping = (player: Player) => {
   /*                               Handle movement                              */
   /* -------------------------------------------------------------------------- */
   // Accelerate
-  if (player.horizontalDirection != PlayerDirection.NEUTRAL) {
+  if (player.direction != PlayerDirection.NEUTRAL) {
     player.nextTranslation.x = GameUtils.moveTowardsPoint(
       player.nextTranslation.x,
-      player.horizontalDirection * player.maxGroundSpeed,
+      player.direction * player.maxGroundSpeed,
       player.groundAcceleration * player.time.delta
     );
   }
@@ -112,10 +112,8 @@ const handlePlayerJumping = (player: Player) => {
 
   // Hitting a wall
   if (
-    (player.isTouching.leftSide &&
-      player.horizontalDirection == PlayerDirection.LEFT) ||
-    (player.isTouching.rightSide &&
-      player.horizontalDirection == PlayerDirection.RIGHT)
+    (player.isTouching.leftSide && player.direction == PlayerDirection.LEFT) ||
+    (player.isTouching.rightSide && player.direction == PlayerDirection.RIGHT)
   ) {
     player.nextTranslation.x = 0;
   }

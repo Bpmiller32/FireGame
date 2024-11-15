@@ -111,19 +111,5 @@ export default class Experience {
     if (this.debug && this.debug.isActive) {
       this.debug.destroy();
     }
-
-    // Nullify all properties to release references
-    Experience.instance = null as any;
-    this.debug = null as any;
-    this.sizes = null as any;
-    this.time = null as any;
-    this.input = null as any;
-    this.resources = null as any;
-    this.targetElement = null;
-    this.scene = null as any;
-    this.camera = null as any;
-    this.renderer = null as any;
-    this.physics = null as any;
-    this.world = null as any;
   }
 }

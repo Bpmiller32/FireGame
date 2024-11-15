@@ -114,18 +114,5 @@ export default class SpriteAnimator {
 
     // Nullify the material to break references
     this.material.dispose();
-
-    // Nullify all properties to release references
-    this.state = null as any;
-    this.material.map = null as any;
-    this.material = null as any;
-
-    this.currentTile = null as any;
-    this.elapsedTime = null as any;
-    this.runningTileIndex = null as any;
-    this.tilesHorizontal = null as any;
-    this.tilesVertical = null as any;
-    this.timingMultiplier = null as any;
-    this.state = null as any;
   }
 }

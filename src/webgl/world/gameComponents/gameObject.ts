@@ -155,18 +155,5 @@ export default class GameObject {
     // Remove physics body and collider from the physics world
     this.physics.world.removeCollider(this.physicsBody.collider(0), true);
     this.physics.world.removeRigidBody(this.physicsBody);
-
-    // Nullify all properties to release references
-    this.geometry = null as any;
-    this.material = null as any;
-    this.mesh = null as any;
-    this.physicsBody = null as any;
-    this.currentTranslation = null as any;
-    this.experience = null as any;
-    this.physics = null as any;
-    this.scene = null as any;
-
-    this.currentRotation = null as any;
-    this.spriteScale = null as any;
   }
 }

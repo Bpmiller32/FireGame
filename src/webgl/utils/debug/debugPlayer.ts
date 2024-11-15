@@ -8,7 +8,7 @@ const debugPlayer = (player: Player, debug: Debug) => {
 
   const movement = playerDebug?.addFolder("movement");
   movement?.open();
-  movement?.add(player, "horizontalDirection").name("xDirection").listen();
+  movement?.add(player, "direction").name("xDirection").listen();
   movement
     ?.add(player, "currentPositionX")
     .name("positionX")
@@ -51,6 +51,12 @@ const debugPlayer = (player: Player, debug: Debug) => {
   isTouching
     ?.add(player.isTouching, "rightSide")
     .name("isTouchingRightSide")
+    .listen();
+  isTouching?.add(player.isTouching, "ladder").name("ladder").listen();
+  isTouching?.add(player.isTouching, "ladderTop").name("ladderTop").listen();
+  isTouching
+    ?.add(player.isTouching, "ladderBottom")
+    .name("ladderBottom")
     .listen();
 
   const jumping = playerDebug?.addFolder("jumping");

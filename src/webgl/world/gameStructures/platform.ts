@@ -1,9 +1,6 @@
 import * as THREE from "three";
-import * as RAPIER from "@dimforge/rapier2d";
 import Cube from "../gameEntities/cube";
 import Player from "../player/player";
-import UserData from "../../utils/types/userData";
-import CollisionGroups from "../../utils/types/collisionGroups";
 import GameUtils from "../../utils/gameUtils";
 
 export default class Platform extends Cube {
@@ -28,30 +25,13 @@ export default class Platform extends Cube {
     this.isOneWayPlatform = isOneWayPlatform;
 
     if (isOneWayPlatform) {
-      (this.physicsBody.userData as UserData).name = "OneWayPlatform";
+      GameUtils.getPhysicsBodyData(this.physicsBody).name = "OneWayPlatform";
     }
+  }
 
-    // this.physicsBody
-    //   .collider(0)
-    //   .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-
-    // this.physicsBody
-    //   .collider(0)
-    //   .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.ALL);
-
-    GameUtils.setCollisionGroup(
-      this.physicsBody.collider(0),
-      CollisionGroups.PLATFORM
-    );
-    GameUtils.setCollisionMask(
-      this.physicsBody.collider(0),
-      CollisionGroups.PLATFORM
-    );
-
-    console.log(
-      "hello darkness my old friend: ",
-      (this.physicsBody.userData as UserData).isOneWayPlatformActive
-    );
+  public setOneWayPlatform(value: boolean) {
+    GameUtils.getPhysicsBodyData(this.physicsBody).isOneWayPlatformActive =
+      value;
   }
 
   public updateOneWayPlatform(player: Player) {
@@ -61,9 +41,11 @@ export default class Platform extends Cube {
       player.currentTranslation.y - player.initalSize.y / 2 >
         this.currentTranslation.y
     ) {
-      (this.physicsBody.userData as UserData).isOneWayPlatformActive = false;
+      GameUtils.getPhysicsBodyData(this.physicsBody).isOneWayPlatformActive =
+        false;
     } else {
-      (this.physicsBody.userData as UserData).isOneWayPlatformActive = true;
+      GameUtils.getPhysicsBodyData(this.physicsBody).isOneWayPlatformActive =
+        true;
     }
   }
 }

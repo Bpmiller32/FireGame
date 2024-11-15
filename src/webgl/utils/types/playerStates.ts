@@ -3,6 +3,8 @@ const PlayerStates = {
   RUNNING: "running",
   JUMPING: "jumping",
   FALLING: "falling",
+
+  CLIMBING: "climbing",
 };
 
 export default PlayerStates;

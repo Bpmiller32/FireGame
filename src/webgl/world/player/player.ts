@@ -16,10 +16,9 @@ import debugPlayer from "../../utils/debug/debugPlayer";
 import ContactPoints from "../../utils/types/contactPoints";
 import GameObjectType from "../../utils/types/gameObjectType";
 import Emitter from "../../utils/eventEmitter";
-import UserData from "../../utils/types/userData";
 import setDkAttributes from "./attributes/setDkAttributes";
-import CollisionGroups from "../../utils/types/collisionGroups";
 import GameUtils from "../../utils/gameUtils";
+import handlePlayerClimbing from "./state/handlePlayerClimbing";
 
 export default class Player extends GameObject {
   public time: Time;
@@ -32,13 +31,17 @@ export default class Player extends GameObject {
   // Player variables
   public initalSize!: RAPIER.Vector2;
   public state!: string;
-  public horizontalDirection!: number;
+  public direction!: number;
   public colliderOffset!: number;
   public currentPositionX!: number;
   public currentPositionY!: number;
   public nextTranslation!: RAPIER.Vector2;
 
   public isTouching!: ContactPoints;
+
+  public maxClimbSpeed!: number;
+  public climbAcceleration!: number;
+  public climbDeceleration!: number;
 
   public maxGroundSpeed!: number;
   public groundAcceleration!: number;
@@ -77,6 +80,7 @@ export default class Player extends GameObject {
     this.input = this.experience.input;
     this.resources = this.experience.resources;
 
+    // Set inital size so I don't have to look for it in physicsBody.collider.shape.halfExtents later
     this.initalSize = { x: size.width, y: size.height };
 
     setDkAttributes(this);
@@ -92,80 +96,11 @@ export default class Player extends GameObject {
       RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
     );
 
-    // Experimentation
-    GameUtils.setCollisionGroup(
-      this.physicsBody.collider(0),
-      CollisionGroups.PLAYER
-    );
-    GameUtils.setCollisionMask(
-      this.physicsBody.collider(0),
-      CollisionGroups.NONE
-    );
-
-    // this.physicsBody
-    //   .collider(0)
-    //   .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-
-    // this.physicsBody.enableCcd(true);
-
-    // this.physicsBody
-    //   .collider(0)
-    //   .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-
-    // // Set up a physics hook for custom collision logic
-    // const physicsHooks: RAPIER.PhysicsHooks = {
-    //   // Custom logic for contact pairs (collisions)
-    //   filterContactPair: (
-    //     collider1: number,
-    //     collider2: number,
-    //     body1: number,
-    //     body2: number
-    //   ) => {
-    //     return null;
-    //     // const playerColliderHandle = playerCollider.handle;
-    //     // const groundColliderHandle = groundCollider.handle;
-
-    //     // // Check if the collision is between player and ground
-    //     // if (
-    //     //   (pair.collider1() === playerColliderHandle &&
-    //     //     pair.collider2() === groundColliderHandle) ||
-    //     //   (pair.collider2() === playerColliderHandle &&
-    //     //     pair.collider1() === groundColliderHandle)
-    //     // ) {
-    //     //   // Log when the player starts colliding with the ground
-    //     //   console.log("Player is touching the ground.");
-    //     //   return true; // Allow the collision to happen
-    //     // }
-
-    //     // // If the collision pair is not the player-ground pair, ignore it
-    //     // return false;
-    //   },
-
-    //   // Another hook for custom logic on joint creation (if you use joints)
-    //   // filterJoint: (pair) => {
-    //   //   console.log('Checking joint...');
-    //   //   return true;
-    //   // }
-    // };
-
-    this.physics.world.colliders.forEach((collider) => {
-      const activeCollisions = collider.activeEvents();
-
-      // console.log(activeCollisions);
-    });
-
     // Debug
     if (this.experience.debug.isActive) {
       this.debug = this.experience.debug;
       debugPlayer(this, this.debug);
     }
-  }
-
-  private setSpriteAnimator() {
-    // Set initial sprite loop
-    this.spriteAnimator = new SpriteAnimator(this.resources.items.randy, 4, 6);
-    this.spriteAnimator.state = SpriteAnimations.IDLE_RIGHT;
-    this.setMaterial(this.spriteAnimator.material, 4);
   }
 
   private setPhysicsAttributes() {
@@ -179,7 +114,18 @@ export default class Player extends GameObject {
       ceiling: false,
       leftSide: false,
       rightSide: false,
+
+      ladder: false,
+      ladderTop: false,
+      ladderBottom: false,
     };
+  }
+
+  private setSpriteAnimator() {
+    // Set initial sprite loop
+    this.spriteAnimator = new SpriteAnimator(this.resources.items.randy, 4, 6);
+    this.spriteAnimator.state = SpriteAnimations.IDLE_RIGHT;
+    this.setMaterial(this.spriteAnimator.material, 4);
   }
 
   private setCharacterController() {
@@ -211,6 +157,10 @@ export default class Player extends GameObject {
       case PlayerStates.JUMPING:
         handlePlayerJumping(this);
         break;
+
+      case PlayerStates.CLIMBING:
+        handlePlayerClimbing(this);
+        break;
     }
 
     // Update the sprite state
@@ -223,21 +173,6 @@ export default class Player extends GameObject {
     this.currentPositionX = position.x;
     this.currentPositionY = position.y;
 
-    // console.log(
-    //   "platform: ",
-    //   this.experience.world.platforms[0].physicsBody
-    //     .collider(0)
-    //     .collisionGroups()
-    // );
-
-    // console.log(
-    //   "calculated platform: ",
-    //   GameUtils.calculateCollisionMask(
-    //     CollisionGroups.PLATFORM,
-    //     CollisionGroups.ALL
-    //   )
-    // );
-
     // Given a desired translation, compute the actual translation that we can apply to the collider based on the obstacles.
     this.characterController.computeColliderMovement(
       this.physicsBody.collider(0),
@@ -246,41 +181,17 @@ export default class Player extends GameObject {
         y: this.nextTranslation.y * this.time.delta,
       },
       undefined,
-      GameUtils.calculateCollisionMask(
-        CollisionGroups.PLATFORM,
-        CollisionGroups.DEFAULT
-      ),
+      undefined,
       (collider) => {
-        // console.log("predicate col groups: ", collider.collisionGroups());
-        // console.log("fuck: ", CollisionGroups.PLATFORM);
+        // Tried CollisionGroups, filterGroups in this function and class. Tried EventQueue and drainCollisionEvents in Physics class, either don't work at all as documented or don't work in a useful way.... Resorting to only using predicate
 
-        // Don't collide with sensors at all
+        // Don't collide with sensors or OneWayPlatforms while under them
         if (
           collider.isSensor() ||
-          (collider.parent()?.userData as UserData).isOneWayPlatformActive ==
-            true
-          // ||
-          // (collider.parent()?.userData as UserData).name == "OneWayPlatform"
+          GameUtils.getColliderData(collider).isOneWayPlatformActive == true
         ) {
           return false;
         }
-
-        // console.log(
-        //   "feet loc: ",
-        //   this.currentTranslation.y - this.physicsBody.collider(0).halfHeight()
-        // );
-        // console.log("platform loc: ", collider.translation().y);
-
-        // if (
-        //   (collider.parent()?.userData as UserData).name == "OneWayPlatform" &&
-        //   this.currentTranslation.y -
-        //     this.physicsBody.collider(0).halfHeight() >
-        //     collider.translation().y
-        // ) {
-        //   return false;
-        // } else {
-        //   return true;
-        // }
 
         return true;
       }
@@ -309,23 +220,7 @@ export default class Player extends GameObject {
 
   private detectCollisions() {
     this.getCharacterControllerCollisions();
-
-    // console.log("grounded: ", this.characterController.computedGrounded());
-
     this.getShapeCastCollisions();
-
-    // if (
-    //   this.isTouching.ground &&
-    //   this.debugMovementSpeedX == 0 &&
-    //   this.input.isLeft()
-    // ) {
-    //   this.debugMovementSpeedX = this.time.elapsed;
-    // }
-
-    // if (this.isTouching.leftSide) {
-    //   const raceDone = this.time.elapsed - this.debugMovementSpeedX;
-    //   console.log("raceDone: ", raceDone);
-    // }
   }
 
   private getCharacterControllerCollisions() {
@@ -335,9 +230,10 @@ export default class Player extends GameObject {
     this.isTouching.leftSide = false;
     this.isTouching.rightSide = false;
 
-    if (this.characterController.computedGrounded()) {
-      this.isTouching.ground = true;
-    }
+    // // CharacterController ground detection saves a downCast later in shapeCastCollisions
+    // if (this.characterController.computedGrounded()) {
+    //   this.isTouching.ground = true;
+    // }
 
     for (
       let i = 0;
@@ -348,15 +244,13 @@ export default class Player extends GameObject {
 
       // y axis collision that happened to the character controller
       if (collision!.normal2.y == -1) {
-        // console.log("detected ground from controller");
-        // this.isTouching.ground = true;
+        this.isTouching.ground = true;
       }
+      // Handle OneWayPlatforms
       if (
         collision!.normal2.y == 1 &&
-        (collision!.collider?.parent()?.userData as UserData).name !=
-          "OneWayPlatform"
+        GameUtils.getColliderData(collision!.collider!).name != "OneWayPlatform"
       ) {
-        console.log("hit head controller");
         this.isTouching.ceiling = true;
       }
 
@@ -401,23 +295,24 @@ export default class Player extends GameObject {
       this.groundWithinBufferRange = false;
     }
 
-    // // Detect touching ground via shapeCast in case collision didn't, ignore Walls
-    // if (
-    //   !this.isTouching.ground &&
-    //   downCast &&
-    //   downCast.toi <= this.colliderOffset + 0.001 &&
-    //   (downCast.collider.parent()?.userData as UserData).name != "Wall"
-    // ) {
-    //   this.isTouching.ground = true;
-    // }
+    // Detect touching ground via shapeCast in case collision didn't, ignore Walls
+    if (
+      !this.isTouching.ground &&
+      downCast &&
+      downCast.toi <= this.colliderOffset + 0.001 &&
+      GameUtils.getColliderData(downCast.collider).name != "Wall" &&
+      GameUtils.getColliderData(downCast.collider).isOneWayPlatformActive ==
+        false
+    ) {
+      this.isTouching.ground = true;
+    }
 
     // Detect touching walls via shapeCast in case collision didn't, ignore OneWayPlatforms
     if (
       !this.isTouching.leftSide &&
       leftCast &&
       leftCast.toi <= this.colliderOffset + 0.001 &&
-      (leftCast.collider.parent()?.userData as UserData).name !=
-        "OneWayPlatform"
+      GameUtils.getColliderData(leftCast.collider).name != "OneWayPlatform"
     ) {
       this.isTouching.leftSide = true;
     }
@@ -426,8 +321,7 @@ export default class Player extends GameObject {
       !this.isTouching.rightSide &&
       rightCast &&
       rightCast.toi <= this.colliderOffset + 0.001 &&
-      (rightCast.collider.parent()?.userData as UserData).name !=
-        "OneWayPlatform"
+      GameUtils.getColliderData(rightCast.collider).name != "OneWayPlatform"
     ) {
       this.isTouching.rightSide = true;
     }
@@ -476,47 +370,16 @@ export default class Player extends GameObject {
 
   public destroy() {
     // Emit an event to signal the player's removal
-    Emitter.emit("objectRemoved", (this.physicsBody.userData as UserData).name);
+    Emitter.emit(
+      "objectRemoved",
+      GameUtils.getPhysicsBodyData(this.physicsBody).name
+    );
 
     // Remove character controller from the physics world
     this.physics.world.removeCharacterController(this.characterController);
 
     // Dispose of the sprite animator
     this.spriteAnimator.destroy();
-
-    // Nullify all properties to release references
-    this.bufferJumpAvailable = null as any;
-    this.bufferJumpRange = null as any;
-    this.characterController = null as any;
-    this.colliderOffset = null as any;
-    this.coyoteAvailable = null as any;
-    this.coyoteTime = null as any;
-    this.currentPositionX = null as any;
-    this.currentPositionY = null as any;
-    this.debug = null as any;
-    this.debugCoyoteCount = null as any;
-    this.endedJumpEarly = null as any;
-    this.fallAcceleration = null as any;
-    this.groundAcceleration = null as any;
-    this.groundDeceleration = null as any;
-    this.groundWithinBufferRange = null as any;
-    this.horizontalDirection = null as any;
-    this.input = null as any;
-    this.isTouching = null as any;
-    this.jumpAcceleration = null as any;
-    this.jumpEndedEarlyGravityModifier = null as any;
-    this.jumpPower = null as any;
-    this.maxFallSpeed = null as any;
-    this.maxGroundSpeed = null as any;
-    this.maxJumpTime = null as any;
-    this.minJumpTime = null as any;
-    this.nextTranslation = null as any;
-    this.resources = null as any;
-    this.spriteAnimator = null as any;
-    this.state = null as any;
-    this.time = null as any;
-    this.timeFallWasEntered = null as any;
-    this.timeJumpWasEntered = null as any;
 
     // Destroy base class resources
     super.destroy();

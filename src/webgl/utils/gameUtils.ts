@@ -2,11 +2,11 @@
 /*                  Convenience functions and utils for game                  */
 /* -------------------------------------------------------------------------- */
 
-import { Collider } from "@dimforge/rapier2d";
+import { Collider, RigidBody } from "@dimforge/rapier2d";
+import UserData from "./types/userData";
 
 export default class GameUtils {
-  // Moves a value current towards target
-  // current: the current value, target: the value to move towards, maxDelta: the maximum change applied to the current value
+  // Moves a value current towards target. Current: the current value, target: the value to move towards, maxDelta: the maximum change applied to the current value
   public static moveTowardsPoint(
     current: number,
     target: number,
@@ -19,18 +19,47 @@ export default class GameUtils {
     return current + Math.sign(target - current) * maxDelta;
   }
 
+  // Get userData from physicsBody
+  static getPhysicsBodyData(physicsBody?: RigidBody) {
+    if (physicsBody) {
+      return physicsBody.userData as UserData;
+    }
+
+    return {
+      name: "",
+      gameEntityType: undefined,
+
+      isOneWayPlatformActive: undefined,
+    };
+  }
+
+  // Get userData from collider
+  static getColliderData(collider?: Collider) {
+    if (collider) {
+      return collider.parent()?.userData as UserData;
+    }
+
+    return {
+      name: "",
+      gameEntityType: undefined,
+
+      isOneWayPlatformActive: undefined,
+    };
+  }
+
   // Sets the collision group for a collider
-  static setCollisionGroup(collider: Collider, group: number): void {
+  static setCollisionGroup(collider: Collider, group: number) {
     const currentMask = collider.collisionGroups() >> 16; // Extract the current mask (upper 16 bits)
     collider.setCollisionGroups(group | (currentMask << 16)); // Set the group, keep the current mask
   }
 
   // Updates the collision mask for a collider
-  static setCollisionMask(collider: Collider, mask: number): void {
+  static setCollisionMask(collider: Collider, mask: number) {
     const currentGroup = collider.collisionGroups() & 0xffff; // Extract the current group (lower 16 bits)
     collider.setCollisionGroups(currentGroup | (mask << 16)); // Set the mask, keep the current group
   }
 
+  // Calculates what the collision mask on a collider must be without having the collider itself
   static calculateCollisionMask(group: number, mask: number) {
     const groupString = group.toString(2).padStart(16, "0");
     const maskString = mask.toString(2).padStart(16, "0");

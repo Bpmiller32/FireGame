@@ -11,7 +11,7 @@ const handlePlayerFalling = (player: Player) => {
   // Transition to idle or running state
   if (player.isTouching.ground) {
     if (
-      player.input.isNeitherLeftRight() &&
+      (player.input.isNeitherLeftRight() || player.input.isLeftRightCombo()) &&
       Math.abs(player.nextTranslation.x) < player.maxGroundSpeed * 0.01
     ) {
       // player.nextTranslation.y = 0;
@@ -25,7 +25,7 @@ const handlePlayerFalling = (player: Player) => {
 
   // Allow transition into jumping state when otherwise should be falling - coyote time
   if (
-    player.input.isUp() &&
+    player.input.isJump() &&
     player.coyoteAvailable &&
     player.time.elapsed < player.timeFallWasEntered + player.coyoteTime
   ) {
@@ -42,7 +42,7 @@ const handlePlayerFalling = (player: Player) => {
   /*                            Handle Falling state                            */
   /* -------------------------------------------------------------------------- */
   // Give buffer jump
-  if (player.groundWithinBufferRange && !player.input.isUp()) {
+  if (player.groundWithinBufferRange && !player.input.isJump()) {
     player.bufferJumpAvailable = true;
   }
 
@@ -56,12 +56,12 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Left
   if (player.input.isLeft()) {
-    player.horizontalDirection = PlayerDirection.LEFT;
+    player.direction = PlayerDirection.LEFT;
     player.spriteAnimator.changeState(SpriteAnimations.FALL_LEFT);
   }
   // Right
   else if (player.input.isRight()) {
-    player.horizontalDirection = PlayerDirection.RIGHT;
+    player.direction = PlayerDirection.RIGHT;
     player.spriteAnimator.changeState(SpriteAnimations.FALL_RIGHT);
   }
   // Both and neither
@@ -69,7 +69,7 @@ const handlePlayerFalling = (player: Player) => {
     player.input.isNeitherLeftRight() ||
     player.input.isLeftRightCombo()
   ) {
-    player.horizontalDirection = PlayerDirection.NEUTRAL;
+    player.direction = PlayerDirection.NEUTRAL;
 
     if (
       player.spriteAnimator.state == SpriteAnimations.IDLE_LEFT ||
@@ -106,10 +106,10 @@ const handlePlayerFalling = (player: Player) => {
   /*                                  Movement                                  */
   /* -------------------------------------------------------------------------- */
   // Accelerate
-  if (player.horizontalDirection != PlayerDirection.NEUTRAL) {
+  if (player.direction != PlayerDirection.NEUTRAL) {
     player.nextTranslation.x = GameUtils.moveTowardsPoint(
       player.nextTranslation.x,
-      player.horizontalDirection * player.maxGroundSpeed,
+      player.direction * player.maxGroundSpeed,
       player.groundAcceleration * player.time.delta
     );
   }
@@ -124,10 +124,8 @@ const handlePlayerFalling = (player: Player) => {
 
   // Hitting a wall
   if (
-    (player.isTouching.leftSide &&
-      player.horizontalDirection == PlayerDirection.LEFT) ||
-    (player.isTouching.rightSide &&
-      player.horizontalDirection == PlayerDirection.RIGHT)
+    (player.isTouching.leftSide && player.direction == PlayerDirection.LEFT) ||
+    (player.isTouching.rightSide && player.direction == PlayerDirection.RIGHT)
   ) {
     player.nextTranslation.x = 0;
   }

@@ -5,24 +5,26 @@
 import Key from "./types/key";
 
 export default class Input {
-  public isLeftKeyPressed: boolean;
-  public isRightKeyPressed: boolean;
-  public isUpKeyPressed: boolean;
-  public isDownKeyPressed: boolean;
-  public isSpacebarPressed: boolean;
+  private isLeftKeyPressed: boolean;
+  private isRightKeyPressed: boolean;
+  private isUpKeyPressed: boolean;
+  private isDownKeyPressed: boolean;
 
-  public isWKeyPressed: boolean;
-  public isAKeyPressed: boolean;
-  public isSKeyPressed: boolean;
-  public isDKeyPressed: boolean;
+  private isSpacebarPressed: boolean;
 
-  public keys: Key[];
+  private isWKeyPressed: boolean;
+  private isAKeyPressed: boolean;
+  private isSKeyPressed: boolean;
+  private isDKeyPressed: boolean;
+
+  private keys: Key[];
 
   constructor() {
     this.isLeftKeyPressed = false;
     this.isRightKeyPressed = false;
     this.isUpKeyPressed = false;
     this.isDownKeyPressed = false;
+
     this.isSpacebarPressed = false;
 
     this.isWKeyPressed = false;
@@ -148,11 +150,15 @@ export default class Input {
     return false;
   }
 
+  public isJump() {
+    if (this.isSpacebarPressed) {
+      return true;
+    }
+    return false;
+  }
+
   public isUp() {
-    if (
-      (this.isUpKeyPressed && !this.isDownKeyPressed) ||
-      this.isSpacebarPressed
-    ) {
+    if (this.isUpKeyPressed && !this.isDownKeyPressed) {
       return true;
     }
     return false;
@@ -180,19 +186,5 @@ export default class Input {
     // Clear event listeners
     window.removeEventListener("keydown", () => {});
     window.removeEventListener("keyup", () => {});
-
-    // Nullify all properties to release references
-    this.isLeftKeyPressed = null as any;
-    this.isRightKeyPressed = null as any;
-    this.isUpKeyPressed = null as any;
-    this.isDownKeyPressed = null as any;
-    this.isSpacebarPressed = null as any;
-
-    this.isWKeyPressed = null as any;
-    this.isAKeyPressed = null as any;
-    this.isSKeyPressed = null as any;
-    this.isDKeyPressed = null as any;
-
-    this.keys = null as any;
   }
 }

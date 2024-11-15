@@ -43,13 +43,5 @@ export default class Time {
   public destroy() {
     // Clear event listeners
     Emitter.off("tick");
-
-    // Nullify all properties to release references
-    this.clock = null as any;
-    
-    this.start = null as any;
-    this.elapsed = null as any;
-    this.delta = null as any;
-    this.previous = null as any;
   }
 }

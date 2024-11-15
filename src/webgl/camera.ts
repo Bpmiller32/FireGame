@@ -221,23 +221,5 @@ export default class Camera {
   public destroy() {
     // Remove camera instance from the scene
     this.scene.remove(this.instance);
-
-    // Nullify all properties to release references
-    this.experience = null as any;
-    this.sizes = null as any;
-    this.scene = null as any;
-    this.debug = null as any;
-    this.currentX = null as any;
-    this.currentY = null as any;
-    this.currentZ = null as any;
-    this.targetX = null as any;
-    this.targetY = null as any;
-    this.targetZ = null as any;
-    this.instance = null as any;
-
-    this.xLookahead = null as any;
-    this.xLerpTiming = null as any;
-    this.yLerpTiming = null as any;
-    this.zLerpTiming = null as any;
   }
 }

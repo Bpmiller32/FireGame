@@ -10,7 +10,6 @@ import Camera from "../../camera.ts";
 import GameSensor from "../gameComponents/gameSensor.ts";
 import Sphere from "../gameEntities/sphere.ts";
 import GameDirector from "../gameComponents/gameDirector.ts";
-import UserData from "../../utils/types/userData.ts";
 import Platform from "../gameStructures/platform.ts";
 import Cube from "../gameEntities/cube.ts";
 
@@ -20,13 +19,17 @@ export default class World {
 
   // World assets
   public gameDirector?: GameDirector;
-  public player?: Player;
 
+  public player?: Player;
   public enemies: Sphere[];
 
   public walls: Cube[];
   public platforms: Platform[];
-  public sensors: GameSensor[];
+  public cameraSensors: GameSensor[];
+
+  public ladderSensors: GameSensor[];
+  public ladderTopSensors: GameSensor[];
+  public ladderBottomSensors: GameSensor[];
 
   constructor() {
     this.experience = Experience.getInstance();
@@ -36,19 +39,17 @@ export default class World {
 
     this.walls = [];
     this.platforms = [];
-    this.sensors = [];
-
-    this.camera.changeLookaheadX(12.5);
-    this.camera.changePositionZ(65);
+    this.cameraSensors = [];
+    this.ladderSensors = [];
+    this.ladderTopSensors = [];
+    this.ladderBottomSensors = [];
 
     // Resources
     Emitter.on("resourcesReady", () => {
       // Player
       this.player = new Player({ width: 2, height: 4 }, { x: -6.752, y: 3 });
 
-      this.experience.physics.player = this.player;
-
-      // Load enemies (will do this from levelData in GameDirector later)
+      // Load enemies (will do this from levelData later)
       this.enemies.push(
         new Sphere(
           "Enemy",
@@ -60,23 +61,18 @@ export default class World {
         )
       );
 
-      console.log(this.enemies[0].physicsBody.collider(0).collisionGroups());
-      console.log(this.player.physicsBody.collider(0).collisionGroups());
-
       this.enemies[0].physicsBody.setLinvel(
-        // { x: -8.46, y: this.enemies[0].physicsBody.linvel().y },
         { x: -14, y: this.enemies[0].physicsBody.linvel().y },
         true
       );
 
-      // Game director
+      // Level loader
       this.gameDirector = new GameDirector();
       this.gameDirector.loadLevelData("blenderExport");
     });
   }
 
   public update() {
-    this.gameDirector?.update();
     // this.camera.update(this.player);
     this.player?.update();
 
@@ -84,35 +80,93 @@ export default class World {
       enemy.update();
     });
 
-    // Quick hack to make 1 way platforms, TODO: make properly with collision groups
+    // OneWayPlatforms
     this.platforms.forEach((platform) => {
-      // if (
-      //   this.player &&
-      //   (platform.physicsBody.userData as UserData).name == "OneWayPlatform" &&
-      //   this.player.currentTranslation.y - 2 > platform.currentTranslation.y
-      // ) {
-      //   platform.physicsBody.collider(0).setSensor(false);
-      // } else if ((platform.physicsBody.userData as UserData).name == "Wall") {
-      //   platform.physicsBody.collider(0).setSensor(false);
-      // } else {
-      //   platform.physicsBody.collider(0).setSensor(true);
-      // }
-      // if (this.player) {
-      //   platform.updateCollisions(this.player);
-      // }
+      if (!this.player) {
+        return;
+      }
 
-      if (this.player) {
-        platform.updateOneWayPlatform(this.player);
+      platform.updateOneWayPlatform(this.player);
+
+      if (this.player.state == "climbing") {
+        platform.setOneWayPlatform(true);
       }
     });
 
-    this.sensors.forEach((sensor) => {
+    // Camera sensors
+    this.cameraSensors.forEach((sensor) => {
       sensor.update(() => {
         if (sensor.isIntersectingTarget) {
           this.camera.changePositionY(sensor.positionData!.y);
         }
       });
     });
+
+    // Ladder detection
+    let ladderDetected = false;
+
+    this.ladderSensors.forEach((sensor) => {
+      sensor.update(() => {
+        if (
+          sensor.isIntersectingTarget &&
+          this.player!.currentTranslation.x - this.player!.initalSize.x / 2 >
+            sensor.initalPosition.x - sensor.initialSize.x / 2 &&
+          this.player!.currentTranslation.x + this.player!.initalSize.x / 2 <
+            sensor.initalPosition.x + sensor.initialSize.x / 2
+        ) {
+          ladderDetected = true;
+        }
+      });
+    });
+
+    // After all sensors are checked, update player
+    if (this.player) {
+      this.player.isTouching.ladder = ladderDetected;
+    }
+
+    // Ladder top detection
+    let ladderTopDetected = false;
+
+    this.ladderTopSensors.forEach((sensor) => {
+      sensor.update(() => {
+        if (
+          sensor.isIntersectingTarget &&
+          this.player!.currentTranslation.x - this.player!.initalSize.x / 2 >
+            sensor.initalPosition.x - sensor.initialSize.x / 2 &&
+          this.player!.currentTranslation.x + this.player!.initalSize.x / 2 <
+            sensor.initalPosition.x + sensor.initialSize.x / 2
+        ) {
+          ladderTopDetected = true;
+        }
+      });
+    });
+
+    // After all sensors are checked, update player
+    if (this.player) {
+      this.player.isTouching.ladderTop = ladderTopDetected;
+    }
+
+    // Ladder bottom detection
+    let ladderBottomDetected = false;
+
+    this.ladderBottomSensors.forEach((sensor) => {
+      sensor.update(() => {
+        if (
+          sensor.isIntersectingTarget &&
+          this.player!.currentTranslation.x - this.player!.initalSize.x / 2 >
+            sensor.initalPosition.x - sensor.initialSize.x / 2 &&
+          this.player!.currentTranslation.x + this.player!.initalSize.x / 2 <
+            sensor.initalPosition.x + sensor.initialSize.x / 2
+        ) {
+          ladderBottomDetected = true;
+        }
+      });
+    });
+
+    // After all sensors are checked, update player
+    if (this.player) {
+      this.player.isTouching.ladderBottom = ladderBottomDetected;
+    }
   }
 
   public destroy() {}

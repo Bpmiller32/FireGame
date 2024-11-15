@@ -8,7 +8,7 @@ const setCelesteAttributes = (player: Player) => {
   /*                       State, animation, and collision                      */
   /* -------------------------------------------------------------------------- */
   player.state = PlayerStates.IDLE;
-  player.horizontalDirection = PlayerDirection.NEUTRAL;
+  player.direction = PlayerDirection.NEUTRAL;
   player.colliderOffset = 0.01;
   player.currentPositionX = 0;
   player.currentPositionY = 0;
@@ -19,6 +19,10 @@ const setCelesteAttributes = (player: Player) => {
     ceiling: false,
     leftSide: false,
     rightSide: false,
+
+    ladder:false,
+    ladderTop:false,
+    ladderBottom:false
   };
 
   /* -------------------------------------------------------------------------- */

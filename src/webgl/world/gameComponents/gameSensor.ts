@@ -5,10 +5,14 @@ import Physics from "../../physics";
 import GameObjectType from "../../utils/types/gameObjectType";
 import UserData from "../../utils/types/userData";
 import Emitter from "../../utils/eventEmitter";
+import GameUtils from "../../utils/gameUtils";
 
 export default class GameSensor {
   protected experience: Experience;
   protected physics: Physics;
+
+  public initialSize!: RAPIER.Vector2;
+  public initalPosition!: RAPIER.Vector2;
 
   public physicsBody!: RAPIER.RigidBody;
 
@@ -44,7 +48,7 @@ export default class GameSensor {
     Emitter.on("objectRemoved", (removedObjectName) => {
       if (
         removedObjectName ===
-        (this.targetPhysicsBody?.userData as UserData).name
+        GameUtils.getPhysicsBodyData(this.targetPhysicsBody).name
       ) {
       }
       this.targetPhysicsBody = undefined;
@@ -85,6 +89,10 @@ export default class GameSensor {
           .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED);
         break;
     }
+
+    // Set inital size so I don't have to look for it in physicsBody.collider.shape.halfExtents later
+    this.initialSize = new RAPIER.Vector2(size.width, size.height);
+    this.initalPosition = new RAPIER.Vector2(position.x, position.y);
 
     // Create physicsBody/rigidBody, set type, position, rotation (in radians), userdata,
     this.physicsBody = this.physics.world.createRigidBody(
@@ -132,14 +140,5 @@ export default class GameSensor {
     // Remove physics body and collider from the physics world
     this.physics.world.removeCollider(this.physicsBody.collider(0), true);
     this.physics.world.removeRigidBody(this.physicsBody);
-
-    // Nullify all properties to release references
-    this.physicsBody = null as any;
-    this.targetPhysicsBody = null as any;
-    this.positionData = null as any;
-    this.experience = null as any;
-    this.physics = null as any;
-
-    this.isIntersectingTarget = null as any;
   }
 }

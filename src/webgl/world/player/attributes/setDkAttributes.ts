@@ -8,11 +8,15 @@ const setDkAttributes = (player: Player) => {
   /*                       State, animation, and collision                      */
   /* -------------------------------------------------------------------------- */
   player.state = PlayerStates.IDLE;
-  player.horizontalDirection = PlayerDirection.NEUTRAL;
+  player.direction = PlayerDirection.NEUTRAL;
 
   /* -------------------------------------------------------------------------- */
   /*                          Speeds and accelerations                          */
   /* -------------------------------------------------------------------------- */
+  player.maxClimbSpeed = 4;
+  player.climbAcceleration = 30;
+  player.climbDeceleration = 8;
+
   // The top horizontal movement speed
   player.maxGroundSpeed = 11.8;
   // The player's capacity to gain horizontal speed

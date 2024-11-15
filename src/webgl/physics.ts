@@ -5,8 +5,6 @@
 import * as THREE from "three";
 import Experience from "./experience";
 import RAPIER from "@dimforge/rapier2d";
-import UserData from "./utils/types/userData";
-import Player from "./world/player/player";
 
 export default class Physics {
   private experience!: Experience;
@@ -17,9 +15,6 @@ export default class Physics {
     THREE.LineBasicMaterial,
     THREE.Object3DEventMap
   >;
-
-  private eventQueue: RAPIER.EventQueue = new RAPIER.EventQueue(true);
-  public player!: Player;
 
   public world!: RAPIER.World;
   public isPaused!: boolean;
@@ -51,58 +46,7 @@ export default class Physics {
 
     // Set the physics simulation timestep, advance the simulation one step
     this.world.timestep = Math.min(this.experience.time.delta, 0.1);
-    this.world.step(this.eventQueue);
-
-    // Experimentation
-
-    // // Drain the eventQueue
-    // this.eventQueue.drainCollisionEvents(
-    //   (
-    //     handle1: RAPIER.ColliderHandle,
-    //     handle2: RAPIER.ColliderHandle,
-    //     started: boolean
-    //   ) => {
-    //     const physicsBody1 = (
-    //       this.world.getCollider(handle1).parent()?.userData as UserData
-    //     ).name;
-    //     const physicsBody2 = (
-    //       this.world.getCollider(handle2).parent()?.userData as UserData
-    //     ).name;
-
-    //     console.log("physicsBody1: ", physicsBody1);
-    //     console.log("physicsBody2: ", physicsBody2);
-    //     console.log("started: ", started);
-    //     console.log(" ");
-
-    //     if (
-    //       this.player &&
-    //       (physicsBody1 == "Player" || physicsBody2 == "Player") &&
-    //       started == true
-    //     ) {
-    //       this.player.isTouching.ground = true;
-    //     }
-
-    //     if (
-    //       this.player &&
-    //       (physicsBody1 == "Player" || physicsBody2 == "Player") &&
-    //       started == false
-    //     ) {
-    //       this.player.isTouching.ground = false;
-    //     }
-    //   }
-    // );
-
-    // this.eventQueue.drainContactForceEvents((event) => {
-    //   const physicsBody1 = (
-    //     this.world.getCollider(event.collider1()).parent()?.userData as UserData
-    //   ).name;
-    //   const physicsBody2 = (
-    //     this.world.getCollider(event.collider2()).parent()?.userData as UserData
-    //   ).name;
-
-    //   console.log("physicsBody1: ", physicsBody1);
-    //   console.log("physicsBody2: ", physicsBody2);
-    // });
+    this.world.step();
 
     if (this.experience.debug.isActive) {
       // Extracts just the verticies out of the physics debug render
@@ -130,13 +74,5 @@ export default class Physics {
       this.mesh.geometry.dispose();
       this.mesh.material.dispose();
     }
-
-    // Nullify all properties to release references
-    this.experience = null as any;
-    this.scene = null as any;
-    this.mesh = null as any;
-    this.world = null as any;
-
-    this.isPaused = null as any;
   }
 }
