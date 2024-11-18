@@ -4,7 +4,7 @@ export default interface GameObjectContactPoints {
   leftSide: boolean;
   rightSide: boolean;
 
-  ladder: boolean;
+  ladderCore: boolean;
   ladderTop: boolean;
   ladderBottom: boolean;
 }

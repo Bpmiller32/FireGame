@@ -39,17 +39,11 @@ const handlePlayerRunning = (player: Player) => {
 
   // Transition to climbing state
   if (
-    player.isTouching.ladder &&
-    (player.input.isUp() || player.input.isDown())
+    player.isTouching.ladderCore &&
+    (player.input.isUp() || player.input.isDown()) &&
+    !(player.isTouching.ladderTop && player.input.isUp()) &&
+    !(player.isTouching.ladderBottom && player.input.isDown())
   ) {
-    if (player.isTouching.ladderTop && player.input.isUp()) {
-      return;
-    }
-
-    if (player.isTouching.ladderBottom && player.input.isDown()) {
-      return;
-    }
-
     player.nextTranslation.x = 0;
     player.nextTranslation.y = 0;
 

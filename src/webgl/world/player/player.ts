@@ -115,7 +115,7 @@ export default class Player extends GameObject {
       leftSide: false,
       rightSide: false,
 
-      ladder: false,
+      ladderCore: false,
       ladderTop: false,
       ladderBottom: false,
     };

@@ -14,7 +14,6 @@ const handlePlayerFalling = (player: Player) => {
       (player.input.isNeitherLeftRight() || player.input.isLeftRightCombo()) &&
       Math.abs(player.nextTranslation.x) < player.maxGroundSpeed * 0.01
     ) {
-      // player.nextTranslation.y = 0;
       player.state = PlayerStates.IDLE;
     } else {
       player.state = PlayerStates.RUNNING;

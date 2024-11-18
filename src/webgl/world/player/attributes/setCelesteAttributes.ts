@@ -20,9 +20,9 @@ const setCelesteAttributes = (player: Player) => {
     leftSide: false,
     rightSide: false,
 
-    ladder:false,
-    ladderTop:false,
-    ladderBottom:false
+    ladderCore: false,
+    ladderTop: false,
+    ladderBottom: false,
   };
 
   /* -------------------------------------------------------------------------- */

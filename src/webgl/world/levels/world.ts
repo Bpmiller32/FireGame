@@ -61,8 +61,23 @@ export default class World {
         )
       );
 
+      this.enemies.push(
+        new Sphere(
+          "Enemy",
+          1,
+          { x: -25, y: 13 },
+          true,
+          undefined,
+          RAPIER.RigidBodyDesc.dynamic()
+        )
+      );
+
       this.enemies[0].physicsBody.setLinvel(
         { x: -14, y: this.enemies[0].physicsBody.linvel().y },
+        true
+      );
+      this.enemies[1].physicsBody.setLinvel(
+        { x: 14, y: this.enemies[0].physicsBody.linvel().y },
         true
       );
 
@@ -73,7 +88,7 @@ export default class World {
   }
 
   public update() {
-    // this.camera.update(this.player);
+    this.camera.update(this.player);
     this.player?.update();
 
     this.enemies.forEach((enemy) => {
@@ -121,7 +136,7 @@ export default class World {
 
     // After all sensors are checked, update player
     if (this.player) {
-      this.player.isTouching.ladder = ladderDetected;
+      this.player.isTouching.ladderCore = ladderDetected;
     }
 
     // Ladder top detection

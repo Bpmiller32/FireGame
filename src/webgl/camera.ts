@@ -7,14 +7,16 @@ import Experience from "./experience";
 import Sizes from "./utils/sizes";
 import SpriteAnimations from "./world/player/state/spriteAnimations";
 import Debug from "./utils/debug";
-import debugCamera from "./utils/debug/debugCamera";
 import Player from "./world/player/player";
+import { debugCamera, debugCameraUpdate } from "./utils/debug/debugCamera";
+import Input from "./utils/input";
 
 export default class Camera {
   private experience: Experience;
   private sizes: Sizes;
   private scene: THREE.Scene;
 
+  public input?: Input;
   private debug?: Debug;
 
   private initialPosition!: THREE.Vector3;
@@ -43,6 +45,8 @@ export default class Camera {
     this.setLookAhead();
 
     if (this.experience.debug.isActive) {
+      this.input = this.experience.input;
+
       this.debug = this.experience.debug;
       debugCamera(this, this.debug);
     }
@@ -125,13 +129,15 @@ export default class Camera {
 
   public update(player?: Player) {
     // Guard against player not loaded yet
-    if (!player) {
+    if (!player || !player.currentTranslation) {
       // Slightly prevents initial camera X movement positioning, better would be to not go into switch statement below until check but this is fine
       this.currentX.x = 0;
       return;
     }
 
-    if (!player.currentTranslation) {
+    // Run debug camera logic if needed
+    if (this.debug) {
+      debugCameraUpdate(this);
       return;
     }
 
@@ -212,7 +218,7 @@ export default class Camera {
 
     // Set camera position after lerp calculations
     this.instance.position.set(
-      player.currentTranslation.x + this.currentX.x,
+      player.currentTranslation.x,
       this.currentY.y,
       this.currentZ.z
     );

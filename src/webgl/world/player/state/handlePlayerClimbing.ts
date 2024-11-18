@@ -9,9 +9,15 @@ const handlePlayerClimbing = (player: Player) => {
   /* -------------------------------------------------------------------------- */
 
   if (
-    !player.isTouching.ladder ||
-    (player.isTouching.ladderBottom && player.input.isDown()) ||
-    (player.isTouching.ladderTop && player.input.isUp())
+    !player.isTouching.ladderCore ||
+    (player.isTouching.ladderBottom &&
+      (player.input.isDown() ||
+        player.input.isNeitherUpDown() ||
+        player.input.isUpDownCombo())) ||
+    (player.isTouching.ladderTop &&
+      (player.input.isUp() ||
+        player.input.isNeitherUpDown() ||
+        player.input.isUpDownCombo()))
   ) {
     player.nextTranslation.y = 0;
     player.isTouching.ground = true;
@@ -44,7 +50,9 @@ const handlePlayerClimbing = (player: Player) => {
   // Both and neither
   else if (
     player.input.isNeitherLeftRight() ||
-    player.input.isLeftRightCombo()
+    player.input.isLeftRightCombo() ||
+    player.input.isLeft() ||
+    player.input.isRight()
   ) {
     player.direction = PlayerDirection.NEUTRAL;
   }

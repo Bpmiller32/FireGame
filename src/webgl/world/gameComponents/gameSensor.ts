@@ -26,13 +26,14 @@ export default class GameSensor {
     gameObjectType: string,
     size: { width: number; height: number },
     position: { x: number; y: number },
+    rotation: number,
     targetBody?: RAPIER.RigidBody,
     positionData?: THREE.Vector3
   ) {
     this.experience = Experience.getInstance();
     this.physics = this.experience.physics;
 
-    this.createObject(name, gameObjectType, size, position);
+    this.createObject(name, gameObjectType, size, position, rotation);
 
     // Optional set target in constructor
     if (targetBody) {
@@ -60,7 +61,8 @@ export default class GameSensor {
     name: string,
     gameObjectType: string,
     size: { width: number; height: number },
-    position: { x: number; y: number }
+    position: { x: number; y: number },
+    rotation: number
   ) {
     let physicsShape;
 
@@ -100,6 +102,8 @@ export default class GameSensor {
     );
 
     this.physicsBody.setTranslation({ x: position.x, y: position.y }, true);
+
+    this.physicsBody.setRotation(rotation, true);
 
     this.physicsBody.userData = {
       name: name,

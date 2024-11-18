@@ -90,6 +90,7 @@ export default class GameDirector {
           GameObjectType.CUBE,
           { width: value.width, height: value.depth },
           { x: value.position[0], y: value.position[2] },
+          -value.rotation[1],
           this.player.physicsBody,
           new THREE.Vector3(0, value.value, 0)
         )
@@ -108,6 +109,7 @@ export default class GameDirector {
           GameObjectType.CUBE,
           { width: value.width, height: value.depth },
           { x: value.position[0], y: value.position[2] },
+          -value.rotation[1],
           this.player.physicsBody,
           new THREE.Vector3(0, value.value, 0)
         )
@@ -126,6 +128,7 @@ export default class GameDirector {
           GameObjectType.CUBE,
           { width: value.width, height: value.depth },
           { x: value.position[0], y: value.position[2] },
+          -value.rotation[1],
           this.player.physicsBody,
           new THREE.Vector3(0, value.value, 0)
         )
@@ -143,6 +146,7 @@ export default class GameDirector {
           GameObjectType.CUBE,
           { width: value.width, height: value.depth },
           { x: value.position[0], y: value.position[2] },
+          -value.rotation[1],
           this.player.physicsBody,
           new THREE.Vector3(0, value.value, 0)
         )

@@ -35,7 +35,7 @@ const debugPlayer = (player: Player, debug: Debug) => {
     .listen();
 
   const isTouching = playerDebug?.addFolder("isTouching");
-  isTouching?.open();
+  // isTouching?.open();
   isTouching
     ?.add(player.isTouching, "ground")
     .name("isTouchingGround")
@@ -52,12 +52,12 @@ const debugPlayer = (player: Player, debug: Debug) => {
     ?.add(player.isTouching, "rightSide")
     .name("isTouchingRightSide")
     .listen();
-  isTouching?.add(player.isTouching, "ladder").name("ladder").listen();
-  isTouching?.add(player.isTouching, "ladderTop").name("ladderTop").listen();
-  isTouching
-    ?.add(player.isTouching, "ladderBottom")
-    .name("ladderBottom")
-    .listen();
+
+  const ladders = playerDebug?.addFolder("ladders");
+  ladders?.open();
+  ladders?.add(player.isTouching, "ladderTop").name("ladderTop").listen();
+  ladders?.add(player.isTouching, "ladderCore").name("ladderCore").listen();
+  ladders?.add(player.isTouching, "ladderBottom").name("ladderBottom").listen();
 
   const jumping = playerDebug?.addFolder("jumping");
   // jumping?.open();

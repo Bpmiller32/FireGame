@@ -12,10 +12,10 @@ export default class Input {
 
   private isSpacebarPressed: boolean;
 
-  private isWKeyPressed: boolean;
-  private isAKeyPressed: boolean;
-  private isSKeyPressed: boolean;
-  private isDKeyPressed: boolean;
+  public isWKeyPressed: boolean;
+  public isAKeyPressed: boolean;
+  public isSKeyPressed: boolean;
+  public isDKeyPressed: boolean;
 
   private keys: Key[];
 
