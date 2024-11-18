@@ -80,7 +80,7 @@ export default class GameDirector {
 
     // Import camera sensors
     for (const [_, value] of Object.entries(levelToLoad)) {
-      if (value.type != "sensor") {
+      if (value.type != "cameraSensor") {
         continue;
       }
 

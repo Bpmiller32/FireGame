@@ -5,12 +5,15 @@
 import * as THREE from "three";
 import Experience from "./experience";
 import RAPIER from "@dimforge/rapier2d";
+import Debug from "./utils/debug";
+import { debugPhysics, debugPhysicsUpdate } from "./utils/debug/debugPhysics";
 
 export default class Physics {
   private experience!: Experience;
-  private scene!: THREE.Scene;
+  private debug?: Debug;
+  public scene!: THREE.Scene;
 
-  private mesh?: THREE.LineSegments<
+  public mesh?: THREE.LineSegments<
     THREE.BufferGeometry<THREE.NormalBufferAttributes>,
     THREE.LineBasicMaterial,
     THREE.Object3DEventMap
@@ -18,6 +21,9 @@ export default class Physics {
 
   public world!: RAPIER.World;
   public isPaused!: boolean;
+
+  public renderObjectCount!: number;
+  public phyiscsObjectCount!: number;
 
   // Replacement constructor to accomodate async
   public async configure() {
@@ -28,20 +34,21 @@ export default class Physics {
     this.world = new rapier.World({ x: 0.0, y: -9.81 });
     this.isPaused = false;
 
-    // Set debug mesh if nessasary
+    // Debug
     if (this.experience.debug.isActive) {
-      this.mesh = new THREE.LineSegments(
-        new THREE.BufferGeometry(),
-        new THREE.LineBasicMaterial({ color: "lime" })
-      );
-      this.mesh.frustumCulled = false;
-      this.scene.add(this.mesh);
+      this.debug = this.experience.debug;
+      debugPhysics(this, this.debug);
     }
   }
 
   public update() {
     if (this.isPaused) {
       return;
+    }
+
+    // Run debug physics logic if needed
+    if (this.debug) {
+      debugPhysicsUpdate(this);
     }
 
     // Set the physics simulation timestep, advance the simulation one step

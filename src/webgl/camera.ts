@@ -44,9 +44,9 @@ export default class Camera {
     this.setInstance(initialPosition);
     this.setLookAhead();
 
+    // Debug
     if (this.experience.debug.isActive) {
       this.input = this.experience.input;
-
       this.debug = this.experience.debug;
       debugCamera(this, this.debug);
     }

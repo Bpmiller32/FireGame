@@ -7,7 +7,7 @@ const debugPlayer = (player: Player, debug: Debug) => {
   playerDebug?.add(player, "state").name("state").listen();
 
   const movement = playerDebug?.addFolder("movement");
-  movement?.open();
+  // movement?.open();
   movement?.add(player, "direction").name("xDirection").listen();
   movement
     ?.add(player, "currentPositionX")
@@ -54,7 +54,7 @@ const debugPlayer = (player: Player, debug: Debug) => {
     .listen();
 
   const ladders = playerDebug?.addFolder("ladders");
-  ladders?.open();
+  // ladders?.open();
   ladders?.add(player.isTouching, "ladderTop").name("ladderTop").listen();
   ladders?.add(player.isTouching, "ladderCore").name("ladderCore").listen();
   ladders?.add(player.isTouching, "ladderBottom").name("ladderBottom").listen();

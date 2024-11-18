@@ -23,7 +23,7 @@ import handlePlayerClimbing from "./state/handlePlayerClimbing";
 export default class Player extends GameObject {
   public time: Time;
   public input: Input;
-  public debug?: Debug;
+  private debug?: Debug;
   public resources: ResourceLoader;
   public spriteAnimator!: SpriteAnimator;
   public characterController!: RAPIER.KinematicCharacterController;

@@ -16,6 +16,8 @@ export default class Input {
   public isAKeyPressed: boolean;
   public isSKeyPressed: boolean;
   public isDKeyPressed: boolean;
+  public isQKeyPressed: boolean;
+  public isEKeyPressed: boolean;
 
   private keys: Key[];
 
@@ -31,6 +33,8 @@ export default class Input {
     this.isAKeyPressed = false;
     this.isSKeyPressed = false;
     this.isDKeyPressed = false;
+    this.isQKeyPressed = false;
+    this.isEKeyPressed = false;
 
     this.keys = [
       {
@@ -87,6 +91,18 @@ export default class Input {
         keyCode: "KeyD",
         isPressed: (eventResult: boolean) => {
           this.isDKeyPressed = eventResult;
+        },
+      },
+      {
+        keyCode: "KeyQ",
+        isPressed: (eventResult: boolean) => {
+          this.isQKeyPressed = eventResult;
+        },
+      },
+      {
+        keyCode: "KeyE",
+        isPressed: (eventResult: boolean) => {
+          this.isEKeyPressed = eventResult;
         },
       },
     ];

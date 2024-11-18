@@ -2482,5 +2482,41 @@
         "type": "ladderTopSensor",
         "visible": true,
         "value": 0
+    },
+    "Cube.132": {
+        "width": 24.0,
+        "height": 2.0,
+        "depth": 9.012430191040039,
+        "position": [
+            16.15362548828125,
+            0.0,
+            22.509496688842773
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "cameraSensor",
+        "visible": true,
+        "value": 25
+    },
+    "Cube.138": {
+        "width": 32.0,
+        "height": 2.0,
+        "depth": 9.012430191040039,
+        "position": [
+            -11.84637451171875,
+            0.0,
+            21.19159507751465
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "cameraSensor",
+        "visible": true,
+        "value": 15
     }
 }
