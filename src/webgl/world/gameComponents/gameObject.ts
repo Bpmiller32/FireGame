@@ -10,23 +10,31 @@ export default class GameObject {
   protected scene: THREE.Scene;
   protected physics: Physics;
 
-  public geometry?:
+  protected initialSize: RAPIER.Vector2;
+
+  protected geometry?:
     | THREE.BoxGeometry
     | THREE.SphereGeometry
     | THREE.CapsuleGeometry;
-  public material?: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
-  public mesh?: THREE.Mesh | THREE.Sprite;
+  protected material?: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
+  protected mesh?: THREE.Mesh | THREE.Sprite;
+  protected drawGraphics: boolean;
 
-  public spriteScale?: number;
+  protected spriteScale?: number;
 
   public physicsBody!: RAPIER.RigidBody;
   public currentTranslation!: RAPIER.Vector;
   public currentRotation!: number;
+  public isBeingDestroyed: boolean;
 
   constructor() {
     this.experience = Experience.getInstance();
     this.scene = this.experience.scene;
     this.physics = this.experience.physics;
+    this.initialSize = new RAPIER.Vector2(1, 1);
+
+    this.isBeingDestroyed = false;
+    this.drawGraphics = false;
   }
 
   // Combines setMesh and setPhysics, hopefully less ambiguous with gameObjectType
@@ -43,15 +51,17 @@ export default class GameObject {
     switch (gameObjectType) {
       case GameObjectType.SPRITE:
         // Graphics
-        this.mesh = new THREE.Sprite(this.material as THREE.SpriteMaterial);
-        if (this.spriteScale) {
-          this.mesh.scale.set(
-            this.spriteScale,
-            this.spriteScale,
-            this.spriteScale
-          );
+        if (this.drawGraphics) {
+          this.mesh = new THREE.Sprite(this.material as THREE.SpriteMaterial);
+          if (this.spriteScale) {
+            this.mesh.scale.set(
+              this.spriteScale,
+              this.spriteScale,
+              this.spriteScale
+            );
+          }
+          this.scene.add(this.mesh);
         }
-        this.scene.add(this.mesh);
 
         // Physics
         physicsShape = RAPIER.ColliderDesc.cuboid(
@@ -61,9 +71,11 @@ export default class GameObject {
         break;
       case GameObjectType.CUBE:
         // Graphics
-        this.geometry = this.geometry as THREE.BoxGeometry;
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        this.scene.add(this.mesh);
+        if (this.drawGraphics) {
+          this.geometry = this.geometry as THREE.BoxGeometry;
+          this.mesh = new THREE.Mesh(this.geometry, this.material);
+          this.scene.add(this.mesh);
+        }
 
         // Physics
         physicsShape = RAPIER.ColliderDesc.cuboid(
@@ -73,9 +85,11 @@ export default class GameObject {
         break;
       case GameObjectType.SPHERE:
         // Graphics
-        this.geometry = this.geometry as THREE.SphereGeometry;
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        this.scene.add(this.mesh);
+        if (this.drawGraphics) {
+          this.geometry = this.geometry as THREE.SphereGeometry;
+          this.mesh = new THREE.Mesh(this.geometry, this.material);
+          this.scene.add(this.mesh);
+        }
 
         // Physics
         physicsShape = RAPIER.ColliderDesc.ball(size.width);
@@ -127,7 +141,7 @@ export default class GameObject {
 
   protected syncGraphicsToPhysics() {
     // Exit early if object is destroyed
-    if (!this.mesh || !this.physicsBody) {
+    if (this.isBeingDestroyed) {
       return;
     }
 
@@ -139,7 +153,11 @@ export default class GameObject {
     );
 
     this.currentRotation = this.physicsBody.rotation();
-    this.mesh.rotation.z = this.currentRotation;
+    this.mesh?.rotation.set(
+      this.mesh?.rotation.x,
+      this.mesh?.rotation.y,
+      this.currentRotation
+    );
   }
 
   public destroy() {
@@ -155,5 +173,8 @@ export default class GameObject {
     // Remove physics body and collider from the physics world
     this.physics.world.removeCollider(this.physicsBody.collider(0), true);
     this.physics.world.removeRigidBody(this.physicsBody);
+
+    // Flag that object is being destroyed to avoid out of sync RAPIER calls -> errors
+    this.isBeingDestroyed = true;
   }
 }

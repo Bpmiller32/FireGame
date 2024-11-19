@@ -4,14 +4,13 @@
 
 import Emitter from "../../utils/eventEmitter.ts";
 import Experience from "../../experience.ts";
-import RAPIER from "@dimforge/rapier2d";
 import Player from "../player/player.ts";
 import Camera from "../../camera.ts";
 import GameSensor from "../gameComponents/gameSensor.ts";
-import Sphere from "../gameEntities/sphere.ts";
 import GameDirector from "../gameComponents/gameDirector.ts";
 import Platform from "../gameStructures/platform.ts";
-import Cube from "../gameEntities/cube.ts";
+import Cube from "../gameComponents/cube.ts";
+import Enemy from "../gameStructures/enemy.ts";
 
 export default class World {
   private experience: Experience;
@@ -20,27 +19,32 @@ export default class World {
   // World assets
   public gameDirector?: GameDirector;
 
-  public player?: Player;
-  public enemies: Sphere[];
+  public player!: Player;
+  public enemies: Enemy[];
 
   public walls: Cube[];
   public platforms: Platform[];
   public cameraSensors: GameSensor[];
 
-  public ladderSensors: GameSensor[];
+  public ladderCoreSensors: GameSensor[];
   public ladderTopSensors: GameSensor[];
   public ladderBottomSensors: GameSensor[];
+
+  public trashCans: Cube[];
 
   constructor() {
     this.experience = Experience.getInstance();
     this.camera = this.experience.camera;
 
-    this.enemies = [];
-
-    this.walls = [];
-    this.platforms = [];
     this.cameraSensors = [];
-    this.ladderSensors = [];
+
+    this.enemies = [];
+    this.trashCans = [];
+
+    this.platforms = [];
+    this.walls = [];
+
+    this.ladderCoreSensors = [];
     this.ladderTopSensors = [];
     this.ladderBottomSensors = [];
 
@@ -49,58 +53,38 @@ export default class World {
       // Player
       this.player = new Player({ width: 2, height: 4 }, { x: -6.752, y: 3 });
 
-      // Load enemies (will do this from levelData later)
-      this.enemies.push(
-        new Sphere(
-          "Enemy",
-          1,
-          { x: 10, y: 5 },
-          true,
-          undefined,
-          RAPIER.RigidBodyDesc.dynamic()
-        )
-      );
-
-      this.enemies.push(
-        new Sphere(
-          "Enemy",
-          1,
-          { x: -25, y: 13 },
-          true,
-          undefined,
-          RAPIER.RigidBodyDesc.dynamic()
-        )
-      );
-
-      this.enemies[0].physicsBody.setLinvel(
-        { x: -14, y: this.enemies[0].physicsBody.linvel().y },
-        true
-      );
-      this.enemies[1].physicsBody.setLinvel(
-        { x: 14, y: this.enemies[0].physicsBody.linvel().y },
-        true
-      );
-
       // Level loader
       this.gameDirector = new GameDirector();
       this.gameDirector.loadLevelData("blenderExport");
+
+      // Throw 1 immediately, then interval
+      this.gameDirector?.spawnEnemy();
+      setInterval(() => {
+        this.gameDirector?.spawnEnemy();
+        // this.gameDirector?.despawnAllEnemies();
+      }, 3000);
     });
   }
 
   public update() {
-    this.camera.update(this.player);
-    this.player?.update();
+    // Guard against player not ready yet
+    if (!this.player) {
+      return;
+    }
 
+    // Camera
+    this.camera.update(this.player);
+
+    // Player
+    this.player.update();
+
+    // Enemies
     this.enemies.forEach((enemy) => {
-      enemy.update();
+      enemy.updateEnemy(this.player);
     });
 
     // OneWayPlatforms
     this.platforms.forEach((platform) => {
-      if (!this.player) {
-        return;
-      }
-
       platform.updateOneWayPlatform(this.player);
 
       if (this.player.state == "climbing") {
@@ -117,27 +101,24 @@ export default class World {
       });
     });
 
-    // Ladder detection
-    let ladderDetected = false;
+    // Ladder core detection
+    let ladderCoreDetected = false;
 
-    this.ladderSensors.forEach((sensor) => {
+    this.ladderCoreSensors.forEach((sensor) => {
       sensor.update(() => {
         if (
           sensor.isIntersectingTarget &&
-          this.player!.currentTranslation.x - this.player!.initalSize.x / 2 >
+          this.player.currentTranslation.x - this.player.initalSize.x / 2 >
             sensor.initalPosition.x - sensor.initialSize.x / 2 &&
-          this.player!.currentTranslation.x + this.player!.initalSize.x / 2 <
+          this.player.currentTranslation.x + this.player.initalSize.x / 2 <
             sensor.initalPosition.x + sensor.initialSize.x / 2
         ) {
-          ladderDetected = true;
+          ladderCoreDetected = true;
         }
       });
     });
 
-    // After all sensors are checked, update player
-    if (this.player) {
-      this.player.isTouching.ladderCore = ladderDetected;
-    }
+    this.player.isTouching.ladderCore = ladderCoreDetected;
 
     // Ladder top detection
     let ladderTopDetected = false;
@@ -146,9 +127,9 @@ export default class World {
       sensor.update(() => {
         if (
           sensor.isIntersectingTarget &&
-          this.player!.currentTranslation.x - this.player!.initalSize.x / 2 >
+          this.player.currentTranslation.x - this.player.initalSize.x / 2 >
             sensor.initalPosition.x - sensor.initialSize.x / 2 &&
-          this.player!.currentTranslation.x + this.player!.initalSize.x / 2 <
+          this.player.currentTranslation.x + this.player.initalSize.x / 2 <
             sensor.initalPosition.x + sensor.initialSize.x / 2
         ) {
           ladderTopDetected = true;
@@ -156,10 +137,7 @@ export default class World {
       });
     });
 
-    // After all sensors are checked, update player
-    if (this.player) {
-      this.player.isTouching.ladderTop = ladderTopDetected;
-    }
+    this.player.isTouching.ladderTop = ladderTopDetected;
 
     // Ladder bottom detection
     let ladderBottomDetected = false;
@@ -168,9 +146,9 @@ export default class World {
       sensor.update(() => {
         if (
           sensor.isIntersectingTarget &&
-          this.player!.currentTranslation.x - this.player!.initalSize.x / 2 >
+          this.player.currentTranslation.x - this.player.initalSize.x / 2 >
             sensor.initalPosition.x - sensor.initialSize.x / 2 &&
-          this.player!.currentTranslation.x + this.player!.initalSize.x / 2 <
+          this.player.currentTranslation.x + this.player.initalSize.x / 2 <
             sensor.initalPosition.x + sensor.initialSize.x / 2
         ) {
           ladderBottomDetected = true;
@@ -178,10 +156,7 @@ export default class World {
       });
     });
 
-    // After all sensors are checked, update player
-    if (this.player) {
-      this.player.isTouching.ladderBottom = ladderBottomDetected;
-    }
+    this.player.isTouching.ladderBottom = ladderBottomDetected;
   }
 
   public destroy() {}

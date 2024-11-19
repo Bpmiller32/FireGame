@@ -8,21 +8,22 @@ const handlePlayerClimbing = (player: Player) => {
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
 
-  if (
-    !player.isTouching.ladderCore ||
-    (player.isTouching.ladderBottom &&
-      (player.input.isDown() ||
-        player.input.isNeitherUpDown() ||
-        player.input.isUpDownCombo())) ||
-    (player.isTouching.ladderTop &&
-      (player.input.isUp() ||
-        player.input.isNeitherUpDown() ||
-        player.input.isUpDownCombo()))
-  ) {
+  const atLadderBottom =
+    player.isTouching.ladderBottom &&
+    (player.input.isDown() ||
+      player.input.isNeitherUpDown() ||
+      player.input.isUpDownCombo());
+
+  const atLadderTop =
+    player.isTouching.ladderTop &&
+    (player.input.isUp() ||
+      player.input.isNeitherUpDown() ||
+      player.input.isUpDownCombo());
+
+  if (!player.isTouching.ladderCore || atLadderBottom || atLadderTop) {
     player.nextTranslation.y = 0;
     player.isTouching.ground = true;
     player.state = PlayerStates.IDLE;
-
     return;
   }
 

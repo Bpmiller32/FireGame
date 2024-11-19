@@ -13,7 +13,7 @@
             0.0,
             0.0
         ],
-        "type": "wall",
+        "type": "trashCan",
         "visible": true,
         "value": 0
     },
@@ -2319,25 +2319,7 @@
         ],
         "type": "ladder",
         "visible": true,
-        "value": 0
-    },
-    "Cube.127": {
-        "width": 3.0,
-        "height": 2.0,
-        "depth": 1.0,
-        "position": [
-            19.198501586914062,
-            -2.384185791015625e-07,
-            1.9981800317764282
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "ladderBottomSensor",
-        "visible": true,
-        "value": 0
+        "value": -1
     },
     "Cube.128": {
         "width": 2.5,
@@ -2355,7 +2337,7 @@
         ],
         "type": "ladder",
         "visible": true,
-        "value": 0
+        "value": -1
     },
     "Cube.129": {
         "width": 2.5,
@@ -2373,25 +2355,7 @@
         ],
         "type": "ladder",
         "visible": true,
-        "value": 0
-    },
-    "Cube.131": {
-        "width": 2.5,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            -6.769885063171387,
-            -2.384185791015625e-07,
-            0.10000002384185791
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "ladderBottomSensor",
-        "visible": true,
-        "value": 0
+        "value": -1
     },
     "Cube.133": {
         "width": 2.5,
@@ -2409,7 +2373,43 @@
         ],
         "type": "ladder",
         "visible": true,
-        "value": 0
+        "value": 1
+    },
+    "Cube.127": {
+        "width": 3.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            19.198501586914062,
+            -2.384185791015625e-07,
+            1.9981800317764282
+        ],
+        "rotation": [
+            0.0,
+            -0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.131": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 2.0,
+        "position": [
+            -6.769885063171387,
+            -2.384185791015625e-07,
+            0.10000002384185791
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
     },
     "Cube.134": {
         "width": 2.5,
@@ -2427,7 +2427,7 @@
         ],
         "type": "ladderBottomSensor",
         "visible": true,
-        "value": 0
+        "value": 1
     },
     "Cube.135": {
         "width": 2.5,
@@ -2489,7 +2489,7 @@
         "depth": 9.012430191040039,
         "position": [
             16.15362548828125,
-            0.0,
+            0.75,
             22.509496688842773
         ],
         "rotation": [
@@ -2507,7 +2507,7 @@
         "depth": 9.012430191040039,
         "position": [
             -11.84637451171875,
-            0.0,
+            0.75,
             21.19159507751465
         ],
         "rotation": [

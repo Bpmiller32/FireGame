@@ -82,6 +82,7 @@ export default class Player extends GameObject {
 
     // Set inital size so I don't have to look for it in physicsBody.collider.shape.halfExtents later
     this.initalSize = { x: size.width, y: size.height };
+    this.drawGraphics = true;
 
     setDkAttributes(this);
     this.setPhysicsAttributes();
@@ -188,7 +189,7 @@ export default class Player extends GameObject {
         // Don't collide with sensors or OneWayPlatforms while under them
         if (
           collider.isSensor() ||
-          GameUtils.getColliderData(collider).isOneWayPlatformActive == true
+          GameUtils.getDataFromCollider(collider).isOneWayPlatformActive == true
         ) {
           return false;
         }
@@ -230,7 +231,7 @@ export default class Player extends GameObject {
     this.isTouching.leftSide = false;
     this.isTouching.rightSide = false;
 
-    // // CharacterController ground detection saves a downCast later in shapeCastCollisions
+    // // CharacterController ground detection that saves a downCast later in shapeCastCollisions
     // if (this.characterController.computedGrounded()) {
     //   this.isTouching.ground = true;
     // }
@@ -242,24 +243,28 @@ export default class Player extends GameObject {
     ) {
       const collision = this.characterController.computedCollision(i);
 
-      // y axis collision that happened to the character controller
+      // y axis collisions that happened to the character controller
       if (collision!.normal2.y == -1) {
-        this.isTouching.ground = true;
+        // console.log("here down");
+        // this.isTouching.ground = true;
       }
-      // Handle OneWayPlatforms
       if (
         collision!.normal2.y == 1 &&
-        GameUtils.getColliderData(collision!.collider!).name != "OneWayPlatform"
+        // Handle OneWayPlatforms
+        GameUtils.getDataFromCollider(collision!.collider!).name !=
+          "OneWayPlatform"
       ) {
         this.isTouching.ceiling = true;
       }
 
       // x axis
       if (collision!.normal2.x == 1) {
-        this.isTouching.rightSide = true;
+        // console.log("here right");
+        // this.isTouching.rightSide = true;
       }
       if (collision!.normal2.x == -1) {
-        this.isTouching.leftSide = true;
+        // console.log("here left");
+        // this.isTouching.leftSide = true;
       }
     }
   }
@@ -300,8 +305,8 @@ export default class Player extends GameObject {
       !this.isTouching.ground &&
       downCast &&
       downCast.toi <= this.colliderOffset + 0.001 &&
-      GameUtils.getColliderData(downCast.collider).name != "Wall" &&
-      GameUtils.getColliderData(downCast.collider).isOneWayPlatformActive ==
+      GameUtils.getDataFromCollider(downCast.collider).name != "Wall" &&
+      GameUtils.getDataFromCollider(downCast.collider).isOneWayPlatformActive ==
         false
     ) {
       this.isTouching.ground = true;
@@ -312,7 +317,7 @@ export default class Player extends GameObject {
       !this.isTouching.leftSide &&
       leftCast &&
       leftCast.toi <= this.colliderOffset + 0.001 &&
-      GameUtils.getColliderData(leftCast.collider).name != "OneWayPlatform"
+      GameUtils.getDataFromCollider(leftCast.collider).name != "OneWayPlatform"
     ) {
       this.isTouching.leftSide = true;
     }
@@ -321,7 +326,7 @@ export default class Player extends GameObject {
       !this.isTouching.rightSide &&
       rightCast &&
       rightCast.toi <= this.colliderOffset + 0.001 &&
-      GameUtils.getColliderData(rightCast.collider).name != "OneWayPlatform"
+      GameUtils.getDataFromCollider(rightCast.collider).name != "OneWayPlatform"
     ) {
       this.isTouching.rightSide = true;
     }
@@ -358,7 +363,7 @@ export default class Player extends GameObject {
 
   public update() {
     // Exit early if object is destroyed
-    if (!this.mesh || !this.physicsBody) {
+    if (this.isBeingDestroyed) {
       return;
     }
 
@@ -370,10 +375,7 @@ export default class Player extends GameObject {
 
   public destroy() {
     // Emit an event to signal the player's removal
-    Emitter.emit(
-      "objectRemoved",
-      GameUtils.getPhysicsBodyData(this.physicsBody).name
-    );
+    Emitter.emit("gameObjectRemoved", this);
 
     // Remove character controller from the physics world
     this.physics.world.removeCharacterController(this.characterController);

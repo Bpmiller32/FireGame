@@ -28,12 +28,13 @@ export default class GameSensor {
     position: { x: number; y: number },
     rotation: number,
     targetBody?: RAPIER.RigidBody,
-    positionData?: THREE.Vector3
+    positionData?: THREE.Vector3,
+    value?: number
   ) {
     this.experience = Experience.getInstance();
     this.physics = this.experience.physics;
 
-    this.createObject(name, gameObjectType, size, position, rotation);
+    this.createObject(name, gameObjectType, size, position, rotation, value);
 
     // Optional set target in constructor
     if (targetBody) {
@@ -46,13 +47,13 @@ export default class GameSensor {
     }
 
     // Remove targetPhysicsBody if it was destroyed
-    Emitter.on("objectRemoved", (removedObjectName) => {
+    Emitter.on("gameObjectRemoved", (removedGameObject) => {
       if (
-        removedObjectName ===
-        GameUtils.getPhysicsBodyData(this.targetPhysicsBody).name
+        GameUtils.getDataFromPhysicsBody(removedGameObject.physicsBody).name ===
+        GameUtils.getDataFromPhysicsBody(this.targetPhysicsBody).name
       ) {
+        this.targetPhysicsBody = undefined;
       }
-      this.targetPhysicsBody = undefined;
     });
   }
 
@@ -62,7 +63,8 @@ export default class GameSensor {
     gameObjectType: string,
     size: { width: number; height: number },
     position: { x: number; y: number },
-    rotation: number
+    rotation: number,
+    value?: number
   ) {
     let physicsShape;
 
@@ -108,6 +110,7 @@ export default class GameSensor {
     this.physicsBody.userData = {
       name: name,
       gameEntityType: this.constructor.name,
+      value: value,
     } as UserData;
 
     // Create and attach collider to physicsBody/rigidbody

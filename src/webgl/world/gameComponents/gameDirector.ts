@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import Experience from "../../experience";
-import Cube from "../gameEntities/cube";
+import Cube from "../gameComponents/cube";
 import World from "../levels/world";
 import Player from "../player/player";
 import GameSensor from "./gameSensor";
@@ -10,6 +10,9 @@ import TestLevel0 from "../levels/testLevel0.json";
 import BlenderExport from "../levels/blenderExport.json";
 import setCelesteAttributes from "../player/attributes/setCelesteAttributes";
 import Platform from "../gameStructures/platform";
+import Enemy from "../gameStructures/enemy";
+import GameUtils from "../../utils/gameUtils";
+import Emitter from "../../utils/eventEmitter";
 
 export default class GameDirector {
   private experience: Experience;
@@ -20,6 +23,16 @@ export default class GameDirector {
     this.experience = Experience.getInstance();
     this.world = this.experience.world;
     this.player = this.world.player!;
+
+    // Periodically remove destroyed objects from gameObject arrays
+    setInterval(() => {
+      this.world.enemies = GameUtils.removeDestroyedObjects(this.world.enemies);
+    }, 5000);
+
+    // Events
+    Emitter.on("gameObjectRemoved", (removedGameObject) => {
+      removedGameObject.destroy();
+    });
   }
 
   public loadLevelData(levelName?: string) {
@@ -49,7 +62,7 @@ export default class GameDirector {
           { x: value.position[0], y: value.position[2] },
           -value.rotation[1],
           true,
-          true
+          value.visible
         )
       );
     }
@@ -70,10 +83,36 @@ export default class GameDirector {
           },
           { x: value.position[0], y: value.position[2] },
           -value.rotation[1],
-          value.visible,
           new THREE.MeshBasicMaterial({
             color: "green",
-          })
+          }),
+          undefined,
+          value.visible
+        )
+      );
+    }
+
+    // Import trashcans
+    for (const [_, value] of Object.entries(levelToLoad)) {
+      if (value.type != "trashCan") {
+        continue;
+      }
+
+      this.world.walls.push(
+        new Cube(
+          "TrashCan",
+          {
+            width: value.width,
+            height: value.depth,
+            depth: value.height,
+          },
+          { x: value.position[0], y: value.position[2] },
+          -value.rotation[1],
+          new THREE.MeshBasicMaterial({
+            color: "purple",
+          }),
+          undefined,
+          value.visible
         )
       );
     }
@@ -103,15 +142,16 @@ export default class GameDirector {
         continue;
       }
 
-      this.world.ladderSensors.push(
+      this.world.ladderCoreSensors.push(
         new GameSensor(
-          "LadderSensor",
+          "LadderCoreSensor",
           GameObjectType.CUBE,
           { width: value.width, height: value.depth },
           { x: value.position[0], y: value.position[2] },
           -value.rotation[1],
           this.player.physicsBody,
-          new THREE.Vector3(0, value.value, 0)
+          undefined,
+          value.value
         )
       );
     }
@@ -129,8 +169,7 @@ export default class GameDirector {
           { width: value.width, height: value.depth },
           { x: value.position[0], y: value.position[2] },
           -value.rotation[1],
-          this.player.physicsBody,
-          new THREE.Vector3(0, value.value, 0)
+          this.player.physicsBody
         )
       );
     }
@@ -148,10 +187,38 @@ export default class GameDirector {
           { x: value.position[0], y: value.position[2] },
           -value.rotation[1],
           this.player.physicsBody,
-          new THREE.Vector3(0, value.value, 0)
+          undefined,
+          value.value
         )
       );
     }
+  }
+
+  public spawnEnemy() {
+    this.world.enemies.push(
+      // new Enemy(
+      //   1,
+      //   {
+      //     x: GameUtils.getRandomNumber(-15, 0),
+      //     y: GameUtils.getRandomNumber(0, 15),
+      //   },
+      //   true
+      // )
+      new Enemy(
+        1,
+        {
+          x: -15,
+          y: 50,
+        },
+        true
+      )
+    );
+  }
+
+  public despawnAllEnemies() {
+    this.world.enemies.forEach((enemy) => {
+      enemy.destroy();
+    });
   }
 
   public destroy() {}

@@ -1,10 +1,11 @@
 import * as THREE from "three";
-import Cube from "../gameEntities/cube";
+import Cube from "../gameComponents/cube";
 import Player from "../player/player";
 import GameUtils from "../../utils/gameUtils";
+import CollisionGroups from "../../utils/types/collisionGroups";
 
 export default class Platform extends Cube {
-  public isOneWayPlatform: boolean;
+  private isOneWayPlatform: boolean;
 
   constructor(
     size: { width: number; height: number; depth: number },
@@ -18,19 +19,26 @@ export default class Platform extends Cube {
       size,
       position,
       rotation,
-      drawGraphics,
-      new THREE.MeshBasicMaterial({ color: "red" })
+      new THREE.MeshBasicMaterial({ color: "red" }),
+      undefined,
+      drawGraphics
     );
 
     this.isOneWayPlatform = isOneWayPlatform;
 
+    GameUtils.setCollisionGroup(
+      this.physicsBody.collider(0),
+      CollisionGroups.PLATFORM
+    );
+
     if (isOneWayPlatform) {
-      GameUtils.getPhysicsBodyData(this.physicsBody).name = "OneWayPlatform";
+      GameUtils.getDataFromPhysicsBody(this.physicsBody).name =
+        "OneWayPlatform";
     }
   }
 
   public setOneWayPlatform(value: boolean) {
-    GameUtils.getPhysicsBodyData(this.physicsBody).isOneWayPlatformActive =
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).isOneWayPlatformActive =
       value;
   }
 
@@ -41,11 +49,13 @@ export default class Platform extends Cube {
       player.currentTranslation.y - player.initalSize.y / 2 >
         this.currentTranslation.y
     ) {
-      GameUtils.getPhysicsBodyData(this.physicsBody).isOneWayPlatformActive =
-        false;
+      GameUtils.getDataFromPhysicsBody(
+        this.physicsBody
+      ).isOneWayPlatformActive = false;
     } else {
-      GameUtils.getPhysicsBodyData(this.physicsBody).isOneWayPlatformActive =
-        true;
+      GameUtils.getDataFromPhysicsBody(
+        this.physicsBody
+      ).isOneWayPlatformActive = true;
     }
   }
 }

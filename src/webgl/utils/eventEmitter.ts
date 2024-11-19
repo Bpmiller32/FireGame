@@ -3,6 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import mitt from "mitt";
+import GameObject from "../world/gameComponents/gameObject";
 
 type EventMap = {
   // app state
@@ -18,7 +19,8 @@ type EventMap = {
   resourcesReady: void;
 
   // Game events
-  objectRemoved: string;
+  gameObjectRemoved: GameObject;
+  gameOver: boolean;
 };
 
 // Create an emitter instance
