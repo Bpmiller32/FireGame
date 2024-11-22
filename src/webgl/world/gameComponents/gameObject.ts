@@ -4,6 +4,7 @@ import Experience from "../../experience";
 import Physics from "../../physics";
 import GameObjectType from "../../utils/types/gameObjectType";
 import UserData from "../../utils/types/userData";
+import GameUtils from "../../utils/gameUtils";
 
 export default class GameObject {
   protected experience: Experience;
@@ -158,6 +159,18 @@ export default class GameObject {
       this.mesh?.rotation.y,
       this.currentRotation
     );
+  }
+
+  public setObjectName(newName: string) {
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).name = newName;
+  }
+
+  public setObjectValue(newValue?: number) {
+    if (!newValue) {
+      return;
+    }
+
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value = newValue;
   }
 
   public destroy() {

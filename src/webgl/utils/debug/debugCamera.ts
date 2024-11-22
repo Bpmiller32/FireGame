@@ -3,7 +3,7 @@ import Debug from "../debug";
 
 export const debugCamera = (camera: Camera, debug: Debug) => {
   const cameraDebug = debug.ui?.addFolder("cameraDebug");
-  cameraDebug?.open();
+  // cameraDebug?.open();
   cameraDebug
     ?.add(camera.instance.position, "x")
     .name("xPosition")

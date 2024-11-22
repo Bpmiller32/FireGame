@@ -122,6 +122,15 @@ export default class GameSensor {
     this.targetPhysicsBody = target;
   }
 
+  public setIsConnectedLadder(newValue?: boolean) {
+    if (!newValue) {
+      return;
+    }
+
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).isConnectedLadder =
+      newValue;
+  }
+
   public update(callback?: () => void) {
     // Check that targetPhysicsBody first exists, and then check if they are intersecting
     if (

@@ -5,8 +5,15 @@ import GameUtils from "../../utils/gameUtils";
 import Sphere from "../gameEntities/sphere";
 import Emitter from "../../utils/eventEmitter";
 import CollisionGroups from "../../utils/types/collisionGroups";
+import TrashCan from "./trashCan";
+import Time from "../../utils/time";
+import PlayerStates from "../../utils/types/playerStates";
 
 export default class Enemy extends Sphere {
+  private time!: Time;
+  private currentPercentChance!: number;
+  private currentFloor: number = 0;
+
   private groundSpeed!: number;
   private direction!: number;
   private ladderSensorValue!: number;
@@ -36,6 +43,9 @@ export default class Enemy extends Sphere {
   }
 
   private setAttributes() {
+    this.time = this.experience.time;
+    this.currentPercentChance = 1;
+
     this.groundSpeed = 14;
     this.direction = 1;
     this.ladderSensorValue = 0;
@@ -57,6 +67,34 @@ export default class Enemy extends Sphere {
     );
   }
 
+  private validateDestroyCondition(trashCan: TrashCan) {
+    // Exit early if object is destroyed
+    if (this.isBeingDestroyed) {
+      return true;
+    }
+
+    // Crappy workaround for the return in private function not catching the destroy in time somehow, TODO: revisit
+    this.physics.world.contactPairsWith(
+      this.physicsBody.collider(0),
+      (otherCollider) => {
+        // Check for collision with trashcan, destroy object
+        if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
+          // Remove through event not directly to be consistent with GameDirector's purpose
+          Emitter.emit("gameObjectRemoved", this);
+
+          // Light the trash can on fire
+          trashCan.isOnFire = true;
+          return;
+        }
+      }
+    );
+
+    // Exit on the remainder of this call after is destroyed
+    if (this.isBeingDestroyed) {
+      return true;
+    }
+  }
+
   private checkCollisions() {
     // Reset colliding with platforms in case enemy is in freefall
     this.isCollidingWithPlatforms = false;
@@ -65,13 +103,6 @@ export default class Enemy extends Sphere {
     this.physics.world.contactPairsWith(
       this.physicsBody.collider(0),
       (otherCollider) => {
-        // Check for collision with trashcan, destroy object
-        if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
-          // Remove through event not directly to be consistent with GameDirector's purpose
-          Emitter.emit("gameObjectRemoved", this);
-          return;
-        }
-
         // Check for collision with wall
         if (GameUtils.getDataFromCollider(otherCollider).name == "Wall") {
           this.direction = this.direction * -1;
@@ -94,6 +125,9 @@ export default class Enemy extends Sphere {
           ) {
             this.isCollidingWithPlatforms = true;
           }
+
+          this.currentFloor =
+            GameUtils.getDataFromCollider(otherCollider).value;
           return;
         }
       }
@@ -113,6 +147,8 @@ export default class Enemy extends Sphere {
           // TODO: clean this up with initialsize instead of 0.5 and GameUtil away the cast to cuboid
           GameUtils.getDataFromCollider(otherCollider).name ===
             "LadderCoreSensor" &&
+          // GameUtils.getDataFromCollider(otherCollider).isConnectedLadder ===
+          //   true &&
           this.currentTranslation.x - 0.5 >
             otherCollider.translation().x -
               (otherCollider.shape as Cuboid).halfExtents.x &&
@@ -136,14 +172,46 @@ export default class Enemy extends Sphere {
     );
   }
 
-  private calculateSpecialRoll() {
+  private calculateSpecialRoll(player: Player, trashCan: TrashCan) {
     // Check if wanting to roll down a ladder or do a crazy roll
     if (this.isInsideLadder) {
       if (!this.didRunSpecialRollCheckOnce) {
         this.didRunSpecialRollCheckOnce = true;
 
-        this.performSpecialRoll = GameUtils.getPercentChance(0.4);
-        // this.shouldPerformSpecialRoll = GameUtils.getPercentChance(1);
+        // Set the difficulty modifier based on elapsed time
+        if (this.time.elapsed < 33) {
+          this.currentPercentChance = 0.25;
+        } else if (this.time.elapsed >= 33 && this.time.elapsed < 100) {
+          this.currentPercentChance = 0.5;
+        } else {
+          this.currentPercentChance = 0.75;
+        }
+
+        // Roll dice for special roll based on difficulty probability
+        this.performSpecialRoll = GameUtils.calculatePercentChance(
+          this.currentPercentChance
+        );
+
+        // Override: if on the same floor as the player, never special roll
+        if (
+          this.currentFloor == player.currentFloor &&
+          player.state != PlayerStates.CLIMBING
+        ) {
+          this.performSpecialRoll = false;
+        }
+
+        // Override: player is climbing the ladder and underneath the barrel, always special roll
+        if (
+          this.currentFloor - 1 == player.currentFloor &&
+          player.state == PlayerStates.CLIMBING
+        ) {
+          this.performSpecialRoll = true;
+        }
+
+        // Override: if the trashCan is not yet on fire, always special roll
+        if (!trashCan.isOnFire) {
+          this.performSpecialRoll = true;
+        }
       }
     } else {
       this.didRunSpecialRollCheckOnce = false;
@@ -161,10 +229,7 @@ export default class Enemy extends Sphere {
 
   private updateCollisionMask() {
     // Set collision mask
-    if (
-      this.isCollidingWithPlatforms &&
-      this.performSpecialRoll == false
-    ) {
+    if (this.isCollidingWithPlatforms && this.performSpecialRoll == false) {
       GameUtils.setCollisionMask(
         this.physicsBody.collider(0),
         CollisionGroups.PLATFORM | CollisionGroups.PLAYER
@@ -190,33 +255,14 @@ export default class Enemy extends Sphere {
     }
   }
 
-  public updateEnemy(player: Player) {
-    // Exit early if object is destroyed
-    if (this.isBeingDestroyed) {
-      return;
-    }
-
-    // Crappy workaround for the return in private function not catching the destroy in time somehow, TODO: revisit
-    this.physics.world.contactPairsWith(
-      this.physicsBody.collider(0),
-      (otherCollider) => {
-        // Check for collision with trashcan, destroy object
-        if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
-          // Remove through event not directly to be consistent with GameDirector's purpose
-          Emitter.emit("gameObjectRemoved", this);
-          return;
-        }
-      }
-    );
-
-    // Exit on the remainder of this call after is destroyed
-    if (this.isBeingDestroyed) {
+  public updateEnemy(player: Player, trashCan: TrashCan) {
+    if (this.validateDestroyCondition(trashCan)) {
       return;
     }
 
     this.checkCollisions();
     this.checkIntersections();
-    this.calculateSpecialRoll();
+    this.calculateSpecialRoll(player, trashCan);
     this.updateCollisionMask();
     this.updateMovement();
 

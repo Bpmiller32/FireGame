@@ -39,6 +39,8 @@ export default class Player extends GameObject {
 
   public isTouching!: ContactPoints;
 
+  public currentFloor: number = 0;
+
   public maxClimbSpeed!: number;
   public climbAcceleration!: number;
   public climbDeceleration!: number;
@@ -245,8 +247,17 @@ export default class Player extends GameObject {
 
       // y axis collisions that happened to the character controller
       if (collision!.normal2.y == -1) {
-        // console.log("here down");
         // this.isTouching.ground = true;
+
+        // TODO: messy, revisit
+        if (
+          GameUtils.getDataFromCollider(collision!.collider!).name ==
+          "OneWayPlatform"
+        ) {
+          this.currentFloor = GameUtils.getDataFromCollider(
+            collision!.collider!
+          ).value;
+        }
       }
       if (
         collision!.normal2.y == 1 &&
@@ -259,11 +270,9 @@ export default class Player extends GameObject {
 
       // x axis
       if (collision!.normal2.x == 1) {
-        // console.log("here right");
         // this.isTouching.rightSide = true;
       }
       if (collision!.normal2.x == -1) {
-        // console.log("here left");
         // this.isTouching.leftSide = true;
       }
     }

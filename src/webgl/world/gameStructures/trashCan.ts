@@ -1,30 +1,24 @@
-import * as THREE from "three";
-import GameUtils from "../../utils/gameUtils";
-import CollisionGroups from "../../utils/types/collisionGroups";
 import GameObject from "../gameComponents/gameObject";
+import GameObjectType from "../../utils/types/gameObjectType";
 
-export default class Platform extends GameObject {
+export default class TrashCan extends GameObject {
   public isOnFire: boolean;
 
   constructor(
     size: { width: number; height: number; depth: number },
     position: { x: number; y: number },
-    rotation: number,
-    isOneWayPlatform: boolean = false,
-    drawGraphics?: boolean
+    rotation: number
   ) {
     super();
 
-    this.isOnFire = false;
-
-    GameUtils.setCollisionGroup(
-      this.physicsBody.collider(0),
-      CollisionGroups.PLATFORM
+    this.createObject(
+      "TrashCan",
+      GameObjectType.CUBE,
+      size,
+      position,
+      rotation
     );
 
-    if (isOneWayPlatform) {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).name =
-        "OneWayPlatform";
-    }
+    this.isOnFire = false;
   }
 }

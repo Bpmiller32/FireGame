@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import Experience from "../../experience";
-import Cube from "../gameEntities/cube";
 import World from "../levels/world";
 import Player from "../player/player";
 import GameSensor from "./gameSensor";
@@ -11,6 +10,7 @@ import BlenderExport from "../levels/blenderExport.json";
 import setCelesteAttributes from "../player/attributes/setCelesteAttributes";
 import Platform from "../gameStructures/platform";
 import Enemy from "../gameStructures/enemy";
+import TrashCan from "../gameStructures/trashCan";
 
 export default class GameDirector {
   private experience: Experience;
@@ -40,19 +40,21 @@ export default class GameDirector {
         continue;
       }
 
-      this.world.platforms.push(
-        new Platform(
-          {
-            width: value.width,
-            height: value.depth,
-            depth: value.height,
-          },
-          { x: value.position[0], y: value.position[2] },
-          -value.rotation[1],
-          true,
-          value.visible
-        )
+      const platform = new Platform(
+        {
+          width: value.width,
+          height: value.depth,
+          depth: value.height,
+        },
+        { x: value.position[0], y: value.position[2] },
+        -value.rotation[1],
+        true,
+        value.visible
       );
+
+      platform.setObjectValue(value.value);
+
+      this.world.platforms.push(platform);
     }
 
     // Import walls
@@ -61,23 +63,21 @@ export default class GameDirector {
         continue;
       }
 
-      this.world.walls.push(
-        new Cube(
-          "Wall",
-          {
-            width: value.width,
-            height: value.depth,
-            depth: value.height,
-          },
-          { x: value.position[0], y: value.position[2] },
-          -value.rotation[1],
-          new THREE.MeshBasicMaterial({
-            color: "green",
-          }),
-          undefined,
-          value.visible
-        )
+      const wall = new Platform(
+        {
+          width: value.width,
+          height: value.depth,
+          depth: value.height,
+        },
+        { x: value.position[0], y: value.position[2] },
+        -value.rotation[1],
+        false,
+        value.visible
       );
+
+      wall.setObjectName("Wall");
+
+      this.world.walls.push(wall);
     }
 
     // Import trashcans
@@ -86,21 +86,15 @@ export default class GameDirector {
         continue;
       }
 
-      this.world.walls.push(
-        new Cube(
-          "TrashCan",
+      this.world.trashCans.push(
+        new TrashCan(
           {
             width: value.width,
             height: value.depth,
             depth: value.height,
           },
           { x: value.position[0], y: value.position[2] },
-          -value.rotation[1],
-          new THREE.MeshBasicMaterial({
-            color: "purple",
-          }),
-          undefined,
-          value.visible
+          -value.rotation[1]
         )
       );
     }
@@ -130,18 +124,20 @@ export default class GameDirector {
         continue;
       }
 
-      this.world.ladderCoreSensors.push(
-        new GameSensor(
-          "LadderCoreSensor",
-          GameObjectType.CUBE,
-          { width: value.width, height: value.depth },
-          { x: value.position[0], y: value.position[2] },
-          -value.rotation[1],
-          this.player.physicsBody,
-          undefined,
-          value.value
-        )
+      const ladderCoreSensor = new GameSensor(
+        "LadderCoreSensor",
+        GameObjectType.CUBE,
+        { width: value.width, height: value.depth },
+        { x: value.position[0], y: value.position[2] },
+        -value.rotation[1],
+        this.player.physicsBody,
+        undefined,
+        value.value
       );
+
+      ladderCoreSensor.setIsConnectedLadder(value.isConnectedLadder);
+
+      this.world.ladderCoreSensors.push(ladderCoreSensor);
     }
 
     // Import ladder top sensors
@@ -201,6 +197,23 @@ export default class GameDirector {
         true
       )
     );
+  }
+
+  public spawnEnemiesWithRandomInterval() {
+    const spawnEnemy = () => {
+      this.spawnEnemy();
+
+      // Generate a random delay between 2 and 3 seconds (in milliseconds)
+      const randomDelay = Math.random() * (3000 - 2000) + 2000;
+
+      // Schedule the next enemy spawn
+      setTimeout(spawnEnemy, randomDelay);
+    };
+
+    // Start the spawning loop
+    setTimeout(() => {
+      spawnEnemy();
+    }, 3000);
   }
 
   public despawnAllEnemies() {

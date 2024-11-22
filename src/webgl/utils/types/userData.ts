@@ -4,4 +4,5 @@ export default interface UserData {
   value: number;
 
   isOneWayPlatformActive: boolean;
+  isConnectedLadder: boolean;
 }

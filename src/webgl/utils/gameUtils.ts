@@ -32,6 +32,7 @@ export default class GameUtils {
       gameEntityType: undefined,
 
       isOneWayPlatformActive: undefined,
+      isConnectedLadder: undefined,
     };
   }
 
@@ -47,6 +48,7 @@ export default class GameUtils {
       gameEntityType: undefined,
 
       isOneWayPlatformActive: undefined,
+      isConnectedLadder: undefined,
     };
   }
 
@@ -101,7 +103,7 @@ export default class GameUtils {
     return start + (end - start) * easedT * deltaTime * (1 / duration);
   }
 
-  public static getPercentChance(probability: number) {
+  public static calculatePercentChance(probability: number) {
     return Math.random() < probability;
   }
 

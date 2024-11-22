@@ -9,9 +9,10 @@ import Camera from "../../camera.ts";
 import GameSensor from "../gameComponents/gameSensor.ts";
 import GameDirector from "../gameComponents/gameDirector.ts";
 import Platform from "../gameStructures/platform.ts";
-import Cube from "../gameEntities/cube.ts";
 import Enemy from "../gameStructures/enemy.ts";
 import GameUtils from "../../utils/gameUtils.ts";
+import TrashCan from "../gameStructures/trashCan.ts";
+import CrazyEnemy from "../gameStructures/crazyEnemy.ts";
 
 export default class World {
   private experience: Experience;
@@ -22,8 +23,9 @@ export default class World {
 
   public player!: Player;
   public enemies: Enemy[];
+  public crazyEnemies: CrazyEnemy[];
 
-  public walls: Cube[];
+  public walls: Platform[];
   public platforms: Platform[];
   public cameraSensors: GameSensor[];
 
@@ -31,7 +33,7 @@ export default class World {
   public ladderTopSensors: GameSensor[];
   public ladderBottomSensors: GameSensor[];
 
-  public trashCans: Cube[];
+  public trashCans: TrashCan[];
 
   constructor() {
     this.experience = Experience.getInstance();
@@ -40,6 +42,7 @@ export default class World {
     this.cameraSensors = [];
 
     this.enemies = [];
+    this.crazyEnemies = [];
     this.trashCans = [];
 
     this.platforms = [];
@@ -58,12 +61,20 @@ export default class World {
       this.gameDirector = new GameDirector();
       this.gameDirector.loadLevelData("blenderExport");
 
+      this.crazyEnemies.push(
+        new CrazyEnemy(
+          1,
+          {
+            x: -15,
+            y: 50,
+          },
+          true
+        )
+      );
       // Throw 1 immediately, then interval
-      this.gameDirector?.spawnEnemy();
-      setInterval(() => {
-        this.gameDirector?.spawnEnemy();
-        // this.gameDirector?.despawnAllEnemies();
-      }, 3000);
+      // this.gameDirector?.spawnEnemy();
+
+      this.gameDirector.spawnEnemiesWithRandomInterval();
     });
 
     // Events
@@ -91,7 +102,12 @@ export default class World {
 
     // Enemies
     this.enemies.forEach((enemy) => {
-      enemy.updateEnemy(this.player);
+      enemy.updateEnemy(this.player, this.trashCans[0]);
+    });
+
+    // CrazyEnemies
+    this.crazyEnemies.forEach((enemy) => {
+      enemy.updateEnemy(this.trashCans[0]);
     });
 
     // OneWayPlatforms

@@ -7,6 +7,7 @@ interface LevelEntity {
   type: string;
   visible?: boolean;
   value?: number;
+  isConnectedLadder?: boolean;
 }
 
 interface LevelData {
