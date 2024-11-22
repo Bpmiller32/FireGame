@@ -55,7 +55,8 @@ export default class Experience {
 
     this.scene = new THREE.Scene();
     // this.camera = new Camera(new THREE.Vector3(-20, 21, 65));
-    this.camera = new Camera(new THREE.Vector3(0, 15, 65));
+    // this.camera = new Camera(new THREE.Vector3(0, 15, 65));
+    this.camera = new Camera(new THREE.Vector3(0, 25, 100));
     this.renderer = new Renderer();
     this.physics = new Physics();
     await this.physics.configure();

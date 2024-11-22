@@ -7,6 +7,15 @@ const handlePlayerIdle = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
+  // Check for edge case where verical direction is positive before entering idle
+  if (
+    player.nextTranslation.y >= 0 &&
+    (player.input.isLeft() || player.input.isRight())
+  ) {
+    player.nextTranslation.y = -player.maxFallSpeed;
+    return;
+  }
+
   // Transition to falling state
   if (!player.isTouching.ground && player.nextTranslation.y <= 0) {
     player.timeFallWasEntered = player.time.elapsed;
@@ -51,8 +60,8 @@ const handlePlayerIdle = (player: Player) => {
     player.bufferJumpAvailable = true;
   }
 
-  // Set to zero to cancel any residual gravity, fall, climb translation
-  player.nextTranslation.y = 0;
+  // Simple max gravity in non-vertical state to fix downward movement on slopes, maintain touching ground
+  player.nextTranslation.y = -player.maxFallSpeed;
 
   /* -------------------------------------------------------------------------- */
   /*                                  Animation                                 */

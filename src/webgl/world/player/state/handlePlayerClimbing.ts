@@ -7,7 +7,7 @@ const handlePlayerClimbing = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
-
+  // Transition to idle state
   const atLadderBottom =
     player.isTouching.ladderBottom &&
     (player.input.isDown() ||
@@ -21,7 +21,12 @@ const handlePlayerClimbing = (player: Player) => {
       player.input.isUpDownCombo());
 
   if (!player.isTouching.ladderCore || atLadderBottom || atLadderTop) {
-    player.nextTranslation.y = 0;
+    if (atLadderTop) {
+      player.nextTranslation.y = player.maxClimbSpeed;
+    } else {
+      player.nextTranslation.y = -player.maxClimbSpeed;
+    }
+
     player.isTouching.ground = true;
     player.state = PlayerStates.IDLE;
     return;
@@ -45,7 +50,7 @@ const handlePlayerClimbing = (player: Player) => {
     player.direction = PlayerDirection.UP;
   }
   // Down
-  else if (player.input.isDown() && !player.isTouching.ladderBottom) {
+  else if (player.input.isDown()) {
     player.direction = PlayerDirection.DOWN;
   }
   // Both and neither

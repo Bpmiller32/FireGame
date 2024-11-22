@@ -39,7 +39,7 @@ const setDkAttributes = (player: Player) => {
   player.coyoteAvailable = false;
   player.bufferJumpAvailable = false;
 
-  player.bufferJumpRange = 4;
+  player.bufferJumpRange = 1.5;
   player.groundWithinBufferRange = false;
   player.bufferJumpAvailable = false;
 
@@ -51,7 +51,7 @@ const setDkAttributes = (player: Player) => {
 
   player.minJumpTime = 0.25;
   player.maxJumpTime = 0.25;
-  player.coyoteTime = 0.07;
+  player.coyoteTime = 0.033; // 2 frames
 };
 
 export default setDkAttributes;

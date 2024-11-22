@@ -1,22 +1,4 @@
 {
-    "OilBarrel": {
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            -21.75276756286621,
-            -2.384185791015625e-07,
-            2.0
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "trashCan",
-        "visible": true,
-        "value": 0
-    },
     "Cube": {
         "width": 28.0,
         "height": 2.0,
@@ -33,7 +15,7 @@
         ],
         "type": "platform",
         "visible": true,
-        "value": 0
+        "value": 1
     },
     "Cube.003": {
         "width": 4.0,
@@ -2267,24 +2249,6 @@
         "visible": true,
         "value": 0
     },
-    "Cube.008": {
-        "width": 2.0,
-        "height": 2.0,
-        "depth": 68.0,
-        "position": [
-            29.15362548828125,
-            0.0,
-            30.887925148010254
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "wall",
-        "visible": false,
-        "value": 0
-    },
     "Cube.009": {
         "width": 2.0,
         "height": 2.0,
@@ -2303,21 +2267,39 @@
         "visible": false,
         "value": 0
     },
-    "Cube.130": {
-        "width": 2.5,
+    "Cube.148": {
+        "width": 2.0,
         "height": 2.0,
-        "depth": 9.808199882507324,
+        "depth": 68.0,
         "position": [
-            19.14688491821289,
-            -2.384185791015625e-07,
-            7.251099348068237
+            29.1816463470459,
+            -1.1920928955078125e-07,
+            31.035508155822754
         ],
         "rotation": [
             0.0,
             0.0,
             0.0
         ],
-        "type": "ladder",
+        "type": "wall",
+        "visible": false,
+        "value": 0
+    },
+    "Cube.130": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 10.0,
+        "position": [
+            19.14688491821289,
+            -2.384185791015625e-07,
+            7.155200004577637
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
         "visible": true,
         "value": -1
     },
@@ -2335,7 +2317,7 @@
             0.0,
             0.0
         ],
-        "type": "ladder",
+        "type": "ladderCoreSensor",
         "visible": true,
         "value": -1
     },
@@ -2353,36 +2335,306 @@
             0.0,
             0.0
         ],
-        "type": "ladder",
+        "type": "ladderCoreSensor",
         "visible": true,
         "value": -1
     },
     "Cube.133": {
         "width": 2.5,
         "height": 2.0,
-        "depth": 11.640700340270996,
+        "depth": 12.5,
         "position": [
-            -2.8314563035964966,
-            -2.9802322387695312e-08,
-            15.65868091583252
+            -2.801230549812317,
+            -3.5762786865234375e-07,
+            15.128900527954102
         ],
         "rotation": [
             0.0,
             0.0,
             0.0
         ],
-        "type": "ladder",
+        "type": "ladderCoreSensor",
         "visible": true,
         "value": 1
+    },
+    "Cube.143": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 10.5,
+        "position": [
+            -18.7829647064209,
+            0.0,
+            15.15719985961914
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": 1
+    },
+    "Cube.150": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 2.0,
+        "position": [
+            -10.82196044921875,
+            8.940696716308594e-08,
+            17.95448112487793
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.152": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 13.0,
+        "position": [
+            1.1921510696411133,
+            -5.960464477539062e-07,
+            23.363300323486328
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.158": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 10.0,
+        "position": [
+            19.176006317138672,
+            -2.682209014892578e-07,
+            23.611499786376953
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.164": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 2.0,
+        "position": [
+            15.14988374710083,
+            -1.4603137969970703e-06,
+            25.939132690429688
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": 1
+    },
+    "Cube.169": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 3.0,
+        "position": [
+            -10.766530990600586,
+            -1.8775463104248047e-06,
+            28.936115264892578
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.171": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 11.5,
+        "position": [
+            -8.069997787475586,
+            -2.2351741790771484e-06,
+            31.716381072998047
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": 1
+    },
+    "Cube.173": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 10.5,
+        "position": [
+            -18.759822845458984,
+            -1.9073486328125e-06,
+            31.60219955444336
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": 1
+    },
+    "Cube.175": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 2.0,
+        "position": [
+            -4.0817365646362305,
+            -2.8908252716064453e-06,
+            34.762935638427734
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.176": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 10.5,
+        "position": [
+            19.184234619140625,
+            -2.5033950805664062e-06,
+            39.93380355834961
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.177": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 11.5,
+        "position": [
+            5.220050811767578,
+            -3.933906555175781e-06,
+            47.06340026855469
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": 1
+    },
+    "Cube.178": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 12.5,
+        "position": [
+            -11.05544662475586,
+            -3.6954879760742188e-06,
+            48.18245315551758
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": 1
+    },
+    "Cube.179": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 12.5,
+        "position": [
+            -7.09181809425354,
+            -2.652406692504883e-06,
+            48.18245315551758
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": 1
+    },
+    "Cube.180": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 3.0,
+        "position": [
+            15.149171829223633,
+            -2.115964889526367e-06,
+            37.61220169067383
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": 1
+    },
+    "Cube.184": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 2.0,
+        "position": [
+            -4.0817365646362305,
+            -2.8908252716064453e-06,
+            44.83250045776367
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderCoreSensor",
+        "visible": true,
+        "value": -1
     },
     "Cube.127": {
         "width": 3.0,
         "height": 2.0,
         "depth": 1.0,
         "position": [
-            19.198501586914062,
+            18.725740432739258,
             -2.384185791015625e-07,
-            1.9981800317764282
+            1.9177199602127075
         ],
         "rotation": [
             0.0,
@@ -2396,11 +2648,65 @@
     "Cube.131": {
         "width": 2.5,
         "height": 2.0,
-        "depth": 2.0,
+        "depth": 1.0,
         "position": [
             -6.769885063171387,
             -2.384185791015625e-07,
-            0.10000002384185791
+            0.5499999821186066
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.142": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            20.653568267822266,
+            0.0,
+            2.096790075302124
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.145": {
+        "width": 3.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -18.279361724853516,
+            -1.0728836059570312e-06,
+            10.125
+        ],
+        "rotation": [
+            0.0,
+            0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.146": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -20.207181930541992,
+            1.4901161193847656e-07,
+            10.304604530334473
         ],
         "rotation": [
             0.0,
@@ -2412,13 +2718,31 @@
         "value": -1
     },
     "Cube.134": {
-        "width": 2.5,
+        "width": 3.0,
         "height": 2.0,
         "depth": 1.0,
         "position": [
-            -2.8314563035964966,
-            -5.960464477539062e-07,
-            9.338330268859863
+            -2.4041314125061035,
+            -2.9802322387695312e-08,
+            9.10925006866455
+        ],
+        "rotation": [
+            0.0,
+            0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.147": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -4.3320159912109375,
+            0.0,
+            9.28832721710205
         ],
         "rotation": [
             0.0,
@@ -2427,16 +2751,394 @@
         ],
         "type": "ladderBottomSensor",
         "visible": true,
-        "value": 1
+        "value": -1
+    },
+    "Cube.151": {
+        "width": 3.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -10.826888084411621,
+            8.940696716308594e-08,
+            16.504499435424805
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.154": {
+        "width": 3.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            1.7467474937438965,
+            0.0,
+            17.275699615478516
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.155": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -0.18859101831912994,
+            0.0,
+            17.21849250793457
+        ],
+        "rotation": [
+            0.0,
+            -0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.160": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            2.4456306099891663,
+            0.0,
+            17.328899383544922
+        ],
+        "rotation": [
+            0.0,
+            -0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.156": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -9.762226104736328,
+            0.0,
+            16.532199382781982
+        ],
+        "rotation": [
+            0.0,
+            -0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.161": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            20.742700576782227,
+            0.0,
+            18.524999618530273
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.162": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            18.06085777282715,
+            -8.940696716308594e-08,
+            18.29360008239746
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.163": {
+        "width": 3.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            18.814815521240234,
+            0.0,
+            18.345922470092773
+        ],
+        "rotation": [
+            0.0,
+            -0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.165": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            15.149883270263672,
+            0.0,
+            24.489099502563477
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.166": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            13.830132484436035,
+            -2.9802322387695312e-08,
+            24.54520034790039
+        ],
+        "rotation": [
+            0.0,
+            0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.167": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -1.5349252223968506,
+            1.4901161193847656e-07,
+            9.062410354614258
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.168": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -17.52042007446289,
+            2.086162567138672e-07,
+            10.050800323486328
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.186": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -8.069997787475586,
+            0.0,
+            26.019100189208984
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.187": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -18.759822845458984,
+            0.0,
+            26.765199661254883
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.188": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -2.50396728515625,
+            -4.76837158203125e-07,
+            33.50669860839844
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.189": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -4.933715462684631,
+            -4.76837158203125e-07,
+            33.358089447021484
+        ],
+        "rotation": [
+            0.0,
+            -0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.190": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -7.091817855834961,
+            -2.5033950805664062e-06,
+            41.48249816894531
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.191": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -11.05544662475586,
+            -3.6954879760742188e-06,
+            41.48249816894531
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.192": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            5.220050811767578,
+            -2.4139881134033203e-06,
+            41.48249816894531
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.193": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            19.056772232055664,
+            -1.6987323760986328e-06,
+            34.839698791503906
+        ],
+        "rotation": [
+            0.0,
+            -0.12217304855585098,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
+    },
+    "Cube.194": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            21.486520767211914,
+            -1.6987323760986328e-06,
+            34.98830795288086
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderBottomSensor",
+        "visible": true,
+        "value": -1
     },
     "Cube.135": {
         "width": 2.5,
         "height": 2.0,
         "depth": 1.0,
         "position": [
-            -2.831456184387207,
+            -2.801230549812317,
             -1.1920928955078125e-06,
-            21.978900909423828
+            21.8789005279541
         ],
         "rotation": [
             0.0,
@@ -2483,14 +3185,194 @@
         "visible": true,
         "value": 0
     },
-    "Cube.132": {
-        "width": 24.0,
+    "Cube.144": {
+        "width": 2.5,
         "height": 2.0,
-        "depth": 9.012430191040039,
+        "depth": 1.0,
         "position": [
-            16.15362548828125,
+            -18.7829647064209,
+            -2.115964889526367e-06,
+            20.90719985961914
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.183": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            19.184234619140625,
+            -6.079673767089844e-06,
+            45.68380355834961
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.185": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -4.0817365646362305,
+            -2.950429916381836e-06,
+            46.33250045776367
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.153": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            1.1921510696411133,
+            -2.384185791015625e-06,
+            30.363300323486328
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.159": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            19.176006317138672,
+            -2.384185791015625e-07,
+            29.111499786376953
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.170": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -10.766530990600586,
+            -3.337860107421875e-06,
+            30.936115264892578
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.172": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -8.069997787475586,
+            -4.410743713378906e-06,
+            37.96638107299805
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.174": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            -18.759822845458984,
+            -4.500150680541992e-06,
+            37.35219955444336
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.181": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            15.149171829223633,
+            -3.337860107421875e-06,
+            39.61220169067383
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.182": {
+        "width": 2.5,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            5.220050811767578,
+            -7.0035457611083984e-06,
+            53.31340026855469
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "ladderTopSensor",
+        "visible": true,
+        "value": 0
+    },
+    "Cube.132": {
+        "width": 20.0,
+        "height": 2.0,
+        "depth": 16.0,
+        "position": [
+            18.15362548828125,
             0.75,
-            22.509496688842773
+            26.21921157836914
         ],
         "rotation": [
             0.0,
@@ -2502,13 +3384,13 @@
         "value": 25
     },
     "Cube.138": {
-        "width": 32.0,
+        "width": 20.0,
         "height": 2.0,
-        "depth": 9.012430191040039,
+        "depth": 9.5,
         "position": [
-            -11.84637451171875,
+            -17.8183536529541,
             0.75,
-            21.19159507751465
+            20.705413818359375
         ],
         "rotation": [
             0.0,
@@ -2518,5 +3400,131 @@
         "type": "cameraSensor",
         "visible": true,
         "value": 15
+    },
+    "Cube.140": {
+        "width": 22.0,
+        "height": 2.0,
+        "depth": 14.0,
+        "position": [
+            -16.8183536529541,
+            0.75,
+            32.93245315551758
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "cameraSensor",
+        "visible": true,
+        "value": 35
+    },
+    "Cube.139": {
+        "width": 20.0,
+        "height": 2.0,
+        "depth": 9.5,
+        "position": [
+            18.15362548828125,
+            0.75,
+            12.735424041748047
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "cameraSensor",
+        "visible": true,
+        "value": 15
+    },
+    "Cube.141": {
+        "width": 20.0,
+        "height": 2.0,
+        "depth": 16.0,
+        "position": [
+            18.15362548828125,
+            0.75,
+            42.72196960449219
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "cameraSensor",
+        "visible": true,
+        "value": 45
+    },
+    "Cube.157": {
+        "width": 14.0,
+        "height": 2.0,
+        "depth": 7.5,
+        "position": [
+            1.15362548828125,
+            0.75,
+            28.696937561035156
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "cameraSensor",
+        "visible": true,
+        "value": 25
+    },
+    "BarrelLauncher": {
+        "width": 10.0,
+        "height": 2.0,
+        "depth": 10.0,
+        "position": [
+            -17.465038299560547,
+            -5.9604644775390625e-06,
+            46.93245315551758
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "barrelLauncher",
+        "visible": true,
+        "value": 0
+    },
+    "TrashCan": {
+        "width": 4.0,
+        "height": 2.0,
+        "depth": 4.0,
+        "position": [
+            -21.75276756286621,
+            -2.384185791015625e-07,
+            3.0
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "trashCan",
+        "visible": true,
+        "value": 0
+    },
+    "WinState": {
+        "width": 2.0,
+        "height": 2.0,
+        "depth": 6.0,
+        "position": [
+            -3.490218162536621,
+            -6.556510925292969e-06,
+            51.91337585449219
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "trashCan",
+        "visible": true,
+        "value": 0
     }
 }

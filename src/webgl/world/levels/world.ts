@@ -9,8 +9,9 @@ import Camera from "../../camera.ts";
 import GameSensor from "../gameComponents/gameSensor.ts";
 import GameDirector from "../gameComponents/gameDirector.ts";
 import Platform from "../gameStructures/platform.ts";
-import Cube from "../gameComponents/cube.ts";
+import Cube from "../gameEntities/cube.ts";
 import Enemy from "../gameStructures/enemy.ts";
+import GameUtils from "../../utils/gameUtils.ts";
 
 export default class World {
   private experience: Experience;
@@ -64,6 +65,16 @@ export default class World {
         // this.gameDirector?.despawnAllEnemies();
       }, 3000);
     });
+
+    // Events
+    Emitter.on("gameObjectRemoved", (removedGameObject) => {
+      removedGameObject.destroy();
+    });
+
+    // Periodically remove destroyed objects from gameObject arrays
+    setInterval(() => {
+      this.enemies = GameUtils.removeDestroyedObjects(this.enemies);
+    }, 5000);
   }
 
   public update() {
@@ -125,13 +136,7 @@ export default class World {
 
     this.ladderTopSensors.forEach((sensor) => {
       sensor.update(() => {
-        if (
-          sensor.isIntersectingTarget &&
-          this.player.currentTranslation.x - this.player.initalSize.x / 2 >
-            sensor.initalPosition.x - sensor.initialSize.x / 2 &&
-          this.player.currentTranslation.x + this.player.initalSize.x / 2 <
-            sensor.initalPosition.x + sensor.initialSize.x / 2
-        ) {
+        if (sensor.isIntersectingTarget) {
           ladderTopDetected = true;
         }
       });
@@ -144,13 +149,7 @@ export default class World {
 
     this.ladderBottomSensors.forEach((sensor) => {
       sensor.update(() => {
-        if (
-          sensor.isIntersectingTarget &&
-          this.player.currentTranslation.x - this.player.initalSize.x / 2 >
-            sensor.initalPosition.x - sensor.initialSize.x / 2 &&
-          this.player.currentTranslation.x + this.player.initalSize.x / 2 <
-            sensor.initalPosition.x + sensor.initialSize.x / 2
-        ) {
+        if (sensor.isIntersectingTarget) {
           ladderBottomDetected = true;
         }
       });

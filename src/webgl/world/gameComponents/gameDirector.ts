@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import Experience from "../../experience";
-import Cube from "../gameComponents/cube";
+import Cube from "../gameEntities/cube";
 import World from "../levels/world";
 import Player from "../player/player";
 import GameSensor from "./gameSensor";
@@ -11,8 +11,6 @@ import BlenderExport from "../levels/blenderExport.json";
 import setCelesteAttributes from "../player/attributes/setCelesteAttributes";
 import Platform from "../gameStructures/platform";
 import Enemy from "../gameStructures/enemy";
-import GameUtils from "../../utils/gameUtils";
-import Emitter from "../../utils/eventEmitter";
 
 export default class GameDirector {
   private experience: Experience;
@@ -23,16 +21,6 @@ export default class GameDirector {
     this.experience = Experience.getInstance();
     this.world = this.experience.world;
     this.player = this.world.player!;
-
-    // Periodically remove destroyed objects from gameObject arrays
-    setInterval(() => {
-      this.world.enemies = GameUtils.removeDestroyedObjects(this.world.enemies);
-    }, 5000);
-
-    // Events
-    Emitter.on("gameObjectRemoved", (removedGameObject) => {
-      removedGameObject.destroy();
-    });
   }
 
   public loadLevelData(levelName?: string) {
@@ -138,7 +126,7 @@ export default class GameDirector {
 
     // Import ladder sensors
     for (const [_, value] of Object.entries(levelToLoad)) {
-      if (value.type != "ladder") {
+      if (value.type != "ladderCoreSensor") {
         continue;
       }
 

@@ -2,20 +2,20 @@ import * as THREE from "three";
 import RAPIER, { Cuboid } from "@dimforge/rapier2d";
 import Player from "../player/player";
 import GameUtils from "../../utils/gameUtils";
-import Sphere from "../gameComponents/sphere";
+import Sphere from "../gameEntities/sphere";
 import Emitter from "../../utils/eventEmitter";
 import CollisionGroups from "../../utils/types/collisionGroups";
 
 export default class Enemy extends Sphere {
-  private groundSpeed: number;
-  private direction: number;
-  private ladderSensorValue: number;
+  private groundSpeed!: number;
+  private direction!: number;
+  private ladderSensorValue!: number;
 
-  private isCollidingWithPlatforms: boolean;
+  private isCollidingWithPlatforms!: boolean;
 
-  private isInsideLadder: boolean;
-  private didRunSpecialRollCheckOnce: boolean;
-  private shouldPerformSpecialRoll: boolean;
+  private isInsideLadder!: boolean;
+  private didRunSpecialRollCheckOnce!: boolean;
+  private performSpecialRoll!: boolean;
 
   constructor(
     size: number,
@@ -31,15 +31,21 @@ export default class Enemy extends Sphere {
       drawGraphics
     );
 
-    // Set fields
-    this.groundSpeed = 18;
+    this.setAttributes();
+    this.setCollisionGroups();
+  }
+
+  private setAttributes() {
+    this.groundSpeed = 14;
     this.direction = 1;
     this.ladderSensorValue = 0;
     this.isCollidingWithPlatforms = true;
     this.isInsideLadder = false;
     this.didRunSpecialRollCheckOnce = false;
-    this.shouldPerformSpecialRoll = false;
+    this.performSpecialRoll = false;
+  }
 
+  private setCollisionGroups() {
     // Set default collision groups
     GameUtils.setCollisionGroup(
       this.physicsBody.collider(0),
@@ -124,19 +130,19 @@ export default class Enemy extends Sphere {
           GameUtils.getDataFromCollider(otherCollider).name ===
           "LadderBottomSensor"
         ) {
-          this.shouldPerformSpecialRoll = false;
+          this.performSpecialRoll = false;
         }
       }
     );
   }
 
-  private calculateSpecialRolls() {
+  private calculateSpecialRoll() {
     // Check if wanting to roll down a ladder or do a crazy roll
     if (this.isInsideLadder) {
       if (!this.didRunSpecialRollCheckOnce) {
         this.didRunSpecialRollCheckOnce = true;
 
-        this.shouldPerformSpecialRoll = GameUtils.getPercentChance(0.4);
+        this.performSpecialRoll = GameUtils.getPercentChance(0.4);
         // this.shouldPerformSpecialRoll = GameUtils.getPercentChance(1);
       }
     } else {
@@ -144,7 +150,7 @@ export default class Enemy extends Sphere {
     }
 
     // Special roll was selected
-    if (this.shouldPerformSpecialRoll) {
+    if (this.performSpecialRoll) {
       if (this.ladderSensorValue >= 0) {
         this.direction = 1;
       } else {
@@ -157,7 +163,7 @@ export default class Enemy extends Sphere {
     // Set collision mask
     if (
       this.isCollidingWithPlatforms &&
-      this.shouldPerformSpecialRoll == false
+      this.performSpecialRoll == false
     ) {
       GameUtils.setCollisionMask(
         this.physicsBody.collider(0),
@@ -179,7 +185,7 @@ export default class Enemy extends Sphere {
       this.physicsBody.setLinvel({ x: -this.groundSpeed, y: -9.8 }, true);
     }
 
-    if (this.shouldPerformSpecialRoll) {
+    if (this.performSpecialRoll) {
       this.physicsBody.setLinvel({ x: 0, y: -this.groundSpeed * 0.65 }, true);
     }
   }
@@ -210,7 +216,7 @@ export default class Enemy extends Sphere {
 
     this.checkCollisions();
     this.checkIntersections();
-    this.calculateSpecialRolls();
+    this.calculateSpecialRoll();
     this.updateCollisionMask();
     this.updateMovement();
 

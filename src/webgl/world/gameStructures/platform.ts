@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import Cube from "../gameComponents/cube";
+import Cube from "../gameEntities/cube";
 import Player from "../player/player";
 import GameUtils from "../../utils/gameUtils";
 import CollisionGroups from "../../utils/types/collisionGroups";
