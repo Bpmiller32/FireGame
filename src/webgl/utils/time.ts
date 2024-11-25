@@ -28,7 +28,7 @@ export default class Time {
 
   private tick() {
     this.elapsed = this.clock.getElapsedTime();
-    //   Clamp this value to a minimum framerate, this way when tab is suspended the deltaTime does not get huge
+    // Clamp this value to a minimum framerate, this way when tab is suspended the deltaTime does not get huge
     this.delta = Math.min(this.elapsed - this.previous, 1 / 30);
     this.previous = this.elapsed;
 

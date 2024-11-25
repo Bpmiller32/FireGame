@@ -52,7 +52,7 @@ export default class World {
     this.ladderTopSensors = [];
     this.ladderBottomSensors = [];
 
-    // Resources
+    // Events
     Emitter.on("resourcesReady", () => {
       // Player
       this.player = new Player({ width: 2, height: 4 }, { x: -6.752, y: 3 });
@@ -60,24 +60,9 @@ export default class World {
       // Level loader
       this.gameDirector = new GameDirector();
       this.gameDirector.loadLevelData("blenderExport");
-
-      this.crazyEnemies.push(
-        new CrazyEnemy(
-          1,
-          {
-            x: -15,
-            y: 50,
-          },
-          true
-        )
-      );
-      // Throw 1 immediately, then interval
-      // this.gameDirector?.spawnEnemy();
-
-      this.gameDirector.spawnEnemiesWithRandomInterval();
+      Emitter.emit("gameOver", false);
     });
 
-    // Events
     Emitter.on("gameObjectRemoved", (removedGameObject) => {
       removedGameObject.destroy();
     });
@@ -85,6 +70,7 @@ export default class World {
     // Periodically remove destroyed objects from gameObject arrays
     setInterval(() => {
       this.enemies = GameUtils.removeDestroyedObjects(this.enemies);
+      this.crazyEnemies = GameUtils.removeDestroyedObjects(this.crazyEnemies);
     }, 5000);
   }
 
@@ -128,50 +114,24 @@ export default class World {
       });
     });
 
-    // Ladder core detection
-    let ladderCoreDetected = false;
-
-    this.ladderCoreSensors.forEach((sensor) => {
-      sensor.update(() => {
-        if (
-          sensor.isIntersectingTarget &&
-          this.player.currentTranslation.x - this.player.initalSize.x / 2 >
-            sensor.initalPosition.x - sensor.initialSize.x / 2 &&
-          this.player.currentTranslation.x + this.player.initalSize.x / 2 <
-            sensor.initalPosition.x + sensor.initialSize.x / 2
-        ) {
-          ladderCoreDetected = true;
-        }
-      });
-    });
-
-    this.player.isTouching.ladderCore = ladderCoreDetected;
-
     // Ladder top detection
-    let ladderTopDetected = false;
+    this.player.isTouching.ladderTop = GameUtils.isObjectFullyInsideAnySensor(
+      this.ladderTopSensors,
+      this.player
+    );
 
-    this.ladderTopSensors.forEach((sensor) => {
-      sensor.update(() => {
-        if (sensor.isIntersectingTarget) {
-          ladderTopDetected = true;
-        }
-      });
-    });
-
-    this.player.isTouching.ladderTop = ladderTopDetected;
+    // Ladder core detection
+    this.player.isTouching.ladderCore = GameUtils.isObjectFullyInsideAnySensor(
+      this.ladderCoreSensors,
+      this.player
+    );
 
     // Ladder bottom detection
-    let ladderBottomDetected = false;
-
-    this.ladderBottomSensors.forEach((sensor) => {
-      sensor.update(() => {
-        if (sensor.isIntersectingTarget) {
-          ladderBottomDetected = true;
-        }
-      });
-    });
-
-    this.player.isTouching.ladderBottom = ladderBottomDetected;
+    this.player.isTouching.ladderBottom =
+      GameUtils.isObjectFullyInsideAnySensor(
+        this.ladderBottomSensors,
+        this.player
+      );
   }
 
   public destroy() {}

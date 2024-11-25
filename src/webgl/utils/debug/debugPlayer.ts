@@ -3,7 +3,7 @@ import Debug from "../debug";
 
 const debugPlayer = (player: Player, debug: Debug) => {
   const playerDebug = debug.ui?.addFolder("playerDebug");
-  playerDebug?.open();
+  // playerDebug?.open();
   playerDebug?.add(player, "state").name("state").listen();
   playerDebug?.add(player, "currentFloor").name("floor").listen();
 

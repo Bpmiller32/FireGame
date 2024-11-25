@@ -1,13 +1,13 @@
-import * as THREE from "three";
 import RAPIER from "@dimforge/rapier2d";
 import GameUtils from "../../utils/gameUtils";
-import Sphere from "../gameEntities/sphere";
 import Emitter from "../../utils/eventEmitter";
 import CollisionGroups from "../../utils/types/collisionGroups";
 import TrashCan from "./trashCan";
 import Time from "../../utils/time";
+import GameObject from "../gameComponents/gameObject";
+import GameObjectType from "../../utils/types/gameObjectType";
 
-export default class CrazyEnemy extends Sphere {
+export default class CrazyEnemy extends GameObject {
   private time!: Time;
 
   private targetPositions!: RAPIER.Vector[];
@@ -23,19 +23,23 @@ export default class CrazyEnemy extends Sphere {
   constructor(
     size: number,
     position: { x: number; y: number },
-    drawGraphics?: boolean
+    rotation: number = 0
   ) {
-    super(
+    super();
+    this.createObjectPhysics(
       "Enemy",
-      size,
+      GameObjectType.SPHERE,
+      { width: size, height: size },
       position,
-      new THREE.MeshBasicMaterial({ color: "orange" }),
-      RAPIER.RigidBodyDesc.dynamic(),
-      drawGraphics
+      rotation,
+      RAPIER.RigidBodyDesc.dynamic()
     );
 
     this.setAttributes();
-    this.setCollisionGroups();
+    this.setCollisionGroup(CollisionGroups.ENEMY);
+    this.setCollisionMask(CollisionGroups.PLAYER);
+
+    this.createObjectGraphicsDebug("orange");
   }
 
   private setAttributes() {
@@ -56,18 +60,6 @@ export default class CrazyEnemy extends Sphere {
     this.distanceToTarget = 1;
   }
 
-  private setCollisionGroups() {
-    // Set default collision groups
-    GameUtils.setCollisionGroup(
-      this.physicsBody.collider(0),
-      CollisionGroups.ENEMY
-    );
-    GameUtils.setCollisionMask(
-      this.physicsBody.collider(0),
-      CollisionGroups.PLAYER
-    );
-  }
-
   private validateDestroyCondition(trashCan: TrashCan) {
     // Exit early if object is destroyed
     if (this.isBeingDestroyed) {
@@ -76,7 +68,7 @@ export default class CrazyEnemy extends Sphere {
 
     // Crappy workaround for the return in private function not catching the destroy in time somehow, TODO: revisit
     this.physics.world.contactPairsWith(
-      this.physicsBody.collider(0),
+      this.physicsBody!.collider(0),
       (otherCollider) => {
         // Check for collision with trashcan, destroy object
         if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
@@ -99,7 +91,7 @@ export default class CrazyEnemy extends Sphere {
   private checkCollisions() {
     // Check for all collisions
     this.physics.world.contactPairsWith(
-      this.physicsBody.collider(0),
+      this.physicsBody!.collider(0),
       (otherCollider) => {
         // Check for collision with player
         if (GameUtils.getDataFromCollider(otherCollider).name == "Player") {
@@ -149,10 +141,10 @@ export default class CrazyEnemy extends Sphere {
       );
 
       // Set the linear velocity of the rigidbody
-      this.physicsBody.setLinvel(velocity, true);
+      this.physicsBody!.setLinvel(velocity, true);
     } else {
       // Stop the rigidbody by setting its velocity to zero
-      this.physicsBody.setLinvel(new RAPIER.Vector2(0, 0), true);
+      this.physicsBody!.setLinvel(new RAPIER.Vector2(0, 0), true);
 
       // Reset the current speed for future movements
       this.currentSpeed = 0;
@@ -174,6 +166,6 @@ export default class CrazyEnemy extends Sphere {
     this.calculateDirection();
     this.updateMovement();
 
-    super.update();
+    this.syncGraphicsToPhysics();
   }
 }

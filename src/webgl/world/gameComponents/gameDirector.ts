@@ -7,58 +7,70 @@ import GameObjectType from "../../utils/types/gameObjectType";
 import LevelData from "../../utils/types/levelData";
 import TestLevel0 from "../levels/testLevel0.json";
 import BlenderExport from "../levels/blenderExport.json";
-import setCelesteAttributes from "../player/attributes/setCelesteAttributes";
 import Platform from "../gameStructures/platform";
 import Enemy from "../gameStructures/enemy";
 import TrashCan from "../gameStructures/trashCan";
+import Emitter from "../../utils/eventEmitter";
+import CrazyEnemy from "../gameStructures/crazyEnemy";
+import Time from "../../utils/time";
 
 export default class GameDirector {
   private experience: Experience;
   private world: World;
+  private time: Time;
   private player: Player;
+
+  private levelData: LevelData;
+
+  private isSpawningEnemies: boolean;
+  private timeSinceLastSpawn = 0; // Tracks time since last spawn
+  private initialDelay = 0; // Delay before starting spawning (in seconds)
+  private spawnInterval = 0; // Tracks the current spawn interval (randomized)
+  private enemyCount = 0; // Tracks the total number of enemies spawned
 
   constructor() {
     this.experience = Experience.getInstance();
     this.world = this.experience.world;
+    this.time = this.experience.time;
     this.player = this.world.player!;
+
+    this.levelData = TestLevel0;
+    this.isSpawningEnemies = false;
+
+    // Events
+    Emitter.on("gameOver", (value) => {
+      if (value == true) {
+        this.isSpawningEnemies = false;
+      } else {
+        this.isSpawningEnemies = true;
+        this.spawnEnemiesWithLogic();
+      }
+    });
   }
 
-  public loadLevelData(levelName?: string) {
-    // Load level by name, load default level if none specified
-    let levelToLoad: LevelData = TestLevel0;
-
-    if (levelName == "testLevel0") {
-      levelToLoad = TestLevel0;
-      setCelesteAttributes(this.player);
-    } else if (levelName == "blenderExport") {
-      levelToLoad = BlenderExport;
-    }
-
-    // Import platforms
-    for (const [_, value] of Object.entries(levelToLoad)) {
-      if (value.type != "platform") {
+  private importCameraSensors() {
+    for (const [_, value] of Object.entries(this.levelData)) {
+      if (value.type != "cameraSensor") {
         continue;
       }
 
-      const platform = new Platform(
-        {
-          width: value.width,
-          height: value.depth,
-          depth: value.height,
-        },
+      const cameraSensor = new GameSensor(
+        "CameraSensor",
+        GameObjectType.CUBE,
+        { width: value.width, height: value.depth },
         { x: value.position[0], y: value.position[2] },
-        -value.rotation[1],
-        true,
-        value.visible
+        -value.rotation[1]
       );
 
-      platform.setObjectValue(value.value);
+      cameraSensor.setIntersectingTarget(this.player.physicsBody!);
+      cameraSensor.setPositionData(new THREE.Vector3(0, value.value, 0));
 
-      this.world.platforms.push(platform);
+      this.world.cameraSensors.push(cameraSensor);
     }
+  }
 
-    // Import walls
-    for (const [_, value] of Object.entries(levelToLoad)) {
+  private importWalls() {
+    for (const [_, value] of Object.entries(this.levelData)) {
       if (value.type != "wall") {
         continue;
       }
@@ -71,55 +83,77 @@ export default class GameDirector {
         },
         { x: value.position[0], y: value.position[2] },
         -value.rotation[1],
-        false,
-        value.visible
+        false
       );
 
       wall.setObjectName("Wall");
 
       this.world.walls.push(wall);
     }
+  }
 
-    // Import trashcans
-    for (const [_, value] of Object.entries(levelToLoad)) {
+  private importPlatforms() {
+    for (const [_, value] of Object.entries(this.levelData)) {
+      if (value.type != "platform") {
+        continue;
+      }
+
+      const platform = new Platform(
+        {
+          width: value.width,
+          height: value.depth,
+          depth: value.height,
+        },
+        { x: value.position[0], y: value.position[2] },
+        -value.rotation[1],
+        true
+      );
+
+      platform.setObjectValue(value.value);
+
+      this.world.platforms.push(platform);
+    }
+  }
+
+  private importTrashCans() {
+    for (const [_, value] of Object.entries(this.levelData)) {
       if (value.type != "trashCan") {
         continue;
       }
 
-      this.world.trashCans.push(
-        new TrashCan(
-          {
-            width: value.width,
-            height: value.depth,
-            depth: value.height,
-          },
-          { x: value.position[0], y: value.position[2] },
-          -value.rotation[1]
-        )
+      const trashCan = new TrashCan(
+        { width: value.width, height: value.depth, depth: value.height },
+        { x: value.position[0], y: value.position[2] },
+        -value.rotation[1]
       );
-    }
 
-    // Import camera sensors
-    for (const [_, value] of Object.entries(levelToLoad)) {
-      if (value.type != "cameraSensor") {
+      this.world.trashCans.push(trashCan);
+    }
+  }
+
+  private importLadderTopSensors() {
+    for (const [_, value] of Object.entries(this.levelData)) {
+      if (value.type != "ladderTopSensor") {
         continue;
       }
 
-      this.world.cameraSensors.push(
-        new GameSensor(
-          "CameraSensor",
-          GameObjectType.CUBE,
-          { width: value.width, height: value.depth },
-          { x: value.position[0], y: value.position[2] },
-          -value.rotation[1],
-          this.player.physicsBody,
-          new THREE.Vector3(0, value.value, 0)
-        )
+      const ladderTopSensor = new GameSensor(
+        "LadderTopSensor",
+        GameObjectType.CUBE,
+        { width: value.width, height: value.depth },
+        { x: value.position[0], y: value.position[2] },
+        -value.rotation[1],
+        value.value
       );
-    }
 
-    // Import ladder sensors
-    for (const [_, value] of Object.entries(levelToLoad)) {
+      ladderTopSensor.setIntersectingTarget(this.player.physicsBody!);
+
+      this.world.ladderTopSensors.push(ladderTopSensor);
+    }
+  }
+
+  private importLadderCoreSensors() {
+    for (const [_, value] of Object.entries(this.levelData)) {
       if (value.type != "ladderCoreSensor") {
         continue;
       }
@@ -130,96 +164,111 @@ export default class GameDirector {
         { width: value.width, height: value.depth },
         { x: value.position[0], y: value.position[2] },
         -value.rotation[1],
-        this.player.physicsBody,
-        undefined,
         value.value
       );
 
-      ladderCoreSensor.setIsConnectedLadder(value.isConnectedLadder);
+      ladderCoreSensor.setIntersectingTarget(this.player.physicsBody!);
 
       this.world.ladderCoreSensors.push(ladderCoreSensor);
     }
+  }
 
-    // Import ladder top sensors
-    for (const [_, value] of Object.entries(levelToLoad)) {
-      if (value.type != "ladderTopSensor") {
-        continue;
-      }
-
-      this.world.ladderTopSensors.push(
-        new GameSensor(
-          "LadderTopSensor",
-          GameObjectType.CUBE,
-          { width: value.width, height: value.depth },
-          { x: value.position[0], y: value.position[2] },
-          -value.rotation[1],
-          this.player.physicsBody
-        )
-      );
-    }
-    // Import ladder bottom sensors
-    for (const [_, value] of Object.entries(levelToLoad)) {
+  private importLadderBottomSensors() {
+    for (const [_, value] of Object.entries(this.levelData)) {
       if (value.type != "ladderBottomSensor") {
         continue;
       }
 
-      this.world.ladderBottomSensors.push(
-        new GameSensor(
-          "LadderBottomSensor",
-          GameObjectType.CUBE,
-          { width: value.width, height: value.depth },
-          { x: value.position[0], y: value.position[2] },
-          -value.rotation[1],
-          this.player.physicsBody,
-          undefined,
-          value.value
-        )
+      const ladderBottomSensor = new GameSensor(
+        "LadderBottomSensor",
+        GameObjectType.CUBE,
+        { width: value.width, height: value.depth },
+        { x: value.position[0], y: value.position[2] },
+        -value.rotation[1],
+        value.value
       );
+
+      ladderBottomSensor.setIntersectingTarget(this.player.physicsBody!);
+
+      this.world.ladderBottomSensors.push(ladderBottomSensor);
     }
+  }
+
+  public loadLevelData(levelName?: string) {
+    if (levelName && levelName == "blenderExport") {
+      this.levelData = BlenderExport;
+    }
+
+    this.importCameraSensors();
+    this.importWalls();
+    this.importPlatforms();
+    this.importTrashCans();
+
+    this.importLadderTopSensors();
+    this.importLadderCoreSensors();
+    this.importLadderBottomSensors();
   }
 
   public spawnEnemy() {
     this.world.enemies.push(
-      // new Enemy(
-      //   1,
-      //   {
-      //     x: GameUtils.getRandomNumber(-15, 0),
-      //     y: GameUtils.getRandomNumber(0, 15),
-      //   },
-      //   true
-      // )
-      new Enemy(
-        1,
-        {
-          x: -15,
-          y: 50,
-        },
-        true
-      )
+      new Enemy(1, {
+        x: -15,
+        y: 50,
+      })
     );
   }
 
-  public spawnEnemiesWithRandomInterval() {
-    const spawnEnemy = () => {
-      this.spawnEnemy();
+  public spawnCrazyEnemy() {
+    this.world.crazyEnemies.push(
+      new CrazyEnemy(1, {
+        x: -15,
+        y: 50,
+      })
+    );
+  }
 
-      // Generate a random delay between 2 and 3 seconds (in milliseconds)
-      const randomDelay = Math.random() * (3000 - 2000) + 2000;
+  public spawnEnemiesWithLogic() {
+    // Stop if spawning is disabled
+    if (!this.isSpawningEnemies) {
+      return;
+    }
+    // Accumulate time
+    this.timeSinceLastSpawn += this.time.delta;
 
-      // Schedule the next enemy spawn
-      setTimeout(spawnEnemy, randomDelay);
-    };
+    // Initial delay handling
+    if (
+      this.spawnInterval === 0 &&
+      this.timeSinceLastSpawn >= this.initialDelay
+    ) {
+      this.spawnCrazyEnemy(); // Spawn the first crazyEnemy
+      this.timeSinceLastSpawn = 0;
+      this.spawnInterval = Math.random() * (3 - 2) + 2; // Random delay between 2 and 3 seconds
+      return;
+    }
 
-    // Start the spawning loop
-    setTimeout(() => {
-      spawnEnemy();
-    }, 3000);
+    // Check if it's time to spawn the next enemy
+    if (
+      this.spawnInterval > 0 &&
+      this.timeSinceLastSpawn >= this.spawnInterval
+    ) {
+      this.enemyCount++;
+
+      // Spawn a crazyEnemy every 8th spawn
+      if (this.enemyCount % 8 === 0) {
+        this.spawnCrazyEnemy();
+      } else {
+        this.spawnEnemy();
+      }
+
+      // Reset time and randomize the next spawn interval
+      this.timeSinceLastSpawn = 0;
+      this.spawnInterval = Math.random() * (3 - 2) + 2; // Random delay between 2 and 3 seconds
+    }
   }
 
   public despawnAllEnemies() {
-    this.world.enemies.forEach((enemy) => {
-      enemy.destroy();
-    });
+    this.world.enemies.forEach((enemy) => enemy.destroy());
+    this.world.crazyEnemies.forEach((enemy) => enemy.destroy());
   }
 
   public destroy() {}

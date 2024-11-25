@@ -1,40 +1,37 @@
-import * as THREE from "three";
-import Cube from "../gameEntities/cube";
-import Player from "../player/player";
 import GameUtils from "../../utils/gameUtils";
+import GameObject from "../gameComponents/gameObject";
+import GameObjectType from "../../utils/types/gameObjectType";
 import CollisionGroups from "../../utils/types/collisionGroups";
+import Player from "../player/player";
 
-export default class Platform extends Cube {
+export default class Platform extends GameObject {
   private isOneWayPlatform: boolean;
 
   constructor(
     size: { width: number; height: number; depth: number },
     position: { x: number; y: number },
     rotation: number,
-    isOneWayPlatform: boolean = false,
-    drawGraphics?: boolean
+    isOneWayPlatform: boolean = false
   ) {
-    super(
+    super();
+    this.createObjectPhysics(
       "Platform",
+      GameObjectType.CUBE,
       size,
       position,
-      rotation,
-      new THREE.MeshBasicMaterial({ color: "red" }),
-      undefined,
-      drawGraphics
+      rotation
     );
 
     this.isOneWayPlatform = isOneWayPlatform;
-
-    GameUtils.setCollisionGroup(
-      this.physicsBody.collider(0),
-      CollisionGroups.PLATFORM
-    );
-
     if (isOneWayPlatform) {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).name =
-        "OneWayPlatform";
+      this.setObjectName("OneWayPlatform");
+      this.createObjectGraphicsDebug("red");
+    } else {
+      this.createObjectGraphicsDebug("pink");
     }
+
+    this.setCollisionGroup(CollisionGroups.PLATFORM);
+    this.setCollisionMask(CollisionGroups.DEFAULT);
   }
 
   public setOneWayPlatform(value: boolean) {

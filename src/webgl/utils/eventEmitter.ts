@@ -21,6 +21,7 @@ type EventMap = {
   // Game events
   gameObjectRemoved: GameObject;
   gameOver: boolean;
+  gameReset: void;
 };
 
 // Create an emitter instance

@@ -2,9 +2,10 @@
 /*                  Convenience functions and utils for game                  */
 /* -------------------------------------------------------------------------- */
 
-import { Collider, RigidBody } from "@dimforge/rapier2d";
+import RAPIER, { Collider, RigidBody } from "@dimforge/rapier2d";
 import UserData from "./types/userData";
 import GameObject from "../world/gameComponents/gameObject";
+import GameSensor from "../world/gameComponents/gameSensor";
 
 export default class GameUtils {
   // Moves a value current towards target. Current: the current value, target: the value to move towards, maxDelta: the maximum change applied to the current value
@@ -32,7 +33,6 @@ export default class GameUtils {
       gameEntityType: undefined,
 
       isOneWayPlatformActive: undefined,
-      isConnectedLadder: undefined,
     };
   }
 
@@ -48,20 +48,7 @@ export default class GameUtils {
       gameEntityType: undefined,
 
       isOneWayPlatformActive: undefined,
-      isConnectedLadder: undefined,
     };
-  }
-
-  // Sets the collision group for a collider
-  static setCollisionGroup(collider: Collider, group: number) {
-    const currentMask = collider.collisionGroups() >> 16; // Extract the current mask (upper 16 bits)
-    collider.setCollisionGroups(group | (currentMask << 16)); // Set the group, keep the current mask
-  }
-
-  // Updates the collision mask for a collider
-  static setCollisionMask(collider: Collider, mask: number) {
-    const currentGroup = collider.collisionGroups() & 0xffff; // Extract the current group (lower 16 bits)
-    collider.setCollisionGroups(currentGroup | (mask << 16)); // Set the mask, keep the current group
   }
 
   // Calculates what the collision mask on a collider must be without having the collider itself
@@ -85,6 +72,49 @@ export default class GameUtils {
     existingArray.length = 0;
 
     return activeObjects;
+  }
+
+  // Check if GameObject is fully inside any of the sensors in the given array
+  public static isObjectFullyInsideAnySensor<
+    T extends GameObject,
+    U extends GameSensor
+  >(gameSensors: U[], gameObject: T) {
+    let isFullyInsideSensor = false;
+
+    gameSensors.forEach((sensor) => {
+      sensor.update(() => {
+        if (
+          sensor.isIntersectingTarget &&
+          gameObject.currentTranslation.x - gameObject.initialSize.x / 2 >
+            sensor.initalPosition.x - sensor.initialSize.x / 2 &&
+          gameObject.currentTranslation.x + gameObject.initialSize.x / 2 <
+            sensor.initalPosition.x + sensor.initialSize.x / 2
+        ) {
+          isFullyInsideSensor = true;
+        }
+      });
+    });
+
+    return isFullyInsideSensor;
+  }
+
+  // Same as above but for one sensor given it's collider
+  public static isObjectFullyInsideSensor<
+    T extends GameObject,
+    U extends RAPIER.Collider
+  >(collider: U, gameObject: T) {
+    if (
+      gameObject.currentTranslation.x - gameObject.initialSize.x / 2 >
+        collider.translation().x -
+          (collider.shape as RAPIER.Cuboid).halfExtents.x &&
+      gameObject.currentTranslation.x + gameObject.initialSize.x / 2 <
+        collider.translation().x +
+          (collider.shape as RAPIER.Cuboid).halfExtents.x
+    ) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   public static radiansToDegrees(radians: number): number {

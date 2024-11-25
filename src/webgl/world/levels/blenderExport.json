@@ -2429,7 +2429,7 @@
         "type": "ladderCoreSensor",
         "visible": true,
         "value": -1,
-        "isConnectedLadder": true
+        "isConnectedLadder": false
     },
     "Cube.128": {
         "width": 2.5,
@@ -2486,7 +2486,7 @@
         "type": "ladderCoreSensor",
         "visible": true,
         "value": 1,
-        "isConnectedLadder": true
+        "isConnectedLadder": false
     },
     "Cube.143": {
         "width": 2.5,
@@ -2505,7 +2505,7 @@
         "type": "ladderCoreSensor",
         "visible": true,
         "value": 1,
-        "isConnectedLadder": true
+        "isConnectedLadder": false
     },
     "Cube.150": {
         "width": 2.5,
@@ -2543,7 +2543,7 @@
         "type": "ladderCoreSensor",
         "visible": true,
         "value": -1,
-        "isConnectedLadder": true
+        "isConnectedLadder": false
     },
     "Cube.158": {
         "width": 2.5,
@@ -2562,7 +2562,7 @@
         "type": "ladderCoreSensor",
         "visible": true,
         "value": -1,
-        "isConnectedLadder": true
+        "isConnectedLadder": false
     },
     "Cube.164": {
         "width": 2.5,
@@ -2619,7 +2619,7 @@
         "type": "ladderCoreSensor",
         "visible": true,
         "value": 1,
-        "isConnectedLadder": true
+        "isConnectedLadder": false
     },
     "Cube.173": {
         "width": 2.5,
@@ -2638,7 +2638,7 @@
         "type": "ladderCoreSensor",
         "visible": true,
         "value": 1,
-        "isConnectedLadder": true
+        "isConnectedLadder": false
     },
     "Cube.175": {
         "width": 2.5,
@@ -2676,7 +2676,7 @@
         "type": "ladderCoreSensor",
         "visible": true,
         "value": -1,
-        "isConnectedLadder": true
+        "isConnectedLadder": false
     },
     "Cube.177": {
         "width": 2.5,
@@ -3568,7 +3568,7 @@
         ],
         "type": "cameraSensor",
         "visible": true,
-        "value": 25,
+        "value": 35,
         "isConnectedLadder": false
     },
     "Cube.138": {
@@ -3587,7 +3587,7 @@
         ],
         "type": "cameraSensor",
         "visible": true,
-        "value": 15,
+        "value": 25,
         "isConnectedLadder": false
     },
     "Cube.140": {
@@ -3606,26 +3606,7 @@
         ],
         "type": "cameraSensor",
         "visible": true,
-        "value": 35,
-        "isConnectedLadder": false
-    },
-    "Cube.139": {
-        "width": 20.0,
-        "height": 2.0,
-        "depth": 9.5,
-        "position": [
-            18.15362548828125,
-            0.75,
-            12.735424041748047
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "cameraSensor",
-        "visible": true,
-        "value": 15,
+        "value": 45,
         "isConnectedLadder": false
     },
     "Cube.141": {
@@ -3644,17 +3625,17 @@
         ],
         "type": "cameraSensor",
         "visible": true,
-        "value": 45,
+        "value": 55,
         "isConnectedLadder": false
     },
     "Cube.157": {
-        "width": 14.0,
+        "width": 1.0,
         "height": 2.0,
-        "depth": 7.5,
+        "depth": 1.0,
         "position": [
-            1.15362548828125,
-            0.75,
-            28.696937561035156
+            -2.821004867553711,
+            -1.0,
+            16.362335205078125
         ],
         "rotation": [
             0.0,
@@ -3664,6 +3645,25 @@
         "type": "cameraSensor",
         "visible": true,
         "value": 25,
+        "isConnectedLadder": false
+    },
+    "Cube.008": {
+        "width": 1.0,
+        "height": 2.0,
+        "depth": 1.0,
+        "position": [
+            1.15362548828125,
+            -1.0,
+            24.836078643798828
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "cameraSensor",
+        "visible": true,
+        "value": 35,
         "isConnectedLadder": false
     },
     "BarrelLauncher": {

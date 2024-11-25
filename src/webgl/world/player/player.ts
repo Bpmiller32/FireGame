@@ -84,13 +84,12 @@ export default class Player extends GameObject {
 
     // Set inital size so I don't have to look for it in physicsBody.collider.shape.halfExtents later
     this.initalSize = { x: size.width, y: size.height };
-    this.drawGraphics = true;
 
     setDkAttributes(this);
     this.setPhysicsAttributes();
     this.setSpriteAnimator();
     this.setCharacterController();
-    this.createObject(
+    this.createObjectPhysics(
       "Player",
       GameObjectType.SPRITE,
       size,
@@ -98,6 +97,7 @@ export default class Player extends GameObject {
       0,
       RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
     );
+    this.createObjectGraphicsDebug("white");
 
     // Debug
     if (this.experience.debug.isActive) {
@@ -172,13 +172,13 @@ export default class Player extends GameObject {
 
   private updateTranslation() {
     // Update player position to a variable TODO: mostly for debug, remove?
-    const position = this.physicsBody.translation();
+    const position = this.physicsBody!.translation();
     this.currentPositionX = position.x;
     this.currentPositionY = position.y;
 
     // Given a desired translation, compute the actual translation that we can apply to the collider based on the obstacles.
     this.characterController.computeColliderMovement(
-      this.physicsBody.collider(0),
+      this.physicsBody!.collider(0),
       {
         x: this.nextTranslation.x * this.time.delta,
         y: this.nextTranslation.y * this.time.delta,
@@ -204,7 +204,7 @@ export default class Player extends GameObject {
     const correctiveMovement = this.characterController.computedMovement();
 
     // Apply the actual translation to the next kinematic translation
-    this.physicsBody.setNextKinematicTranslation({
+    this.physicsBody!.setNextKinematicTranslation({
       x: this.currentTranslation.x + correctiveMovement.x,
       y: this.currentTranslation.y + correctiveMovement.y,
     });
@@ -212,7 +212,7 @@ export default class Player extends GameObject {
 
   // Teleport player by x units relative from current location
   public teleportRelative(newX: number, newY: number) {
-    this.physicsBody.setTranslation(
+    this.physicsBody!.setTranslation(
       {
         x: this.currentTranslation.x + newX,
         y: this.currentTranslation.y + newY,
@@ -350,7 +350,7 @@ export default class Player extends GameObject {
       },
       0,
       { x: direction.x, y: direction.y },
-      this.physicsBody.collider(0).shape,
+      this.physicsBody!.collider(0).shape,
       1000,
       false,
       undefined,

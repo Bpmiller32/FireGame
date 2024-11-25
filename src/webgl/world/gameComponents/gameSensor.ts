@@ -18,7 +18,6 @@ export default class GameSensor {
 
   public targetPhysicsBody?: RAPIER.RigidBody;
   public isIntersectingTarget?: boolean;
-
   public positionData?: THREE.Vector3;
 
   constructor(
@@ -27,24 +26,19 @@ export default class GameSensor {
     size: { width: number; height: number },
     position: { x: number; y: number },
     rotation: number,
-    targetBody?: RAPIER.RigidBody,
-    positionData?: THREE.Vector3,
     value?: number
   ) {
     this.experience = Experience.getInstance();
     this.physics = this.experience.physics;
 
-    this.createObject(name, gameObjectType, size, position, rotation, value);
-
-    // Optional set target in constructor
-    if (targetBody) {
-      this.setIntersectingTarget(targetBody);
-    }
-
-    // Optional set camera in constructor
-    if (positionData) {
-      this.positionData = positionData;
-    }
+    this.createSensorPhysics(
+      name,
+      gameObjectType,
+      size,
+      position,
+      rotation,
+      value
+    );
 
     // Remove targetPhysicsBody if it was destroyed
     Emitter.on("gameObjectRemoved", (removedGameObject) => {
@@ -58,7 +52,7 @@ export default class GameSensor {
   }
 
   // Combines setMesh and setPhysics, hopefully less ambiguous with gameObjectType
-  private createObject(
+  private createSensorPhysics(
     name: string,
     gameObjectType: string,
     size: { width: number; height: number },
@@ -122,13 +116,8 @@ export default class GameSensor {
     this.targetPhysicsBody = target;
   }
 
-  public setIsConnectedLadder(newValue?: boolean) {
-    if (!newValue) {
-      return;
-    }
-
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).isConnectedLadder =
-      newValue;
+  public setPositionData(newPositionData: THREE.Vector3) {
+    this.positionData = newPositionData;
   }
 
   public update(callback?: () => void) {

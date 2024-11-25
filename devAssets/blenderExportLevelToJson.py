@@ -44,7 +44,6 @@ for obj in bpy.context.scene.objects:
         if "gameObjectVisible" in obj:
             gameObjectVisible = obj["gameObjectVisible"]
 
-
         # Store bounding box coordinates, dimensions, and position in the dictionary
         blender_objects[obj.name] = {
             "width": scale_x,
@@ -54,7 +53,7 @@ for obj in bpy.context.scene.objects:
             "rotation": rotation_radians,
             "type": gameObjectType,
             "visible":gameObjectVisible,
-            "value": gameObjectValue
+            "value": gameObjectValue,
         }
 
 # Export the bounding box information to a JSON file

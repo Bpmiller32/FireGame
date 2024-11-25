@@ -10,14 +10,15 @@ export default class TrashCan extends GameObject {
     rotation: number
   ) {
     super();
-
-    this.createObject(
+    this.createObjectPhysics(
       "TrashCan",
       GameObjectType.CUBE,
       size,
       position,
       rotation
     );
+
+    this.createObjectGraphicsDebug("purple");
 
     this.isOnFire = false;
   }
