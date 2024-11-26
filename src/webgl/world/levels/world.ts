@@ -54,15 +54,23 @@ export default class World {
 
     // Events
     Emitter.on("resourcesReady", () => {
-      // Player
       this.player = new Player({ width: 2, height: 4 }, { x: -6.752, y: 3 });
 
-      // Level loader
       this.gameDirector = new GameDirector();
       this.gameDirector.loadLevelData("blenderExport");
-      Emitter.emit("gameOver", false);
+      Emitter.emit("gameStart");
     });
 
+    // Place everything back in inital state
+    Emitter.on("gameReset", () => {
+      this.player.teleportToPosition(-6.752, 3);
+
+      this.enemies.forEach((enemy) => enemy.destroy());
+      this.crazyEnemies.forEach((crazyEnemy) => crazyEnemy.destroy());
+      this.trashCans.forEach((trashCan) => (trashCan.isOnFire = false));
+    });
+
+    // Remove world objects here instead of in their instances
     Emitter.on("gameObjectRemoved", (removedGameObject) => {
       removedGameObject.destroy();
     });
@@ -88,17 +96,17 @@ export default class World {
 
     // Enemies
     this.enemies.forEach((enemy) => {
-      enemy.updateEnemy(this.player, this.trashCans[0]);
+      enemy.update(this.player, this.trashCans[0]);
     });
 
     // CrazyEnemies
-    this.crazyEnemies.forEach((enemy) => {
-      enemy.updateEnemy(this.trashCans[0]);
+    this.crazyEnemies.forEach((crazyEnemy) => {
+      crazyEnemy.update(this.trashCans[0]);
     });
 
     // OneWayPlatforms
     this.platforms.forEach((platform) => {
-      platform.updateOneWayPlatform(this.player);
+      platform.update(this.player);
 
       if (this.player.state == "climbing") {
         platform.setOneWayPlatform(true);
@@ -109,15 +117,14 @@ export default class World {
     this.cameraSensors.forEach((sensor) => {
       sensor.update(() => {
         if (sensor.isIntersectingTarget) {
-          this.camera.changePositionY(sensor.positionData!.y);
+          this.camera.changePositionY(sensor.positionData.y);
         }
       });
     });
 
     // Ladder top detection
-    this.player.isTouching.ladderTop = GameUtils.isObjectFullyInsideAnySensor(
-      this.ladderTopSensors,
-      this.player
+    this.player.isTouching.ladderTop = GameUtils.isObjectTouchingAnySensor(
+      this.ladderTopSensors
     );
 
     // Ladder core detection
@@ -127,11 +134,9 @@ export default class World {
     );
 
     // Ladder bottom detection
-    this.player.isTouching.ladderBottom =
-      GameUtils.isObjectFullyInsideAnySensor(
-        this.ladderBottomSensors,
-        this.player
-      );
+    this.player.isTouching.ladderBottom = GameUtils.isObjectTouchingAnySensor(
+      this.ladderBottomSensors
+    );
   }
 
   public destroy() {}

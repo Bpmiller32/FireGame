@@ -138,7 +138,38 @@ export default class GameObject {
       case GameObjectType.SPHERE:
         this.setGeometry(new THREE.SphereGeometry(this.initialSize.x));
         this.setMaterial(new THREE.MeshBasicMaterial({ color: meshColor }));
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh = new THREE.Mesh(
+          this.geometry,
+          new THREE.ShaderMaterial({
+            uniforms: {
+              // First stripe color
+              stripeColor1: { value: new THREE.Color(0xffffff) },
+              // Second stripe color
+              stripeColor2: { value: new THREE.Color(0x000000) },
+              // Stripe width
+              stripeWidth: { value: 2.0 },
+            },
+            vertexShader: `
+            varying vec3 vUv; 
+            void main() {
+              vUv = position; 
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+            fragmentShader: `
+            uniform vec3 stripeColor1;
+            uniform vec3 stripeColor2;
+            uniform float stripeWidth;
+            varying vec3 vUv;
+  
+            void main() {
+              float stripes = mod(floor(vUv.y * stripeWidth), 2.0); // Alternating stripes
+              vec3 color = mix(stripeColor1, stripeColor2, stripes);
+              gl_FragColor = vec4(color, 1.0);
+            }
+          `,
+          })
+        );
         break;
 
       default:
@@ -220,6 +251,27 @@ export default class GameObject {
     GameUtils.getDataFromPhysicsBody(this.physicsBody).value = newValue;
   }
 
+  // Teleport GameObject by x units relative from current location
+  public teleportRelative(newX: number, newY: number) {
+    this.physicsBody!.setTranslation(
+      {
+        x: this.currentTranslation.x + newX,
+        y: this.currentTranslation.y + newY,
+      },
+      true
+    );
+  }
+
+  // Teleport GameObject to a specific global coordinate
+  public teleportToPosition(targetX: number, targetY: number) {
+    // Calculate the difference (relative distance) to the target position
+    const deltaX = targetX - this.currentTranslation.x;
+    const deltaY = targetY - this.currentTranslation.y;
+
+    // Use teleportRelative to move to the target position
+    this.teleportRelative(deltaX, deltaY);
+  }
+
   public destroy() {
     // Remove mesh from the scene if it exists
     if (this.mesh) {
@@ -236,6 +288,9 @@ export default class GameObject {
     if (this.physicsBody) {
       this.physics.world.removeCollider(this.physicsBody.collider(0), true);
       this.physics.world.removeRigidBody(this.physicsBody);
+
+      // Part of fix to defer destruction
+      this.physicsBody = undefined;
     }
 
     // Flag that object is being destroyed to avoid out of sync RAPIER calls -> errors

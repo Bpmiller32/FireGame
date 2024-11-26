@@ -39,7 +39,7 @@ export default class Platform extends GameObject {
       value;
   }
 
-  public updateOneWayPlatform(player: Player) {
+  public update(player: Player) {
     if (
       player &&
       this.isOneWayPlatform &&

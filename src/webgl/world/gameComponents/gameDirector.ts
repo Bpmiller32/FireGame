@@ -20,13 +20,14 @@ export default class GameDirector {
   private time: Time;
   private player: Player;
 
-  private levelData: LevelData;
+  private levelData!: LevelData;
 
-  private isSpawningEnemies: boolean;
-  private timeSinceLastSpawn = 0; // Tracks time since last spawn
-  private initialDelay = 0; // Delay before starting spawning (in seconds)
-  private spawnInterval = 0; // Tracks the current spawn interval (randomized)
-  private enemyCount = 0; // Tracks the total number of enemies spawned
+  private isSpawningEnemies!: boolean;
+  private spawningInterval!: number;
+  private timeSinceLastSpawn!: number;
+  private initialDelay!: number;
+  private spawnInterval!: number;
+  private enemyCount!: number;
 
   constructor() {
     this.experience = Experience.getInstance();
@@ -34,18 +35,53 @@ export default class GameDirector {
     this.time = this.experience.time;
     this.player = this.world.player!;
 
-    this.levelData = TestLevel0;
-    this.isSpawningEnemies = false;
+    this.setAttributes();
 
     // Events
-    Emitter.on("gameOver", (value) => {
-      if (value == true) {
-        this.isSpawningEnemies = false;
-      } else {
-        this.isSpawningEnemies = true;
+    Emitter.on("gameStart", () => {
+      this.isSpawningEnemies = true;
+
+      // Start a timer or game loop for spawning logic, runs roughly 60 times per second with 16
+      this.spawningInterval = setInterval(() => {
         this.spawnEnemiesWithLogic();
-      }
+      }, 16);
     });
+
+    Emitter.on("gameOver", () => {
+      this.isSpawningEnemies = false;
+      clearInterval(this.spawningInterval);
+    });
+
+    Emitter.on("gameReset", () => {
+      this.isSpawningEnemies = true;
+
+      // Reset spawner values
+      this.timeSinceLastSpawn = 0;
+      this.initialDelay = 0;
+      this.spawnInterval = 0;
+      this.enemyCount = 0;
+
+      this.spawningInterval = setInterval(() => {
+        this.spawnEnemiesWithLogic();
+      }, 16);
+    });
+  }
+
+  private setAttributes() {
+    // Set default level to load
+    this.levelData = TestLevel0;
+
+    this.isSpawningEnemies = false;
+
+    this.spawningInterval = 0;
+    // Tracks time since last spawn
+    this.timeSinceLastSpawn = 0;
+    // Delay before starting spawning (in seconds)
+    this.initialDelay = 0;
+    // Tracks the current spawn interval (randomized)
+    this.spawnInterval = 0;
+    // Tracks the total number of enemies spawned
+    this.enemyCount = 0;
   }
 
   private importCameraSensors() {
@@ -232,10 +268,11 @@ export default class GameDirector {
     if (!this.isSpawningEnemies) {
       return;
     }
+
     // Accumulate time
     this.timeSinceLastSpawn += this.time.delta;
 
-    // Initial delay handling
+    // Handle the initial delay
     if (
       this.spawnInterval === 0 &&
       this.timeSinceLastSpawn >= this.initialDelay
@@ -262,13 +299,8 @@ export default class GameDirector {
 
       // Reset time and randomize the next spawn interval
       this.timeSinceLastSpawn = 0;
-      this.spawnInterval = Math.random() * (3 - 2) + 2; // Random delay between 2 and 3 seconds
+      this.spawnInterval = Math.random() * (3 - 2) + 2;
     }
-  }
-
-  public despawnAllEnemies() {
-    this.world.enemies.forEach((enemy) => enemy.destroy());
-    this.world.crazyEnemies.forEach((enemy) => enemy.destroy());
   }
 
   public destroy() {}

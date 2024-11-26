@@ -210,17 +210,6 @@ export default class Player extends GameObject {
     });
   }
 
-  // Teleport player by x units relative from current location
-  public teleportRelative(newX: number, newY: number) {
-    this.physicsBody!.setTranslation(
-      {
-        x: this.currentTranslation.x + newX,
-        y: this.currentTranslation.y + newY,
-      },
-      true
-    );
-  }
-
   private detectCollisions() {
     this.getCharacterControllerCollisions();
     this.getShapeCastCollisions();

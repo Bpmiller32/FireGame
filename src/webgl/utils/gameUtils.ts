@@ -117,6 +117,22 @@ export default class GameUtils {
     }
   }
 
+  public static isObjectTouchingAnySensor<U extends GameSensor>(
+    gameSensors: U[]
+  ) {
+    let isTouchingSensor = false;
+
+    gameSensors.forEach((sensor) => {
+      sensor.update(() => {
+        if (sensor.isIntersectingTarget) {
+          isTouchingSensor = true;
+        }
+      });
+    });
+
+    return isTouchingSensor;
+  }
+
   public static radiansToDegrees(radians: number): number {
     return radians * (180 / Math.PI);
   }

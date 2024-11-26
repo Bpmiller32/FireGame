@@ -23,6 +23,8 @@ export default class Input {
   public is1KeyPressed: boolean;
   public is2KeyPressed: boolean;
 
+  public isTildePressed: boolean;
+
   private keys: Key[];
 
   constructor() {
@@ -43,6 +45,8 @@ export default class Input {
 
     this.is1KeyPressed = false;
     this.is2KeyPressed = false;
+
+    this.isTildePressed = false;
 
     this.keys = [
       {
@@ -125,6 +129,14 @@ export default class Input {
         keyCode: "KeyE",
         isPressed: (eventResult: boolean) => {
           this.isEKeyPressed = eventResult;
+        },
+      },
+
+      // Tilde
+      {
+        keyCode: "Backquote",
+        isPressed: (eventResult: boolean) => {
+          this.isTildePressed = eventResult;
         },
       },
     ];

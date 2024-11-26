@@ -14,6 +14,7 @@ export default class CrazyEnemy extends GameObject {
   private targetPositionIndex!: number;
   private targetReached!: boolean;
   private currentSpeed!: number;
+  private enemyRotation!: number;
   private maxSpeed!: number;
   private acceleration!: number;
   private stopThreshold!: number;
@@ -53,6 +54,7 @@ export default class CrazyEnemy extends GameObject {
 
     this.targetReached = false;
     this.currentSpeed = 0;
+    this.enemyRotation = 0;
     this.maxSpeed = 14;
     this.acceleration = 18;
     this.stopThreshold = 0.5;
@@ -60,42 +62,29 @@ export default class CrazyEnemy extends GameObject {
     this.distanceToTarget = 1;
   }
 
-  private validateDestroyCondition(trashCan: TrashCan) {
+  private checkCollisionsAndDestruction(trashCan: TrashCan) {
     // Exit early if object is destroyed
     if (this.isBeingDestroyed) {
-      return true;
+      return;
     }
 
-    // Crappy workaround for the return in private function not catching the destroy in time somehow, TODO: revisit
+    // Check for all collisions
     this.physics.world.contactPairsWith(
       this.physicsBody!.collider(0),
       (otherCollider) => {
         // Check for collision with trashcan, destroy object
         if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
-          // Remove through event not directly to be consistent with GameDirector's purpose
+          // Remove through event not directly to be consistent with GameDirector's purpose and defering destroy, saves a 2nd loop through collision check
           Emitter.emit("gameObjectRemoved", this);
 
           // Light the trash can on fire
           trashCan.isOnFire = true;
           return;
         }
-      }
-    );
 
-    // Exit on the remainder of this call after is destroyed
-    if (this.isBeingDestroyed) {
-      return true;
-    }
-  }
-
-  private checkCollisions() {
-    // Check for all collisions
-    this.physics.world.contactPairsWith(
-      this.physicsBody!.collider(0),
-      (otherCollider) => {
         // Check for collision with player
         if (GameUtils.getDataFromCollider(otherCollider).name == "Player") {
-          Emitter.emit("gameOver", true);
+          Emitter.emit("gameOver");
           return;
         }
       }
@@ -142,6 +131,11 @@ export default class CrazyEnemy extends GameObject {
 
       // Set the linear velocity of the rigidbody
       this.physicsBody!.setLinvel(velocity, true);
+
+      // Update the rotation angle based on current speed, multiply by delta time for smooth rotation
+      this.enemyRotation += this.currentSpeed * this.time.delta;
+      this.enemyRotation %= 2 * Math.PI;
+      this.physicsBody!.setRotation(this.enemyRotation, true);
     } else {
       // Stop the rigidbody by setting its velocity to zero
       this.physicsBody!.setLinvel(new RAPIER.Vector2(0, 0), true);
@@ -157,12 +151,13 @@ export default class CrazyEnemy extends GameObject {
     }
   }
 
-  public updateEnemy(trashCan: TrashCan) {
-    if (this.validateDestroyCondition(trashCan)) {
+  public update(trashCan: TrashCan) {
+    this.checkCollisionsAndDestruction(trashCan);
+
+    if (this.isBeingDestroyed) {
       return;
     }
 
-    this.checkCollisions();
     this.calculateDirection();
     this.updateMovement();
 

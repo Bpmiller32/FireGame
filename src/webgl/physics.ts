@@ -36,8 +36,14 @@ export default class Physics {
     this.isPaused = false;
 
     // Events
-    Emitter.on("gameOver", (value) => {
-      this.isPaused = value;
+    Emitter.on("gameStart", () => {
+      this.isPaused = false;
+    });
+    Emitter.on("gameOver", () => {
+      this.isPaused = true;
+    });
+    Emitter.on("gameReset", () => {
+      this.isPaused = false;
     });
 
     // Debug
@@ -52,25 +58,13 @@ export default class Physics {
       return;
     }
 
-    // Run debug physics logic if needed
-    if (this.debug) {
-      debugPhysicsUpdate(this);
-    }
-
     // Set the physics simulation timestep, advance the simulation one step
     this.world.timestep = Math.min(this.experience.time.delta, 0.1);
     this.world.step();
 
-    if (this.experience.debug.isActive) {
-      // Extracts just the verticies out of the physics debug render
-      const { vertices } = this.world.debugRender();
-
-      // Sends those verticies to the vertex shader's position attribute
-      this.mesh!.geometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(vertices, 2)
-      );
-      this.mesh!.visible = true;
+    // Run debug physics logic if needed
+    if (this.debug) {
+      debugPhysicsUpdate(this);
     }
   }
 

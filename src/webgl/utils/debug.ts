@@ -21,6 +21,10 @@ export default class Debug {
       this.stats = new Stats();
       this.stats.showPanel(0);
 
+      // // CPU and memory counters
+      // this.stats.addPanel(new Stats.Panel("CPU", "#ff8", "#221"));
+      // this.stats.addPanel(new Stats.Panel("Memory", "#f08", "#201"));
+
       this.stats.dom.style.left = "";
       this.stats.dom.style.right = "315px";
 

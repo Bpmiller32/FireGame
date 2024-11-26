@@ -3,13 +3,13 @@ import Debug from "../debug";
 
 const debugPlayer = (player: Player, debug: Debug) => {
   const playerDebug = debug.ui?.addFolder("playerDebug");
-  // playerDebug?.open();
+  playerDebug?.open();
   playerDebug?.add(player, "state").name("state").listen();
   playerDebug?.add(player, "currentFloor").name("floor").listen();
 
   const movement = playerDebug?.addFolder("movement");
   // movement?.open();
-  movement?.add(player, "direction").name("xDirection").listen();
+  movement?.add(player, "direction").name("direction").listen();
   movement
     ?.add(player, "currentPositionX")
     .name("positionX")
@@ -66,7 +66,7 @@ const debugPlayer = (player: Player, debug: Debug) => {
   jumping?.add(player, "debugCoyoteCount").name("coyoteCount").listen();
 
   const timers = playerDebug?.addFolder("timers");
-  // timers?.open();
+  timers?.open();
   timers?.add(player.time, "elapsed").name("elapsedTime").min(0.001).listen();
   timers
     ?.add(player, "timeJumpWasEntered")

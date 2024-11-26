@@ -40,4 +40,14 @@ export const debugPhysicsUpdate = (physics: Physics) => {
 
   // Update physics object count
   physics.phyiscsObjectCount = physics.world.colliders.len();
+
+  // Extracts just the verticies out of the physics debug render
+  const { vertices } = physics.world.debugRender();
+
+  // Sends those verticies to the vertex shader's position attribute
+  physics.mesh!.geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(vertices, 2)
+  );
+  physics.mesh!.visible = true;
 };

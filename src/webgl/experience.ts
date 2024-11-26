@@ -54,9 +54,7 @@ export default class Experience {
     this.targetElement = canvas;
 
     this.scene = new THREE.Scene();
-    // this.camera = new Camera(new THREE.Vector3(-20, 21, 65));
-    // this.camera = new Camera(new THREE.Vector3(0, 15, 65));
-    this.camera = new Camera(new THREE.Vector3(0, 25, 100));
+    this.camera = new Camera(new THREE.Vector3(0, 30, 100));
     this.renderer = new Renderer();
     this.physics = new Physics();
     await this.physics.configure();
@@ -64,33 +62,24 @@ export default class Experience {
 
     // Sizes resize event
     Emitter.on("resize", () => {
-      this.resize();
+      this.camera.resize();
+      this.renderer.resize();
     });
 
     // Time tick event
     Emitter.on("tick", () => {
-      this.update();
+      if (this.debug.isActive) {
+        this.debug.stats?.begin();
+      }
+
+      this.physics.update();
+      this.world.update();
+      this.renderer.update();
+
+      if (this.debug.isActive) {
+        this.debug.stats?.end();
+      }
     });
-  }
-
-  public resize() {
-    this.camera.resize();
-    this.renderer.resize();
-  }
-
-  public update() {
-    if (this.debug.isActive) {
-      this.debug.stats?.begin();
-    }
-
-    // this.camera.update();
-    this.physics.update();
-    this.world.update();
-    this.renderer.update();
-
-    if (this.debug.isActive) {
-      this.debug.stats?.end();
-    }
   }
 
   public destroy() {

@@ -20,7 +20,10 @@ type EventMap = {
 
   // Game events
   gameObjectRemoved: GameObject;
-  gameOver: boolean;
+
+  gameStart: void;
+  gameOver: void;
+  gameWin: void;
   gameReset: void;
 };
 

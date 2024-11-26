@@ -58,38 +58,10 @@ export default class Enemy extends GameObject {
     this.performSpecialRoll = false;
   }
 
-  private validateDestroyCondition(trashCan: TrashCan) {
+  private checkCollisionsAndDestruction(trashCan: TrashCan) {
     // Exit early if object is destroyed
     if (this.isBeingDestroyed) {
-      return true;
-    }
-
-    // Crappy workaround for the return in private function not catching the destroy in time somehow, TODO: revisit
-    this.physics.world.contactPairsWith(
-      this.physicsBody!.collider(0),
-      (otherCollider) => {
-        // Check for collision with trashcan, destroy object
-        if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
-          // Remove through event not directly to be consistent with GameDirector's purpose
-          Emitter.emit("gameObjectRemoved", this);
-
-          // Light the trash can on fire
-          trashCan.isOnFire = true;
-          return;
-        }
-      }
-    );
-
-    // Exit on the remainder of this call after is destroyed
-    if (this.isBeingDestroyed) {
-      return true;
-    }
-  }
-
-  private checkCollisions() {
-    // Exit early if object is destroyed
-    if (this.isBeingDestroyed) {
-      return true;
+      return;
     }
 
     // Reset colliding with platforms in case enemy is in freefall
@@ -99,6 +71,16 @@ export default class Enemy extends GameObject {
     this.physics.world.contactPairsWith(
       this.physicsBody!.collider(0),
       (otherCollider) => {
+        // Check for collision with trashcan, destroy object
+        if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
+          // Remove through event not directly to be consistent with GameDirector's purpose and defering destroy, saves a 2nd loop through collision check
+          Emitter.emit("gameObjectRemoved", this);
+
+          // Light the trash can on fire
+          trashCan.isOnFire = true;
+          return;
+        }
+
         // Check for collision with wall
         if (GameUtils.getDataFromCollider(otherCollider).name == "Wall") {
           this.direction = this.direction * -1;
@@ -107,7 +89,7 @@ export default class Enemy extends GameObject {
 
         // Check for collision with player
         if (GameUtils.getDataFromCollider(otherCollider).name == "Player") {
-          Emitter.emit("gameOver", true);
+          Emitter.emit("gameOver");
           return;
         }
 
@@ -143,6 +125,7 @@ export default class Enemy extends GameObject {
         if (
           GameUtils.getDataFromCollider(otherCollider).name ===
             "LadderCoreSensor" &&
+          GameUtils.getDataFromCollider(otherCollider).value !== 0 &&
           GameUtils.isObjectFullyInsideSensor(otherCollider, this)
         ) {
           this.ladderSensorValue =
@@ -200,7 +183,7 @@ export default class Enemy extends GameObject {
 
     // Special roll was selected
     if (this.performSpecialRoll) {
-      if (this.ladderSensorValue >= 0) {
+      if (this.ladderSensorValue > 0) {
         this.direction = 1;
       } else {
         this.direction = -1;
@@ -230,12 +213,13 @@ export default class Enemy extends GameObject {
     }
   }
 
-  public updateEnemy(player: Player, trashCan: TrashCan) {
-    if (this.validateDestroyCondition(trashCan)) {
+  public update(player: Player, trashCan: TrashCan) {
+    this.checkCollisionsAndDestruction(trashCan);
+
+    if (this.isBeingDestroyed) {
       return;
     }
 
-    this.checkCollisions();
     this.checkIntersections();
     this.calculateSpecialRoll(player, trashCan);
     this.updateCollisionMask();

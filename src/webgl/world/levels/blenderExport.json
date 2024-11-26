@@ -2713,7 +2713,7 @@
         ],
         "type": "ladderCoreSensor",
         "visible": true,
-        "value": 1,
+        "value": 0,
         "isConnectedLadder": false
     },
     "Cube.179": {
@@ -2732,7 +2732,7 @@
         ],
         "type": "ladderCoreSensor",
         "visible": true,
-        "value": 1,
+        "value": 0,
         "isConnectedLadder": false
     },
     "Cube.180": {

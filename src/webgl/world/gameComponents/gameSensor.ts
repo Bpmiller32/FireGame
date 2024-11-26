@@ -11,14 +11,13 @@ export default class GameSensor {
   protected experience: Experience;
   protected physics: Physics;
 
-  public initialSize!: RAPIER.Vector2;
-  public initalPosition!: RAPIER.Vector2;
+  public initialSize: RAPIER.Vector2;
+  public initalPosition: RAPIER.Vector2;
 
-  public physicsBody!: RAPIER.RigidBody;
-
+  public physicsBody?: RAPIER.RigidBody;
   public targetPhysicsBody?: RAPIER.RigidBody;
-  public isIntersectingTarget?: boolean;
-  public positionData?: THREE.Vector3;
+  public isIntersectingTarget: boolean;
+  public positionData: THREE.Vector3;
 
   constructor(
     name: string = "GameSensor",
@@ -30,6 +29,11 @@ export default class GameSensor {
   ) {
     this.experience = Experience.getInstance();
     this.physics = this.experience.physics;
+
+    this.initialSize = new RAPIER.Vector2(0, 0);
+    this.initalPosition = new RAPIER.Vector2(0, 0);
+    this.isIntersectingTarget = false;
+    this.positionData = new THREE.Vector3(0, 0, 0);
 
     this.createSensorPhysics(
       name,
@@ -126,7 +130,7 @@ export default class GameSensor {
       this.targetPhysicsBody &&
       this.targetPhysicsBody.collider(0) &&
       this.physics.world.intersectionPair(
-        this.physicsBody.collider(0),
+        this.physicsBody!.collider(0),
         this.targetPhysicsBody.collider(0)
       )
     ) {
@@ -143,7 +147,12 @@ export default class GameSensor {
 
   public destroy() {
     // Remove physics body and collider from the physics world
-    this.physics.world.removeCollider(this.physicsBody.collider(0), true);
-    this.physics.world.removeRigidBody(this.physicsBody);
+    if (this.physicsBody) {
+      this.physics.world.removeCollider(this.physicsBody.collider(0), true);
+      this.physics.world.removeRigidBody(this.physicsBody);
+
+      // Part of fix to defer destruction
+      this.physicsBody = undefined;
+    }
   }
 }
