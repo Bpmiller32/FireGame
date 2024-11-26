@@ -1,4 +1,3 @@
-import RAPIER from "@dimforge/rapier2d";
 import PlayerDirection from "../../../utils/types/playerDirection";
 import PlayerStates from "../../../utils/types/playerStates";
 import Player from "../player";

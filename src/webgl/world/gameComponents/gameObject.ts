@@ -243,12 +243,20 @@ export default class GameObject {
     GameUtils.getDataFromPhysicsBody(this.physicsBody).name = newName;
   }
 
-  public setObjectValue(newValue?: number) {
+  public setObjectValue0(newValue?: number) {
     if (!newValue) {
       return;
     }
 
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value = newValue;
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value0 = newValue;
+  }
+
+  public setObjectValue1(newValue?: number) {
+    if (!newValue) {
+      return;
+    }
+
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value1 = newValue;
   }
 
   // Teleport GameObject by x units relative from current location

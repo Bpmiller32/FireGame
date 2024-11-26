@@ -53,6 +53,10 @@ const debugPlayer = (player: Player, debug: Debug) => {
     ?.add(player.isTouching, "rightSide")
     .name("isTouchingRightSide")
     .listen();
+  isTouching
+    ?.add(player.isTouching, "edgePlatform")
+    .name("isTouchingEdgePlatform")
+    .listen();
 
   const ladders = playerDebug?.addFolder("ladders");
   // ladders?.open();
@@ -66,7 +70,7 @@ const debugPlayer = (player: Player, debug: Debug) => {
   jumping?.add(player, "debugCoyoteCount").name("coyoteCount").listen();
 
   const timers = playerDebug?.addFolder("timers");
-  timers?.open();
+  // timers?.open();
   timers?.add(player.time, "elapsed").name("elapsedTime").min(0.001).listen();
   timers
     ?.add(player, "timeJumpWasEntered")

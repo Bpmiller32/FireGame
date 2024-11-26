@@ -144,7 +144,10 @@ export default class CrazyEnemy extends GameObject {
       this.currentSpeed = 0;
 
       // Increment targetPositionIndex only once
-      if (!this.targetReached) {
+      if (
+        !this.targetReached &&
+        this.targetPositionIndex < this.targetPositions.length - 1
+      ) {
         this.targetPositionIndex++;
         this.targetReached = true;
       }

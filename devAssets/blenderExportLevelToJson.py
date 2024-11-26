@@ -35,12 +35,15 @@ for obj in bpy.context.scene.objects:
         
         # Grab user defined variables
         gameObjectType = None
-        gameObjectValue = None
+        gameObjectValue0 = None
+        gameObjectValue1 = None
         gameObjectVisible = None
         if "gameObjectType" in obj:
             gameObjectType = obj["gameObjectType"]
-        if "gameObjectValue" in obj:    
-            gameObjectValue = obj["gameObjectValue"]
+        if "gameObjectValue0" in obj:    
+            gameObjectValue0 = obj["gameObjectValue0"]
+        if "gameObjectValue1" in obj:    
+            gameObjectValue1 = obj["gameObjectValue1"]
         if "gameObjectVisible" in obj:
             gameObjectVisible = obj["gameObjectVisible"]
 
@@ -53,7 +56,8 @@ for obj in bpy.context.scene.objects:
             "rotation": rotation_radians,
             "type": gameObjectType,
             "visible":gameObjectVisible,
-            "value": gameObjectValue,
+            "value0": gameObjectValue0,
+            "value1": gameObjectValue1
         }
 
 # Export the bounding box information to a JSON file

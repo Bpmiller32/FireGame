@@ -95,11 +95,13 @@ const handlePlayerFalling = (player: Player) => {
     inAirGravity *= player.jumpEndedEarlyGravityModifier;
   }
 
-  player.nextTranslation.y = GameUtils.moveTowardsPoint(
-    player.nextTranslation.y,
-    -player.maxFallSpeed,
-    inAirGravity * player.time.delta
-  );
+  if (!player.coyoteAvailable) {
+    player.nextTranslation.y = GameUtils.moveTowardsPoint(
+      player.nextTranslation.y,
+      -player.maxFallSpeed,
+      inAirGravity * player.time.delta
+    );
+  }
 
   /* -------------------------------------------------------------------------- */
   /*                                  Movement                                  */

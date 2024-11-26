@@ -9,25 +9,17 @@ const setCelesteAttributes = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   player.state = PlayerStates.IDLE;
   player.direction = PlayerDirection.NEUTRAL;
-  player.colliderOffset = 0.01;
-  player.currentPositionX = 0;
-  player.currentPositionY = 0;
-  player.nextTranslation = new RAPIER.Vector2(0, 0);
-
-  player.isTouching = {
-    ground: false,
-    ceiling: false,
-    leftSide: false,
-    rightSide: false,
-
-    ladderCore: false,
-    ladderTop: false,
-    ladderBottom: false,
-  };
 
   /* -------------------------------------------------------------------------- */
   /*                          Speeds and accelerations                          */
   /* -------------------------------------------------------------------------- */
+  // The top vertical movement speed while climbing
+  player.maxClimbSpeed = 4;
+  // The player's capacity to gain vertical speed when climbing
+  player.climbAcceleration = 30;
+  // The pace at which the player comes to a stop when climbing
+  player.climbDeceleration = 8;
+
   // The top horizontal movement speed
   player.maxGroundSpeed = 25;
   // The player's capacity to gain horizontal speed
@@ -62,7 +54,7 @@ const setCelesteAttributes = (player: Player) => {
 
   player.minJumpTime = 0.19;
   player.maxJumpTime = 0.25;
-  player.coyoteTime = 0.07;
+  player.coyoteTime = 0.033;
 };
 
 export default setCelesteAttributes;

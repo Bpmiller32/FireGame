@@ -109,7 +109,7 @@ export default class World {
       platform.update(this.player);
 
       if (this.player.state == "climbing") {
-        platform.setOneWayPlatform(true);
+        platform.setOneWayPlatformActive(true);
       }
     });
 

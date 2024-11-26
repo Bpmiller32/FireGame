@@ -29,9 +29,12 @@ export default class GameUtils {
 
     return {
       name: "",
-      value: 0,
       gameEntityType: undefined,
 
+      value0: 0,
+      value1: 0,
+
+      isEdgePlatform: undefined,
       isOneWayPlatformActive: undefined,
     };
   }
@@ -44,9 +47,12 @@ export default class GameUtils {
 
     return {
       name: "",
-      value: 0,
       gameEntityType: undefined,
 
+      value0: 0,
+      value1: 0,
+
+      isEdgePlatform: undefined,
       isOneWayPlatformActive: undefined,
     };
   }

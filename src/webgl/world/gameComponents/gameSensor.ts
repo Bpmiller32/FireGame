@@ -108,7 +108,7 @@ export default class GameSensor {
     this.physicsBody.userData = {
       name: name,
       gameEntityType: this.constructor.name,
-      value: value,
+      value0: value,
     } as UserData;
 
     // Create and attach collider to physicsBody/rigidbody

@@ -10,7 +10,9 @@ const handlePlayerRunning = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Transition to falling state
   if (!player.isTouching.ground) {
-    // player.nextTranslation.y = 0;
+    if (player.isTouching.edgePlatform) {
+      player.nextTranslation.y = 0;
+    }
 
     player.timeFallWasEntered = player.time.elapsed;
     player.state = PlayerStates.FALLING;
@@ -123,7 +125,11 @@ const handlePlayerRunning = (player: Player) => {
   }
 
   // Simple max gravity in non-vertical state to fix downward movement on slopes, maintain touching ground
-  player.nextTranslation.y = -player.maxFallSpeed;
+  if (player.isTouching.edgePlatform) {
+    player.nextTranslation.y = 0;
+  } else {
+    player.nextTranslation.y = -player.maxFallSpeed;
+  }
 
   // Hitting a wall
   if (

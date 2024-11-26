@@ -6,7 +6,8 @@ interface LevelEntity {
   rotation: number[];
   type: string;
   visible?: boolean;
-  value?: number;
+  value0?: number;
+  value1?: number;
 }
 
 interface LevelData {

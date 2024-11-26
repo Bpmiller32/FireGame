@@ -106,7 +106,7 @@ export default class Enemy extends GameObject {
 
           // Set the current floor this enemy is on
           this.currentFloor =
-            GameUtils.getDataFromCollider(otherCollider).value;
+            GameUtils.getDataFromCollider(otherCollider).value0;
           return;
         }
       }
@@ -125,11 +125,11 @@ export default class Enemy extends GameObject {
         if (
           GameUtils.getDataFromCollider(otherCollider).name ===
             "LadderCoreSensor" &&
-          GameUtils.getDataFromCollider(otherCollider).value !== 0 &&
+          GameUtils.getDataFromCollider(otherCollider).value0 !== 0 &&
           GameUtils.isObjectFullyInsideSensor(otherCollider, this)
         ) {
           this.ladderSensorValue =
-            GameUtils.getDataFromCollider(otherCollider).value;
+            GameUtils.getDataFromCollider(otherCollider).value0;
           this.isInsideLadder = true;
         }
 

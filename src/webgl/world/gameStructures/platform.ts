@@ -23,23 +23,39 @@ export default class Platform extends GameObject {
     );
 
     this.isOneWayPlatform = isOneWayPlatform;
+
     if (isOneWayPlatform) {
       this.setObjectName("OneWayPlatform");
       this.createObjectGraphicsDebug("red");
+      this.setOneWayPlatformActive(true);
     } else {
       this.createObjectGraphicsDebug("pink");
+      this.setOneWayPlatformActive(false);
     }
 
     this.setCollisionGroup(CollisionGroups.PLATFORM);
     this.setCollisionMask(CollisionGroups.DEFAULT);
   }
 
-  public setOneWayPlatform(value: boolean) {
+  public setOneWayPlatformActive(value: boolean) {
     GameUtils.getDataFromPhysicsBody(this.physicsBody).isOneWayPlatformActive =
       value;
   }
 
+  public setEdgePlatform(value?: number) {
+    if (value && value > 0) {
+      GameUtils.getDataFromPhysicsBody(this.physicsBody).isEdgePlatform = true;
+    } else {
+      GameUtils.getDataFromPhysicsBody(this.physicsBody).isEdgePlatform = false;
+    }
+  }
+
   public update(player: Player) {
+    // Exit early if not a OneWayPlatform
+    if (!this.isOneWayPlatform) {
+      return;
+    }
+
     if (
       player &&
       this.isOneWayPlatform &&

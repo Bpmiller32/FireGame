@@ -19,6 +19,7 @@ import Emitter from "../../utils/eventEmitter";
 import setDkAttributes from "./attributes/setDkAttributes";
 import GameUtils from "../../utils/gameUtils";
 import handlePlayerClimbing from "./state/handlePlayerClimbing";
+import setCelesteAttributes from "./attributes/setCelesteAttributes";
 
 export default class Player extends GameObject {
   public time: Time;
@@ -86,6 +87,8 @@ export default class Player extends GameObject {
     this.initalSize = { x: size.width, y: size.height };
 
     setDkAttributes(this);
+    // setCelesteAttributes(this);
+
     this.setPhysicsAttributes();
     this.setSpriteAnimator();
     this.setCharacterController();
@@ -117,6 +120,8 @@ export default class Player extends GameObject {
       ceiling: false,
       leftSide: false,
       rightSide: false,
+
+      edgePlatform: false,
 
       ladderCore: false,
       ladderTop: false,
@@ -245,7 +250,7 @@ export default class Player extends GameObject {
         ) {
           this.currentFloor = GameUtils.getDataFromCollider(
             collision!.collider!
-          ).value;
+          ).value0;
         }
       }
       if (
@@ -298,6 +303,10 @@ export default class Player extends GameObject {
       this.groundWithinBufferRange = false;
     }
 
+    // if (downCast) {
+    //   console.log(GameUtils.getDataFromCollider(downCast!.collider));
+    // }
+
     // Detect touching ground via shapeCast in case collision didn't, ignore Walls
     if (
       !this.isTouching.ground &&
@@ -308,6 +317,12 @@ export default class Player extends GameObject {
         false
     ) {
       this.isTouching.ground = true;
+
+      if (GameUtils.getDataFromCollider(downCast.collider).isEdgePlatform) {
+        this.isTouching.edgePlatform = true;
+      } else {
+        this.isTouching.edgePlatform = false;
+      }
     }
 
     // Detect touching walls via shapeCast in case collision didn't, ignore OneWayPlatforms

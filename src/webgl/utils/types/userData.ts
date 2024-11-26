@@ -1,7 +1,10 @@
 export default interface UserData {
   name: string;
   gameEntityType: string;
-  value: number;
 
+  value0: number;
+  value1: number;
+
+  isEdgePlatform: boolean;
   isOneWayPlatformActive: boolean;
 }
