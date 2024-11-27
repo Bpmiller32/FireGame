@@ -54,7 +54,7 @@ export default class Experience {
     this.targetElement = canvas;
 
     this.scene = new THREE.Scene();
-    this.camera = new Camera(new THREE.Vector3(0, 30, 100));
+    this.camera = new Camera(new THREE.Vector3(0, 25, 100));
     this.renderer = new Renderer();
     this.physics = new Physics();
     await this.physics.configure();

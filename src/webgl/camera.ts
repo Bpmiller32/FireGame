@@ -32,6 +32,7 @@ export default class Camera {
 
   public lastToggleTime: number;
   public instance: THREE.Camera;
+  public cameraType!: string;
   public perspectiveCamera!: THREE.PerspectiveCamera;
   public orthographicCamera?: THREE.OrthographicCamera;
   public aspectRatio: number;
@@ -51,6 +52,7 @@ export default class Camera {
 
     // Default use the perspective camera
     this.instance = this.perspectiveCamera;
+    this.cameraType = "perspective";
     this.lastToggleTime = 0;
     this.aspectRatio = this.sizes.width / this.sizes.height;
 
@@ -105,9 +107,11 @@ export default class Camera {
   public switchCamera() {
     if (this.instance instanceof THREE.OrthographicCamera) {
       this.instance = this.perspectiveCamera;
+      this.cameraType = "perspective";
     } else {
       if (this.orthographicCamera) {
         this.instance = this.orthographicCamera;
+        this.cameraType = "orthographic";
       }
     }
   }
@@ -130,8 +134,6 @@ export default class Camera {
 
     // Orthographic camera
     if (this.instance instanceof THREE.OrthographicCamera) {
-      this.frustumSize = 10;
-
       this.instance.left = (-this.frustumSize * this.aspectRatio) / 2;
       this.instance.right = (this.frustumSize * this.aspectRatio) / 2;
       this.instance.top = this.frustumSize / 2;
@@ -170,7 +172,7 @@ export default class Camera {
     // Run debug camera logic if needed
     if (this.debug) {
       debugCameraUpdate(this);
-      return;
+      // return;
     }
 
     // Set X lookahead and lerpTimings based on player state

@@ -1,15 +1,6 @@
-import RAPIER from "@dimforge/rapier2d";
-import PlayerDirection from "../../../utils/types/playerDirection";
-import PlayerStates from "../../../utils/types/playerStates";
 import Player from "../player";
 
 const setCelesteAttributes = (player: Player) => {
-  /* -------------------------------------------------------------------------- */
-  /*                       State, animation, and collision                      */
-  /* -------------------------------------------------------------------------- */
-  player.state = PlayerStates.IDLE;
-  player.direction = PlayerDirection.NEUTRAL;
-
   /* -------------------------------------------------------------------------- */
   /*                          Speeds and accelerations                          */
   /* -------------------------------------------------------------------------- */
@@ -39,12 +30,15 @@ const setCelesteAttributes = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   player.jumpPower = 64;
   player.jumpAcceleration = 9001;
-  player.coyoteAvailable = false;
-  player.bufferJumpAvailable = false;
 
+  player.coyoteAvailable = false;
+  player.coyoteCount = 0;
+
+  player.bufferJumpAvailable = false;
   player.bufferJumpRange = 4;
   player.groundWithinBufferRange = false;
-  player.bufferJumpAvailable = false;
+  player.wasBufferJumpUsed = false;
+  player.bufferJumpCount = 0;
 
   /* -------------------------------------------------------------------------- */
   /*                            Jump and fall timers                            */

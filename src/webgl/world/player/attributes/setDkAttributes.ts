@@ -1,19 +1,14 @@
-import PlayerDirection from "../../../utils/types/playerDirection";
-import PlayerStates from "../../../utils/types/playerStates";
 import Player from "../player";
 
 const setDkAttributes = (player: Player) => {
   /* -------------------------------------------------------------------------- */
-  /*                       State, animation, and collision                      */
-  /* -------------------------------------------------------------------------- */
-  player.state = PlayerStates.IDLE;
-  player.direction = PlayerDirection.NEUTRAL;
-
-  /* -------------------------------------------------------------------------- */
   /*                          Speeds and accelerations                          */
   /* -------------------------------------------------------------------------- */
+  // The top vertical movement speed while climbing
   player.maxClimbSpeed = 4;
+  // The player's capacity to gain vertical speed when climbing
   player.climbAcceleration = 30;
+  // The pace at which the player comes to a stop when climbing
   player.climbDeceleration = 8;
 
   // The top horizontal movement speed
@@ -35,12 +30,15 @@ const setDkAttributes = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   player.jumpPower = 12;
   player.jumpAcceleration = 9001;
-  player.coyoteAvailable = false;
-  player.bufferJumpAvailable = false;
 
+  player.coyoteAvailable = false;
+  player.coyoteCount = 0;
+
+  player.bufferJumpAvailable = false;
   player.bufferJumpRange = 1.5;
   player.groundWithinBufferRange = false;
-  player.bufferJumpAvailable = false;
+  player.wasBufferJumpUsed = false;
+  player.bufferJumpCount = 0;
 
   /* -------------------------------------------------------------------------- */
   /*                            Jump and fall timers                            */

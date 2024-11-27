@@ -35,16 +35,16 @@ export default class GameDirector {
     this.time = this.experience.time;
     this.player = this.world.player!;
 
-    this.setAttributes();
+    this.initializeAttributes();
 
     // Events
     Emitter.on("gameStart", () => {
       this.isSpawningEnemies = true;
 
-      // Start a timer or game loop for spawning logic, runs roughly 60 times per second with 16
-      this.spawningInterval = setInterval(() => {
-        this.spawnEnemiesWithLogic();
-      }, 16);
+      // // Start a timer or game loop for spawning logic, runs roughly 60 times per second with 16
+      // this.spawningInterval = setInterval(() => {
+      //   this.spawnEnemiesWithLogic();
+      // }, 16);
     });
 
     Emitter.on("gameOver", () => {
@@ -67,7 +67,7 @@ export default class GameDirector {
     });
   }
 
-  private setAttributes() {
+  private initializeAttributes() {
     // Set default level to load
     this.levelData = TestLevel;
 
@@ -256,6 +256,11 @@ export default class GameDirector {
       ladderBottomSensor.setIntersectingTarget(this.player.physicsBody!);
 
       this.world.ladderBottomSensors.push(ladderBottomSensor);
+    }
+  }
+
+  private importTeleporters() {
+    for (const [_, value] of Object.entries(this.levelData)) {
     }
   }
 

@@ -22,6 +22,7 @@ export default class GameObject {
   protected spriteScale?: number;
 
   public initialSize: RAPIER.Vector2;
+  public initialPosition: RAPIER.Vector2;
   public physicsBody?: RAPIER.RigidBody;
   public currentTranslation: RAPIER.Vector;
   public currentRotation: number;
@@ -33,6 +34,7 @@ export default class GameObject {
     this.scene = this.experience.scene;
     this.physics = this.experience.physics;
 
+    this.initialPosition = new RAPIER.Vector2(0, 0);
     this.initialSize = new RAPIER.Vector2(0, 0);
     this.gameObjectType = "";
 
@@ -50,7 +52,8 @@ export default class GameObject {
     rotation: number,
     specifiedRigidBodyType: RAPIER.RigidBodyDesc = RAPIER.RigidBodyDesc.fixed()
   ) {
-    // Set object size and type
+    // Set object position, size, and type
+    this.initialPosition = new RAPIER.Vector2(position.x, position.y);
     this.initialSize = new RAPIER.Vector2(size.width, size.height);
     this.gameObjectType = gameObjectType;
 

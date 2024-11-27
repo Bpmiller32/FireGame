@@ -76,21 +76,25 @@ const handlePlayerIdle = (player: Player) => {
 
     // PlayerDirection == NEUTRAL
     default:
+      const currentState = player.spriteAnimator.state;
+
+      // If already in idle state, no need to change
       if (
-        player.spriteAnimator.state == SpriteAnimations.IDLE_LEFT ||
-        player.spriteAnimator.state == SpriteAnimations.IDLE_RIGHT
+        currentState === SpriteAnimations.IDLE_LEFT ||
+        currentState === SpriteAnimations.IDLE_RIGHT
       ) {
         break;
       }
+
+      // Transitioned into idle state, match with correct idle orientation
       if (
-        player.spriteAnimator.state == SpriteAnimations.RUN_LEFT ||
-        player.spriteAnimator.state == SpriteAnimations.FALL_LEFT
+        currentState === SpriteAnimations.RUN_LEFT ||
+        currentState === SpriteAnimations.FALL_LEFT
       ) {
         player.spriteAnimator.changeState(SpriteAnimations.IDLE_LEFT);
-      }
-      if (
-        player.spriteAnimator.state == SpriteAnimations.RUN_RIGHT ||
-        player.spriteAnimator.state == SpriteAnimations.FALL_RIGHT
+      } else if (
+        currentState === SpriteAnimations.RUN_RIGHT ||
+        currentState === SpriteAnimations.FALL_RIGHT
       ) {
         player.spriteAnimator.changeState(SpriteAnimations.IDLE_RIGHT);
       }

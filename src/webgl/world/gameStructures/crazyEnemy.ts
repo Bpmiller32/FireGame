@@ -36,14 +36,14 @@ export default class CrazyEnemy extends GameObject {
       RAPIER.RigidBodyDesc.dynamic()
     );
 
-    this.setAttributes();
+    this.initalizeAttributes();
     this.setCollisionGroup(CollisionGroups.ENEMY);
     this.setCollisionMask(CollisionGroups.PLAYER);
 
     this.createObjectGraphicsDebug("orange");
   }
 
-  private setAttributes() {
+  private initalizeAttributes() {
     this.time = this.experience.time;
 
     this.targetPositionIndex = 0;

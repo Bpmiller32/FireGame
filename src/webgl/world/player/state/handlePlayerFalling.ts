@@ -19,6 +19,8 @@ const handlePlayerFalling = (player: Player) => {
       player.state = PlayerStates.RUNNING;
     }
 
+    // Reset gating mechanism for counting buffer jumps
+    player.wasBufferJumpUsed = false;
     return;
   }
 
@@ -28,7 +30,7 @@ const handlePlayerFalling = (player: Player) => {
     player.coyoteAvailable &&
     player.time.elapsed < player.timeFallWasEntered + player.coyoteTime
   ) {
-    player.debugCoyoteCount += 1;
+    player.coyoteCount += 1;
 
     player.nextTranslation.y = 0;
     player.coyoteAvailable = false;
@@ -43,6 +45,16 @@ const handlePlayerFalling = (player: Player) => {
   // Give buffer jump
   if (player.groundWithinBufferRange && !player.input.isJump()) {
     player.bufferJumpAvailable = true;
+  }
+
+  // Count buffer jumps
+  if (
+    player.bufferJumpAvailable &&
+    player.input.isJump() &&
+    !player.wasBufferJumpUsed
+  ) {
+    player.wasBufferJumpUsed = true;
+    player.bufferJumpCount++;
   }
 
   // Take coyote jump if too much time has passed falling
@@ -70,31 +82,36 @@ const handlePlayerFalling = (player: Player) => {
   ) {
     player.direction = PlayerDirection.NEUTRAL;
 
-    if (
-      player.spriteAnimator.state == SpriteAnimations.IDLE_LEFT ||
-      player.spriteAnimator.state == SpriteAnimations.RUN_LEFT ||
-      player.spriteAnimator.state == SpriteAnimations.JUMP_LEFT
-    ) {
+    const isFacingLeft =
+      player.spriteAnimator.state === SpriteAnimations.IDLE_LEFT ||
+      player.spriteAnimator.state === SpriteAnimations.RUN_LEFT ||
+      player.spriteAnimator.state === SpriteAnimations.JUMP_LEFT;
+
+    const isFacingRight =
+      player.spriteAnimator.state === SpriteAnimations.IDLE_RIGHT ||
+      player.spriteAnimator.state === SpriteAnimations.RUN_RIGHT ||
+      player.spriteAnimator.state === SpriteAnimations.JUMP_RIGHT;
+
+    if (isFacingLeft) {
       player.spriteAnimator.changeState(SpriteAnimations.FALL_LEFT);
     }
-    if (
-      player.spriteAnimator.state == SpriteAnimations.IDLE_RIGHT ||
-      player.spriteAnimator.state == SpriteAnimations.RUN_RIGHT ||
-      player.spriteAnimator.state == SpriteAnimations.JUMP_RIGHT
-    ) {
+
+    if (isFacingRight) {
       player.spriteAnimator.changeState(SpriteAnimations.FALL_RIGHT);
     }
   }
 
   /* -------------------------------------------------------------------------- */
-  /*                                   Gravity                                  */
+  /*                           Gravity Logic (Y Axis)                           */
   /* -------------------------------------------------------------------------- */
   let inAirGravity = player.fallAcceleration;
 
+  // Apply early jump gravity modifier if the jump ended early and player is moving up
   if (player.endedJumpEarly && player.nextTranslation.y > 0) {
     inAirGravity *= player.jumpEndedEarlyGravityModifier;
   }
 
+  // Move player in the Y direction if coyote time is not available
   if (!player.coyoteAvailable) {
     player.nextTranslation.y = GameUtils.moveTowardsPoint(
       player.nextTranslation.y,
@@ -104,29 +121,33 @@ const handlePlayerFalling = (player: Player) => {
   }
 
   /* -------------------------------------------------------------------------- */
-  /*                                  Movement                                  */
+  /*                           Movement Logic (X axis)                          */
   /* -------------------------------------------------------------------------- */
-  // Accelerate
-  if (player.direction != PlayerDirection.NEUTRAL) {
-    player.nextTranslation.x = GameUtils.moveTowardsPoint(
-      player.nextTranslation.x,
-      player.direction * player.maxGroundSpeed,
-      player.groundAcceleration * player.time.delta
-    );
+  let targetSpeed = 0;
+  let acceleration = 0;
+
+  // Decellerate x movement while falling
+  if (player.direction === PlayerDirection.NEUTRAL) {
+    targetSpeed = 0;
+    acceleration = player.groundDeceleration;
   }
-  // Decelerate
+  // Accellerate x movement while falling
   else {
-    player.nextTranslation.x = GameUtils.moveTowardsPoint(
-      player.nextTranslation.x,
-      0,
-      player.groundDeceleration * player.time.delta
-    );
+    targetSpeed = player.direction * player.maxGroundSpeed;
+    acceleration = player.groundAcceleration;
   }
 
-  // Hitting a wall
+  // Set desired velocity
+  player.nextTranslation.x = GameUtils.moveTowardsPoint(
+    player.nextTranslation.x,
+    targetSpeed,
+    acceleration * player.time.delta
+  );
+
+  // Stop movement on wall collision
   if (
-    (player.isTouching.leftSide && player.direction == PlayerDirection.LEFT) ||
-    (player.isTouching.rightSide && player.direction == PlayerDirection.RIGHT)
+    (player.isTouching.leftSide && player.direction === PlayerDirection.LEFT) ||
+    (player.isTouching.rightSide && player.direction === PlayerDirection.RIGHT)
   ) {
     player.nextTranslation.x = 0;
   }

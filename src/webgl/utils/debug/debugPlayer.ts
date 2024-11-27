@@ -11,13 +11,13 @@ const debugPlayer = (player: Player, debug: Debug) => {
   // movement?.open();
   movement?.add(player, "direction").name("direction").listen();
   movement
-    ?.add(player, "currentPositionX")
+    ?.add(player.currentPosition, "x")
     .name("positionX")
     .min(0.001)
     .step(0.001)
     .listen();
   movement
-    ?.add(player, "currentPositionY")
+    ?.add(player.currentPosition, "y")
     .name("positionY")
     .min(0.001)
     .step(0.001)
@@ -37,25 +37,13 @@ const debugPlayer = (player: Player, debug: Debug) => {
 
   const isTouching = playerDebug?.addFolder("isTouching");
   // isTouching?.open();
-  isTouching
-    ?.add(player.isTouching, "ground")
-    .name("isTouchingGround")
-    .listen();
-  isTouching
-    ?.add(player.isTouching, "ceiling")
-    .name("isTouchingCeiling")
-    .listen();
-  isTouching
-    ?.add(player.isTouching, "leftSide")
-    .name("isTouchingLeftSide")
-    .listen();
-  isTouching
-    ?.add(player.isTouching, "rightSide")
-    .name("isTouchingRightSide")
-    .listen();
+  isTouching?.add(player.isTouching, "ground").name("ground").listen();
+  isTouching?.add(player.isTouching, "ceiling").name("ceiling").listen();
+  isTouching?.add(player.isTouching, "leftSide").name("leftSide").listen();
+  isTouching?.add(player.isTouching, "rightSide").name("rightSide").listen();
   isTouching
     ?.add(player.isTouching, "edgePlatform")
-    .name("isTouchingEdgePlatform")
+    .name("edgePlatform")
     .listen();
 
   const ladders = playerDebug?.addFolder("ladders");
@@ -67,7 +55,12 @@ const debugPlayer = (player: Player, debug: Debug) => {
   const jumping = playerDebug?.addFolder("jumping");
   // jumping?.open();
   jumping?.add(player, "coyoteAvailable").name("coyoteAvailable").listen();
-  jumping?.add(player, "debugCoyoteCount").name("coyoteCount").listen();
+  jumping?.add(player, "coyoteCount").name("coyoteCount").listen();
+  jumping
+    ?.add(player, "bufferJumpAvailable")
+    .name("bufferJumpAvailable")
+    .listen();
+  jumping?.add(player, "bufferJumpCount").name("bufferJumpCount").listen();
 
   const timers = playerDebug?.addFolder("timers");
   // timers?.open();

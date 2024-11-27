@@ -13,6 +13,7 @@ import Enemy from "../gameStructures/enemy.ts";
 import GameUtils from "../../utils/gameUtils.ts";
 import TrashCan from "../gameStructures/trashCan.ts";
 import CrazyEnemy from "../gameStructures/crazyEnemy.ts";
+import setDkAttributes from "../player/attributes/setDkAttributes.ts";
 
 export default class World {
   private experience: Experience;
@@ -22,18 +23,20 @@ export default class World {
   public gameDirector?: GameDirector;
 
   public player!: Player;
+  public cameraSensors: GameSensor[];
+
   public enemies: Enemy[];
   public crazyEnemies: CrazyEnemy[];
 
-  public walls: Platform[];
+  public trashCans: TrashCan[];
+  public teleporters: GameSensor[];
+
   public platforms: Platform[];
-  public cameraSensors: GameSensor[];
+  public walls: Platform[];
 
   public ladderCoreSensors: GameSensor[];
   public ladderTopSensors: GameSensor[];
   public ladderBottomSensors: GameSensor[];
-
-  public trashCans: TrashCan[];
 
   constructor() {
     this.experience = Experience.getInstance();
@@ -41,9 +44,13 @@ export default class World {
 
     this.cameraSensors = [];
 
+    // this.playerSpawn
+
     this.enemies = [];
     this.crazyEnemies = [];
+
     this.trashCans = [];
+    this.teleporters = [];
 
     this.platforms = [];
     this.walls = [];
@@ -57,13 +64,23 @@ export default class World {
       this.player = new Player({ width: 2, height: 4 }, { x: -6.752, y: 3 });
 
       this.gameDirector = new GameDirector();
+
       this.gameDirector.loadLevelData("blenderExport");
+      setDkAttributes(this.player);
+
+      // this.gameDirector.loadLevelData();
+      // setCelesteAttributes(this.player);
+      // this.player.teleportRelative(0, 10);
+
       Emitter.emit("gameStart");
     });
 
     // Place everything back in inital state
     Emitter.on("gameReset", () => {
-      this.player.teleportToPosition(-6.752, 3);
+      this.player.teleportToPosition(
+        this.player.initialPosition.x,
+        this.player.initialPosition.y
+      );
 
       this.enemies.forEach((enemy) => enemy.destroy());
       this.crazyEnemies.forEach((crazyEnemy) => crazyEnemy.destroy());
@@ -104,6 +121,9 @@ export default class World {
       crazyEnemy.update(this.trashCans[0]);
     });
 
+    // Teleporters
+    this.teleporters.forEach((teleporter) => {});
+
     // OneWayPlatforms
     this.platforms.forEach((platform) => {
       platform.update(this.player);
@@ -118,6 +138,7 @@ export default class World {
       sensor.update(() => {
         if (sensor.isIntersectingTarget) {
           this.camera.changePositionY(sensor.positionData.y);
+          return;
         }
       });
     });

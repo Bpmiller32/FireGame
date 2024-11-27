@@ -4,7 +4,8 @@ import Debug from "../debug";
 
 export const debugCamera = (camera: Camera, debug: Debug) => {
   const cameraDebug = debug.ui?.addFolder("cameraDebug");
-  // cameraDebug?.open();
+  cameraDebug?.open();
+  cameraDebug?.add(camera, "cameraType").name("type").listen();
   cameraDebug
     ?.add(camera.instance.position, "x")
     .name("xPosition")
@@ -20,6 +21,12 @@ export const debugCamera = (camera: Camera, debug: Debug) => {
   cameraDebug
     ?.add(camera.instance.position, "z")
     .name("zPosition")
+    .min(0.001)
+    .step(0.001)
+    .listen();
+  cameraDebug
+    ?.add(camera, "frustumSize")
+    .name("zoom")
     .min(0.001)
     .step(0.001)
     .listen();

@@ -38,14 +38,14 @@ export default class Enemy extends GameObject {
       RAPIER.RigidBodyDesc.dynamic()
     );
 
-    this.setAttributes();
+    this.initalizeAttributes();
     this.setCollisionGroup(CollisionGroups.ENEMY);
     this.setCollisionMask(CollisionGroups.PLATFORM | CollisionGroups.PLAYER);
 
     this.createObjectGraphicsDebug("white");
   }
 
-  private setAttributes() {
+  private initalizeAttributes() {
     this.time = this.experience.time;
 
     this.groundSpeed = 14;

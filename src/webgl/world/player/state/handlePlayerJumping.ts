@@ -42,7 +42,7 @@ const handlePlayerJumping = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                            Handle Jumping state                            */
   /* -------------------------------------------------------------------------- */
-  // Timers
+  // Disable coyote and buffer jump availability
   player.coyoteAvailable = false;
   player.bufferJumpAvailable = false;
 
@@ -66,24 +66,26 @@ const handlePlayerJumping = (player: Player) => {
   ) {
     player.direction = PlayerDirection.NEUTRAL;
 
+    const currentState = player.spriteAnimator.state;
+
     if (
-      player.spriteAnimator.state == SpriteAnimations.IDLE_LEFT ||
-      player.spriteAnimator.state == SpriteAnimations.RUN_LEFT
+      currentState === SpriteAnimations.IDLE_LEFT ||
+      currentState === SpriteAnimations.RUN_LEFT
     ) {
       player.spriteAnimator.changeState(SpriteAnimations.JUMP_LEFT);
     }
     if (
-      player.spriteAnimator.state == SpriteAnimations.IDLE_RIGHT ||
-      player.spriteAnimator.state == SpriteAnimations.RUN_RIGHT
+      currentState === SpriteAnimations.IDLE_RIGHT ||
+      currentState === SpriteAnimations.RUN_RIGHT
     ) {
       player.spriteAnimator.changeState(SpriteAnimations.JUMP_RIGHT);
     }
   }
 
   /* -------------------------------------------------------------------------- */
-  /*                                    Jump                                    */
+  /*                             Jump Logic (Y Axis)                            */
   /* -------------------------------------------------------------------------- */
-  // Apply jump
+  // Apply jump physics
   player.nextTranslation.y = GameUtils.moveTowardsPoint(
     player.nextTranslation.y,
     player.jumpPower,
@@ -91,29 +93,33 @@ const handlePlayerJumping = (player: Player) => {
   );
 
   /* -------------------------------------------------------------------------- */
-  /*                               Handle movement                              */
+  /*                           Movement Logic (X Axis)                          */
   /* -------------------------------------------------------------------------- */
-  // Accelerate
-  if (player.direction != PlayerDirection.NEUTRAL) {
-    player.nextTranslation.x = GameUtils.moveTowardsPoint(
-      player.nextTranslation.x,
-      player.direction * player.maxGroundSpeed,
-      player.groundAcceleration * player.time.delta
-    );
+  let targetSpeed = 0;
+  let acceleration = 0;
+
+  // Decellerate x movement while jumping
+  if (player.direction === PlayerDirection.NEUTRAL) {
+    targetSpeed = 0;
+    acceleration = player.groundDeceleration;
   }
-  // Decelerate
+  // Accellerate x movement while jumping
   else {
-    player.nextTranslation.x = GameUtils.moveTowardsPoint(
-      player.nextTranslation.x,
-      0,
-      player.groundDeceleration * player.time.delta
-    );
+    targetSpeed = player.direction * player.maxGroundSpeed;
+    acceleration = player.groundAcceleration;
   }
 
-  // Hitting a wall
+  // Set desired velocity
+  player.nextTranslation.x = GameUtils.moveTowardsPoint(
+    player.nextTranslation.x,
+    targetSpeed,
+    acceleration * player.time.delta
+  );
+
+  // Stop movement on wall collision
   if (
-    (player.isTouching.leftSide && player.direction == PlayerDirection.LEFT) ||
-    (player.isTouching.rightSide && player.direction == PlayerDirection.RIGHT)
+    (player.isTouching.leftSide && player.direction === PlayerDirection.LEFT) ||
+    (player.isTouching.rightSide && player.direction === PlayerDirection.RIGHT)
   ) {
     player.nextTranslation.x = 0;
   }

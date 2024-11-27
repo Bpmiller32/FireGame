@@ -20,12 +20,13 @@ const handlePlayerRunning = (player: Player) => {
   }
 
   // Transition to idle state
-  if (
-    Math.abs(player.nextTranslation.x) <= player.maxGroundSpeed * 0.01 &&
-    (player.input.isNeitherLeftRight() || player.input.isLeftRightCombo())
-  ) {
+  const isMovingSlowly =
+    Math.abs(player.nextTranslation.x) <= player.maxGroundSpeed * 0.01;
+  const isIdleInput =
+    player.input.isNeitherLeftRight() || player.input.isLeftRightCombo();
+
+  if (isMovingSlowly && isIdleInput) {
     player.nextTranslation.x = 0;
-    // player.nextTranslation.y = 0;
     player.state = PlayerStates.IDLE;
     return;
   }
@@ -63,13 +64,6 @@ const handlePlayerRunning = (player: Player) => {
     player.bufferJumpAvailable = true;
   }
 
-  // Controls accelerating or decellerating the sprite animation transitions
-  // Denominator determines the scaling factor relative to player speed, faster/slower move horizontally - faster/slower animation updates
-  // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
-  player.spriteAnimator.changeAnimationTiming(
-    1 / (Math.abs(player.nextTranslation.x) / 1.6)
-  );
-
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
@@ -84,52 +78,66 @@ const handlePlayerRunning = (player: Player) => {
     player.spriteAnimator.changeState(SpriteAnimations.RUN_RIGHT);
   }
   // Both and neither
-  else if (
-    player.input.isNeitherLeftRight() ||
-    player.input.isLeftRightCombo()
-  ) {
+  else if (isIdleInput) {
     player.direction = PlayerDirection.NEUTRAL;
 
+    const currentState = player.spriteAnimator.state;
+
     if (
-      player.spriteAnimator.state == SpriteAnimations.JUMP_LEFT ||
-      player.spriteAnimator.state == SpriteAnimations.FALL_LEFT
+      currentState == SpriteAnimations.JUMP_LEFT ||
+      currentState == SpriteAnimations.FALL_LEFT
     ) {
       player.spriteAnimator.changeState(SpriteAnimations.RUN_LEFT);
     }
     if (
-      player.spriteAnimator.state == SpriteAnimations.JUMP_RIGHT ||
-      player.spriteAnimator.state == SpriteAnimations.FALL_RIGHT
+      currentState == SpriteAnimations.JUMP_RIGHT ||
+      currentState == SpriteAnimations.FALL_RIGHT
     ) {
       player.spriteAnimator.changeState(SpriteAnimations.RUN_RIGHT);
     }
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                                  Movement                                  */
-  /* -------------------------------------------------------------------------- */
-  // Accelerate
-  if (player.direction != PlayerDirection.NEUTRAL) {
-    player.nextTranslation.x = GameUtils.moveTowardsPoint(
-      player.nextTranslation.x,
-      player.direction * player.maxGroundSpeed,
-      player.groundAcceleration * player.time.delta
-    );
-  }
-  // Decelerate
-  else {
-    player.nextTranslation.x = GameUtils.moveTowardsPoint(
-      player.nextTranslation.x,
-      0,
-      player.groundDeceleration * player.time.delta
-    );
-  }
+  // Controls accelerating or decellerating the sprite animation transitions
+  // Denominator determines the scaling factor relative to player speed, faster/slower move horizontally - faster/slower animation updates
+  // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
+  player.spriteAnimator.changeAnimationTiming(
+    1 / (Math.abs(player.nextTranslation.x) / 1.6)
+  );
 
-  // Simple max gravity in non-vertical state to fix downward movement on slopes, maintain touching ground
+  /* -------------------------------------------------------------------------- */
+  /*                           Gravity Logic (Y Axis)                           */
+  /* -------------------------------------------------------------------------- */
   if (player.isTouching.edgePlatform) {
+    // Exception to simple gravity when about to run off an edge
     player.nextTranslation.y = 0;
   } else {
+    // Simple max gravity in non-vertical state to fix downward movement on slopes, maintain touching ground
     player.nextTranslation.y = -player.maxFallSpeed;
   }
+
+  /* -------------------------------------------------------------------------- */
+  /*                           Movement Logic (X Axis)                          */
+  /* -------------------------------------------------------------------------- */
+  let targetSpeed = 0;
+  let acceleration = 0;
+
+  // Decellerate x movement while running
+  if (player.direction === PlayerDirection.NEUTRAL) {
+    targetSpeed = 0;
+    acceleration = player.groundDeceleration;
+  }
+  // Accellerate x movement while running
+  else {
+    targetSpeed = player.direction * player.maxGroundSpeed;
+    acceleration = player.groundAcceleration;
+  }
+
+  // Set desired velocity
+  player.nextTranslation.x = GameUtils.moveTowardsPoint(
+    player.nextTranslation.x,
+    targetSpeed,
+    acceleration * player.time.delta
+  );
 
   // Hitting a wall
   if (

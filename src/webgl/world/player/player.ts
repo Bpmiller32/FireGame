@@ -19,29 +19,32 @@ import Emitter from "../../utils/eventEmitter";
 import setDkAttributes from "./attributes/setDkAttributes";
 import GameUtils from "../../utils/gameUtils";
 import handlePlayerClimbing from "./state/handlePlayerClimbing";
-import setCelesteAttributes from "./attributes/setCelesteAttributes";
 
 export default class Player extends GameObject {
+  // Experience
   public time: Time;
   public input: Input;
-  private debug?: Debug;
+  public debug?: Debug;
   public resources: ResourceLoader;
-  public spriteAnimator!: SpriteAnimator;
-  public characterController!: RAPIER.KinematicCharacterController;
 
-  // Player variables
-  public initalSize!: RAPIER.Vector2;
-  public state!: string;
+  // Player state
+  public initalSize: RAPIER.Vector2;
   public direction!: number;
-  public colliderOffset!: number;
-  public currentPositionX!: number;
-  public currentPositionY!: number;
+  public currentPosition!: RAPIER.Vector2;
   public nextTranslation!: RAPIER.Vector2;
 
+  public state!: string;
+  public stateHandlers!: Record<string, Function>;
+
+  public characterController!: RAPIER.KinematicCharacterController;
+  public colliderOffset!: number;
+  public colliderOffsetThreshold!: number;
   public isTouching!: ContactPoints;
+  public currentFloor!: number;
 
-  public currentFloor: number = 0;
+  public spriteAnimator!: SpriteAnimator;
 
+  // Player attributes
   public maxClimbSpeed!: number;
   public climbAcceleration!: number;
   public climbDeceleration!: number;
@@ -53,25 +56,25 @@ export default class Player extends GameObject {
   public maxFallSpeed!: number;
   public fallAcceleration!: number;
   public jumpEndedEarlyGravityModifier!: number;
+  public endedJumpEarly!: boolean;
 
   public jumpPower!: number;
   public jumpAcceleration!: number;
+
   public coyoteAvailable!: boolean;
-  public endedJumpEarly!: boolean;
+  public coyoteCount!: number;
 
   public bufferJumpRange!: number;
   public groundWithinBufferRange!: boolean;
   public bufferJumpAvailable!: boolean;
+  public wasBufferJumpUsed!: boolean;
+  public bufferJumpCount!: number;
 
   public timeJumpWasEntered!: number;
   public timeFallWasEntered!: number;
   public minJumpTime!: number;
   public maxJumpTime!: number;
   public coyoteTime!: number;
-
-  // TODO: remove after debug
-  debugCoyoteCount = 0;
-  debugMovementSpeedX = 0;
 
   public constructor(
     size: { width: number; height: number },
@@ -86,10 +89,7 @@ export default class Player extends GameObject {
     // Set inital size so I don't have to look for it in physicsBody.collider.shape.halfExtents later
     this.initalSize = { x: size.width, y: size.height };
 
-    setDkAttributes(this);
-    // setCelesteAttributes(this);
-
-    this.setPhysicsAttributes();
+    this.initalizePlayerAttributes();
     this.setSpriteAnimator();
     this.setCharacterController();
     this.createObjectPhysics(
@@ -109,11 +109,30 @@ export default class Player extends GameObject {
     }
   }
 
-  private setPhysicsAttributes() {
+  private initalizePlayerAttributes() {
+    // Set inital state and direction
+    this.state = PlayerStates.IDLE;
+    this.direction = PlayerDirection.NEUTRAL;
+
+    // Set movement, speed, jump, timer attributes special to game feel
+    setDkAttributes(this);
+
+    // Init state handlers
+    this.stateHandlers = {
+      [PlayerStates.IDLE]: handlePlayerIdle,
+      [PlayerStates.RUNNING]: handlePlayerRunning,
+      [PlayerStates.FALLING]: handlePlayerFalling,
+      [PlayerStates.JUMPING]: handlePlayerJumping,
+      [PlayerStates.CLIMBING]: handlePlayerClimbing,
+    };
+
+    // Set physics variables
     this.colliderOffset = 0.01;
-    this.currentPositionX = 0;
-    this.currentPositionY = 0;
+    this.colliderOffsetThreshold = this.colliderOffset + 0.001;
+    this.currentPosition = new RAPIER.Vector2(0, 0);
     this.nextTranslation = new RAPIER.Vector2(0, 0);
+
+    this.currentFloor = 0;
 
     this.isTouching = {
       ground: false,
@@ -152,23 +171,9 @@ export default class Player extends GameObject {
   }
 
   private updatePlayerState() {
-    switch (this.state) {
-      case PlayerStates.IDLE:
-        handlePlayerIdle(this);
-        break;
-      case PlayerStates.RUNNING:
-        handlePlayerRunning(this);
-        break;
-      case PlayerStates.FALLING:
-        handlePlayerFalling(this);
-        break;
-      case PlayerStates.JUMPING:
-        handlePlayerJumping(this);
-        break;
-
-      case PlayerStates.CLIMBING:
-        handlePlayerClimbing(this);
-        break;
+    const handler = this.stateHandlers[this.state];
+    if (handler) {
+      handler(this);
     }
 
     // Update the sprite state
@@ -178,31 +183,28 @@ export default class Player extends GameObject {
   private updateTranslation() {
     // Update player position to a variable TODO: mostly for debug, remove?
     const position = this.physicsBody!.translation();
-    this.currentPositionX = position.x;
-    this.currentPositionY = position.y;
+    this.currentPosition.x = position.x;
+    this.currentPosition.y = position.y;
+
+    // Compute the desired translation scaled by the time delta
+    const desiredTranslation = {
+      x: this.nextTranslation.x * this.time.delta,
+      y: this.nextTranslation.y * this.time.delta,
+    };
 
     // Given a desired translation, compute the actual translation that we can apply to the collider based on the obstacles.
     this.characterController.computeColliderMovement(
       this.physicsBody!.collider(0),
-      {
-        x: this.nextTranslation.x * this.time.delta,
-        y: this.nextTranslation.y * this.time.delta,
-      },
+      desiredTranslation,
+      // Tried CollisionGroups, filterGroups in this function and class. Tried EventQueue and drainCollisionEvents in Physics class, either don't work at all as documented or don't work in a useful way.... Resorting to only using predicate
       undefined,
       undefined,
-      (collider) => {
-        // Tried CollisionGroups, filterGroups in this function and class. Tried EventQueue and drainCollisionEvents in Physics class, either don't work at all as documented or don't work in a useful way.... Resorting to only using predicate
-
-        // Don't collide with sensors or OneWayPlatforms while under them
-        if (
+      // Don't collide with sensors or OneWayPlatforms while under them
+      (collider) =>
+        !(
           collider.isSensor() ||
-          GameUtils.getDataFromCollider(collider).isOneWayPlatformActive == true
-        ) {
-          return false;
-        }
-
-        return true;
-      }
+          GameUtils.getDataFromCollider(collider).isOneWayPlatformActive
+        )
     );
 
     // Get the actual translation possible from the physics computation
@@ -216,82 +218,57 @@ export default class Player extends GameObject {
   }
 
   private detectCollisions() {
-    this.getCharacterControllerCollisions();
+    // Only using ShapeCasting for collisions, saves on previously used CharacterController's numComputedCollision
+    this.resetCollisions();
     this.getShapeCastCollisions();
   }
 
-  private getCharacterControllerCollisions() {
-    // Reset collisions, none detected
-    this.isTouching.ground = false;
-    this.isTouching.ceiling = false;
-    this.isTouching.leftSide = false;
-    this.isTouching.rightSide = false;
-
-    // // CharacterController ground detection that saves a downCast later in shapeCastCollisions
-    // if (this.characterController.computedGrounded()) {
-    //   this.isTouching.ground = true;
-    // }
-
-    for (
-      let i = 0;
-      i < this.characterController!.numComputedCollisions();
-      i++
-    ) {
-      const collision = this.characterController.computedCollision(i);
-
-      // y axis collisions that happened to the character controller
-      if (collision!.normal2.y == -1) {
-        // this.isTouching.ground = true;
-
-        // TODO: messy, revisit
-        if (
-          GameUtils.getDataFromCollider(collision!.collider!).name ==
-          "OneWayPlatform"
-        ) {
-          this.currentFloor = GameUtils.getDataFromCollider(
-            collision!.collider!
-          ).value0;
-        }
-      }
-      if (
-        collision!.normal2.y == 1 &&
-        // Handle OneWayPlatforms
-        GameUtils.getDataFromCollider(collision!.collider!).name !=
-          "OneWayPlatform"
-      ) {
-        this.isTouching.ceiling = true;
-      }
-
-      // x axis
-      if (collision!.normal2.x == 1) {
-        // this.isTouching.rightSide = true;
-      }
-      if (collision!.normal2.x == -1) {
-        // this.isTouching.leftSide = true;
-      }
-    }
+  private resetCollisions() {
+    this.isTouching = {
+      ground: false,
+      ceiling: false,
+      leftSide: false,
+      rightSide: false,
+      edgePlatform: false,
+      ladderCore: false,
+      ladderTop: false,
+      ladderBottom: false,
+    };
   }
 
   private getShapeCastCollisions() {
-    // ShapeCast downward
-    const downCast = this.shapeCast({
-      x: PlayerDirection.NEUTRAL,
-      y: PlayerDirection.DOWN,
-    });
+    // ShapeCast in all directions
+    const shapeCasts = {
+      down: this.shapeCast(PlayerDirection.NEUTRAL, PlayerDirection.DOWN),
+      left: this.shapeCast(PlayerDirection.LEFT, PlayerDirection.NEUTRAL),
+      right: this.shapeCast(PlayerDirection.RIGHT, PlayerDirection.NEUTRAL),
+      up: this.shapeCast(PlayerDirection.NEUTRAL, PlayerDirection.UP),
+    };
 
-    // ShapeCast leftward
-    const leftCast = this.shapeCast({
-      x: PlayerDirection.LEFT,
-      y: PlayerDirection.NEUTRAL,
-    });
+    // Detect ground collisions, ignore walls
+    const downCast = shapeCasts.down;
+    if (
+      downCast &&
+      downCast.toi <= this.colliderOffsetThreshold &&
+      GameUtils.getDataFromCollider(downCast.collider).name !== "Wall" &&
+      !GameUtils.getDataFromCollider(downCast.collider).isOneWayPlatformActive
+    ) {
+      // Establish that ground is being touched
+      this.isTouching.ground = true;
 
-    // ShapeCast rightward
-    const rightCast = this.shapeCast({
-      x: PlayerDirection.RIGHT,
-      y: PlayerDirection.NEUTRAL,
-    });
+      // Handle specific platform types
+      this.currentFloor = GameUtils.getDataFromCollider(
+        downCast.collider
+      ).value0;
 
-    // Detect ground buffer within range for buffer jump
+      if (GameUtils.getDataFromCollider(downCast.collider).isEdgePlatform) {
+        this.isTouching.edgePlatform = true;
+      } else {
+        this.isTouching.edgePlatform = false;
+      }
+    }
+
+    // Detect ground within buffer jump range
     if (
       !this.isTouching.ground &&
       downCast &&
@@ -303,57 +280,49 @@ export default class Player extends GameObject {
       this.groundWithinBufferRange = false;
     }
 
-    // if (downCast) {
-    //   console.log(GameUtils.getDataFromCollider(downCast!.collider));
-    // }
-
-    // Detect touching ground via shapeCast in case collision didn't, ignore Walls
+    // Detect left wall collisions, ignore OneWayPlatforms
+    const leftCast = shapeCasts.left;
     if (
-      !this.isTouching.ground &&
-      downCast &&
-      downCast.toi <= this.colliderOffset + 0.001 &&
-      GameUtils.getDataFromCollider(downCast.collider).name != "Wall" &&
-      GameUtils.getDataFromCollider(downCast.collider).isOneWayPlatformActive ==
-        false
-    ) {
-      this.isTouching.ground = true;
-
-      if (GameUtils.getDataFromCollider(downCast.collider).isEdgePlatform) {
-        this.isTouching.edgePlatform = true;
-      } else {
-        this.isTouching.edgePlatform = false;
-      }
-    }
-
-    // Detect touching walls via shapeCast in case collision didn't, ignore OneWayPlatforms
-    if (
-      !this.isTouching.leftSide &&
       leftCast &&
-      leftCast.toi <= this.colliderOffset + 0.001 &&
-      GameUtils.getDataFromCollider(leftCast.collider).name != "OneWayPlatform"
+      leftCast.toi <= this.colliderOffsetThreshold &&
+      GameUtils.getDataFromCollider(leftCast.collider).name !== "OneWayPlatform"
     ) {
       this.isTouching.leftSide = true;
     }
 
+    // Detect right wall collisions, ignore OneWayPlatforms
+    const rightCast = shapeCasts.right;
     if (
-      !this.isTouching.rightSide &&
       rightCast &&
-      rightCast.toi <= this.colliderOffset + 0.001 &&
-      GameUtils.getDataFromCollider(rightCast.collider).name != "OneWayPlatform"
+      rightCast.toi <= this.colliderOffsetThreshold &&
+      GameUtils.getDataFromCollider(rightCast.collider).name !==
+        "OneWayPlatform"
     ) {
       this.isTouching.rightSide = true;
     }
+
+    // Detect ceiling collisions, ignore OneWayPlatforms
+    const upCast = shapeCasts.up;
+    if (
+      upCast &&
+      upCast.toi <= this.colliderOffsetThreshold &&
+      GameUtils.getDataFromCollider(upCast.collider).name !== "OneWayPlatform"
+    ) {
+      this.isTouching.ceiling = true;
+    }
   }
 
-  private shapeCast(direction: { x: number; y: number }) {
+  private shapeCast(xDirection: number, yDirection: number) {
+    // Without offset here, the x shapeCast collides with the shape's inner wall for some reason
+    const offsetX =
+      this.currentTranslation.x + this.colliderOffset * xDirection;
+    const offsetY =
+      this.currentTranslation.y + this.colliderOffset * yDirection;
+
     const hit = this.physics.world.castShape(
-      {
-        // Without offset here, the x shapeCast collides with the shape's inner wall for some reason
-        x: this.currentTranslation.x + this.colliderOffset * direction.x,
-        y: this.currentTranslation.y,
-      },
+      { x: offsetX, y: offsetY },
       0,
-      { x: direction.x, y: direction.y },
+      { x: xDirection, y: yDirection },
       this.physicsBody!.collider(0).shape,
       1000,
       false,
@@ -361,17 +330,15 @@ export default class Player extends GameObject {
       undefined,
       undefined,
       undefined,
-      (collider) => {
-        if (collider.isSensor()) {
-          return false;
-        }
-        return true;
-      }
+      // Don't collide with sensors or OneWayPlatforms while under them
+      (collider) =>
+        !(
+          collider.isSensor() ||
+          GameUtils.getDataFromCollider(collider).isOneWayPlatformActive
+        )
     );
 
-    if (hit) {
-      return hit;
-    }
+    return hit || null;
   }
 
   public update() {
