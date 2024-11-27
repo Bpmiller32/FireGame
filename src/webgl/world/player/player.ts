@@ -28,7 +28,6 @@ export default class Player extends GameObject {
   public resources: ResourceLoader;
 
   // Player state
-  public initalSize: RAPIER.Vector2;
   public direction!: number;
   public currentPosition!: RAPIER.Vector2;
   public nextTranslation!: RAPIER.Vector2;
@@ -85,9 +84,6 @@ export default class Player extends GameObject {
     this.time = this.experience.time;
     this.input = this.experience.input;
     this.resources = this.experience.resources;
-
-    // Set inital size so I don't have to look for it in physicsBody.collider.shape.halfExtents later
-    this.initalSize = { x: size.width, y: size.height };
 
     this.initalizePlayerAttributes();
     this.setSpriteAnimator();
@@ -181,7 +177,7 @@ export default class Player extends GameObject {
   }
 
   private updateTranslation() {
-    // Update player position to a variable TODO: mostly for debug, remove?
+    // Update player position to a variable
     const position = this.physicsBody!.translation();
     this.currentPosition.x = position.x;
     this.currentPosition.y = position.y;

@@ -21,12 +21,13 @@ export default class Camera {
   public input?: Input;
   private debug?: Debug;
 
-  private initialPosition: THREE.Vector3;
+  public initialPosition: THREE.Vector3;
   private currentPositionX!: THREE.Vector3;
   private currentPositionY!: THREE.Vector3;
   private currentPositionZ!: THREE.Vector3;
   private targetPosition!: THREE.Vector3;
 
+  private isCameraFollowOn!: boolean;
   private xLookahead!: number;
   private lerpTimings!: THREE.Vector3;
 
@@ -47,8 +48,8 @@ export default class Camera {
 
     this.initialPosition = initialPosition;
 
-    this.setPerspectiveInstance();
-    this.setLookAhead();
+    this.initalizePerspectiveInstance();
+    this.initializeCameraLookAhead();
 
     // Default use the perspective camera
     this.instance = this.perspectiveCamera;
@@ -58,14 +59,14 @@ export default class Camera {
 
     // Debug
     if (this.experience.debug.isActive) {
-      this.setOrthographicInstance();
+      this.initializeOrthographicInstance();
       this.input = this.experience.input;
       this.debug = this.experience.debug;
       debugCamera(this, this.debug);
     }
   }
 
-  private setPerspectiveInstance() {
+  private initalizePerspectiveInstance() {
     this.perspectiveCamera = new THREE.PerspectiveCamera(
       35,
       this.sizes.width / this.sizes.height,
@@ -76,7 +77,7 @@ export default class Camera {
     this.scene.add(this.perspectiveCamera);
   }
 
-  private setOrthographicInstance() {
+  private initializeOrthographicInstance() {
     this.frustumSize = 40;
     this.zoomFactor = 0.5;
 
@@ -92,16 +93,27 @@ export default class Camera {
     this.scene.add(this.orthographicCamera);
   }
 
-  private setLookAhead() {
+  private initializeCameraLookAhead() {
     // Using Vector3's from THREE because they have built in lerping function, save needing to import a library
     this.currentPositionX = new THREE.Vector3().copy(this.initialPosition);
     this.currentPositionY = new THREE.Vector3().copy(this.initialPosition);
     this.currentPositionZ = new THREE.Vector3().copy(this.initialPosition);
     this.targetPosition = new THREE.Vector3().copy(this.initialPosition);
 
+    this.isCameraFollowOn = false;
     // this.xLookahead = 12.5;
     this.xLookahead = 0;
     this.lerpTimings = new THREE.Vector3(1, 3, 1);
+  }
+
+  public setCameraFollow(value: boolean) {
+    if (value) {
+      this.xLookahead = 12.5;
+      this.isCameraFollowOn = true;
+    } else {
+      this.xLookahead = 0;
+      this.isCameraFollowOn = false;
+    }
   }
 
   public switchCamera() {
@@ -172,37 +184,42 @@ export default class Camera {
     // Run debug camera logic if needed
     if (this.debug) {
       debugCameraUpdate(this);
-      // return;
+      return;
     }
 
-    // Set X lookahead and lerpTimings based on player state
-    switch (player.spriteAnimator.state) {
-      case SpriteAnimations.IDLE_LEFT:
-      case SpriteAnimations.IDLE_RIGHT:
-        this.targetPosition.x = 0;
-        this.lerpTimings.x = 0.5; // Slower x lerp for resting/idle transition that movement
-        break;
-      case SpriteAnimations.RUN_LEFT:
-      case SpriteAnimations.JUMP_LEFT:
-      case SpriteAnimations.FALL_LEFT:
-        if (player.nextTranslation.x > 0) {
-          return;
-        }
-        this.targetPosition.x = -this.xLookahead;
-        this.lerpTimings.x = 1;
-        break;
-      case SpriteAnimations.RUN_RIGHT:
-      case SpriteAnimations.JUMP_RIGHT:
-      case SpriteAnimations.FALL_RIGHT:
-        if (Math.abs(player.nextTranslation.x) <= 0) {
-          return;
-        }
-        this.targetPosition.x = this.xLookahead;
-        this.lerpTimings.x = 1;
-        break;
-      default:
-        this.targetPosition.x = this.xLookahead;
-        this.lerpTimings.x = 1;
+    // Update the targetPosition based on player location
+    if (this.isCameraFollowOn) {
+      this.targetPosition.setX(player.currentPosition.x);
+
+      // Set X lookahead and lerpTimings based on player state
+      switch (player.spriteAnimator.state) {
+        case SpriteAnimations.IDLE_LEFT:
+        case SpriteAnimations.IDLE_RIGHT:
+          // this.targetPosition.x = 0;
+          this.lerpTimings.x = 0.5; // Slower x lerp for resting/idle transition that movement
+          break;
+        case SpriteAnimations.RUN_LEFT:
+        case SpriteAnimations.JUMP_LEFT:
+        case SpriteAnimations.FALL_LEFT:
+          if (player.nextTranslation.x > 0) {
+            return;
+          }
+          this.targetPosition.x -= this.xLookahead;
+          this.lerpTimings.x = 1;
+          break;
+        case SpriteAnimations.RUN_RIGHT:
+        case SpriteAnimations.JUMP_RIGHT:
+        case SpriteAnimations.FALL_RIGHT:
+          if (Math.abs(player.nextTranslation.x) <= 0) {
+            return;
+          }
+          this.targetPosition.x += this.xLookahead;
+          this.lerpTimings.x = 1;
+          break;
+        default:
+          this.targetPosition.x += this.xLookahead;
+          this.lerpTimings.x = 1;
+      }
     }
 
     // Individual vector lerps for different axis speed

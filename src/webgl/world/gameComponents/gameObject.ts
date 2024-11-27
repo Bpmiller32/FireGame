@@ -21,9 +21,11 @@ export default class GameObject {
   protected mesh?: THREE.Mesh | THREE.Sprite;
   protected spriteScale?: number;
 
-  public initialSize: RAPIER.Vector2;
-  public initialPosition: RAPIER.Vector2;
   public physicsBody?: RAPIER.RigidBody;
+
+  public initialSize: RAPIER.Vector2;
+  public currentSize: RAPIER.Vector2;
+  public initialTranslation: RAPIER.Vector2;
   public currentTranslation: RAPIER.Vector;
   public currentRotation: number;
 
@@ -34,12 +36,13 @@ export default class GameObject {
     this.scene = this.experience.scene;
     this.physics = this.experience.physics;
 
-    this.initialPosition = new RAPIER.Vector2(0, 0);
     this.initialSize = new RAPIER.Vector2(0, 0);
-    this.gameObjectType = "";
-
+    this.currentSize = new RAPIER.Vector2(0, 0);
+    this.initialTranslation = new RAPIER.Vector2(0, 0);
     this.currentTranslation = new RAPIER.Vector2(0, 0);
     this.currentRotation = 0;
+
+    this.gameObjectType = "";
 
     this.isBeingDestroyed = false;
   }
@@ -52,9 +55,10 @@ export default class GameObject {
     rotation: number,
     specifiedRigidBodyType: RAPIER.RigidBodyDesc = RAPIER.RigidBodyDesc.fixed()
   ) {
-    // Set object position, size, and type
-    this.initialPosition = new RAPIER.Vector2(position.x, position.y);
+    // Set object position, size, and type. Inital size in particular so I don't have to look for it in physicsBody.collider.shape.halfExtents later
+    this.initialTranslation = new RAPIER.Vector2(position.x, position.y);
     this.initialSize = new RAPIER.Vector2(size.width, size.height);
+    this.currentSize = new RAPIER.Vector2(size.width, size.height);
     this.gameObjectType = gameObjectType;
 
     // Physics setup based on object type
@@ -62,11 +66,6 @@ export default class GameObject {
 
     switch (gameObjectType) {
       case GameObjectType.SPRITE:
-        physicsShape = RAPIER.ColliderDesc.cuboid(
-          size.width / 2,
-          size.height / 2
-        );
-        break;
       case GameObjectType.CUBE:
         physicsShape = RAPIER.ColliderDesc.cuboid(
           size.width / 2,
@@ -104,6 +103,38 @@ export default class GameObject {
     this.physics.world.createCollider(physicsShape, this.physicsBody);
   }
 
+  public changeColliderSize(newSize: { width: number; height: number }) {
+    // Remove the old collider (assuming there's only one collider attached)
+    this.physics.world.removeCollider(this.physicsBody!.collider(0), true);
+
+    // Create a new collider with the updated size
+    let newPhysicsShape;
+
+    switch (this.gameObjectType) {
+      case GameObjectType.SPRITE:
+      case GameObjectType.CUBE:
+        newPhysicsShape = RAPIER.ColliderDesc.cuboid(
+          newSize.width / 2,
+          newSize.height / 2
+        );
+        break;
+      case GameObjectType.SPHERE:
+        newPhysicsShape = RAPIER.ColliderDesc.ball(newSize.width);
+        break;
+      default:
+        newPhysicsShape = RAPIER.ColliderDesc.cuboid(
+          newSize.width / 2,
+          newSize.height / 2
+        );
+    }
+
+    // Attach the new collider to the rigid body
+    this.physics.world.createCollider(newPhysicsShape, this.physicsBody);
+
+    // Update the current size property
+    this.currentSize = new RAPIER.Vector2(newSize.width, newSize.height);
+  }
+
   protected setGeometry(geometry?: THREE.BoxGeometry | THREE.SphereGeometry) {
     this.geometry = geometry;
   }
@@ -132,14 +163,14 @@ export default class GameObject {
 
       case GameObjectType.CUBE:
         this.setGeometry(
-          new THREE.BoxGeometry(this.initialSize.x, this.initialSize.y, 1)
+          new THREE.BoxGeometry(this.currentSize.x, this.currentSize.y, 1)
         );
         this.setMaterial(new THREE.MeshBasicMaterial({ color: meshColor }));
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         break;
 
       case GameObjectType.SPHERE:
-        this.setGeometry(new THREE.SphereGeometry(this.initialSize.x));
+        this.setGeometry(new THREE.SphereGeometry(this.currentSize.x));
         this.setMaterial(new THREE.MeshBasicMaterial({ color: meshColor }));
         this.mesh = new THREE.Mesh(
           this.geometry,
@@ -186,7 +217,9 @@ export default class GameObject {
 
   protected createObjectGraphics() {}
 
-  protected syncGraphicsToPhysics() {
+  protected syncGraphicsToPhysics(
+    meshOffset: { x: number; y: number } = { x: 0, y: 0 }
+  ) {
     // Exit early if object is destroyed or physicsBody not ready yet
     if (this.isBeingDestroyed || !this.physicsBody) {
       return;
@@ -194,8 +227,8 @@ export default class GameObject {
 
     this.currentTranslation = this.physicsBody.translation();
     this.mesh?.position.set(
-      this.currentTranslation.x,
-      this.currentTranslation.y,
+      this.currentTranslation.x + meshOffset.x,
+      this.currentTranslation.y + meshOffset.y,
       0
     );
 

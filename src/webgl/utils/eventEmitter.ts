@@ -25,6 +25,8 @@ type EventMap = {
   gameOver: void;
   gameWin: void;
   gameReset: void;
+
+  switchLevel: void;
 };
 
 // Create an emitter instance

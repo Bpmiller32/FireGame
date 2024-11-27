@@ -31,6 +31,9 @@ const handlePlayerIdle = (player: Player) => {
 
   // Transition to jumping state
   if (player.input.isJump() && player.bufferJumpAvailable) {
+    // Make the collider smaller in air for better feel
+    player.changeColliderSize({ width: 1.75, height: 2.5 });
+
     player.timeJumpWasEntered = player.time.elapsed;
     player.state = PlayerStates.JUMPING;
     return;

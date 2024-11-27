@@ -14,6 +14,9 @@ const handlePlayerRunning = (player: Player) => {
       player.nextTranslation.y = 0;
     }
 
+    // Make the collider smaller in air for better feel
+    player.changeColliderSize({ width: 1.75, height: 2.5 });
+
     player.timeFallWasEntered = player.time.elapsed;
     player.state = PlayerStates.FALLING;
     return;
@@ -33,6 +36,9 @@ const handlePlayerRunning = (player: Player) => {
 
   // Transition to jumping state
   if (player.input.isJump() && player.bufferJumpAvailable) {
+    // Make the collider smaller in air for better feel
+    player.changeColliderSize({ width: 1.75, height: 2.5 });
+
     player.nextTranslation.y = 0;
 
     player.timeJumpWasEntered = player.time.elapsed;

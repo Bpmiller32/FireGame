@@ -13,7 +13,7 @@ import Enemy from "../gameStructures/enemy.ts";
 import GameUtils from "../../utils/gameUtils.ts";
 import TrashCan from "../gameStructures/trashCan.ts";
 import CrazyEnemy from "../gameStructures/crazyEnemy.ts";
-import setDkAttributes from "../player/attributes/setDkAttributes.ts";
+import BlenderExport from "./blenderExport.json";
 
 export default class World {
   private experience: Experience;
@@ -61,27 +61,28 @@ export default class World {
 
     // Events
     Emitter.on("resourcesReady", () => {
-      this.player = new Player({ width: 2, height: 4 }, { x: -6.752, y: 3 });
-
       this.gameDirector = new GameDirector();
-
-      this.gameDirector.loadLevelData("blenderExport");
-      setDkAttributes(this.player);
-
-      // this.gameDirector.loadLevelData();
-      // setCelesteAttributes(this.player);
-      // this.player.teleportRelative(0, 10);
+      this.gameDirector.loadLevelData(BlenderExport);
 
       Emitter.emit("gameStart");
     });
 
     // Place everything back in inital state
     Emitter.on("gameReset", () => {
+      // Player
       this.player.teleportToPosition(
-        this.player.initialPosition.x,
-        this.player.initialPosition.y
+        this.player.initialTranslation.x,
+        this.player.initialTranslation.y
       );
 
+      // Camera
+      this.camera.teleportToPosition(
+        this.camera.initialPosition.x,
+        this.camera.initialPosition.y,
+        this.camera.initialPosition.z
+      );
+
+      // Enemies
       this.enemies.forEach((enemy) => enemy.destroy());
       this.crazyEnemies.forEach((crazyEnemy) => crazyEnemy.destroy());
       this.trashCans.forEach((trashCan) => (trashCan.isOnFire = false));
@@ -134,14 +135,7 @@ export default class World {
     });
 
     // Camera sensors
-    this.cameraSensors.forEach((sensor) => {
-      sensor.update(() => {
-        if (sensor.isIntersectingTarget) {
-          this.camera.changePositionY(sensor.positionData.y);
-          return;
-        }
-      });
-    });
+    GameUtils.updateCameraSensors(this.camera, this.cameraSensors);
 
     // Ladder top detection
     this.player.isTouching.ladderTop = GameUtils.isObjectTouchingAnySensor(

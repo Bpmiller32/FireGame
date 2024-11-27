@@ -733,5 +733,43 @@
         "type": "cameraSensor",
         "value0": 28,
         "value1": 0
+    },
+    "PlayerStart": {
+        "width": 2.0,
+        "height": 2.0,
+        "depth": 4.0,
+        "position": [
+            -5.0,
+            0.0,
+            10.313028335571289
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "playerStart",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "CameraStart": {
+        "width": 2.0,
+        "height": 2.0,
+        "depth": 4.0,
+        "position": [
+            -5.0,
+            100.0,
+            21.0
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "cameraStart",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
     }
 }

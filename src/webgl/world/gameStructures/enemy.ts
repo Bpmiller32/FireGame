@@ -169,7 +169,8 @@ export default class Enemy extends GameObject {
           this.currentFloor == player.currentFloor &&
           player.state != PlayerStates.CLIMBING
         ) {
-          this.performSpecialRoll = false;
+          // this.performSpecialRoll = false;
+          this.performSpecialRoll = GameUtils.calculatePercentChance(0.1);
         }
 
         // Override: if the trashCan is not yet on fire, always special roll

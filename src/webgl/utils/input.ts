@@ -2,6 +2,7 @@
 /*                    Used to handle keyboard input events                    */
 /* -------------------------------------------------------------------------- */
 
+import Emitter from "./eventEmitter";
 import Key from "./types/key";
 
 export default class Input {
@@ -24,8 +25,14 @@ export default class Input {
   public is2KeyPressed: boolean;
 
   public isTildePressed: boolean;
+  public isF1Pressed: boolean;
+  public isF2Pressed: boolean;
+  public isF3Pressed: boolean;
+  public isF4Pressed: boolean;
+  public isF5Pressed: boolean;
 
   private keys: Key[];
+  private keyPressStates: Map<string, boolean>;
 
   constructor() {
     this.isLeftKeyPressed = false;
@@ -47,6 +54,11 @@ export default class Input {
     this.is2KeyPressed = false;
 
     this.isTildePressed = false;
+    this.isF1Pressed = false;
+    this.isF2Pressed = false;
+    this.isF3Pressed = false;
+    this.isF4Pressed = false;
+    this.isF5Pressed = false;
 
     this.keys = [
       {
@@ -139,7 +151,47 @@ export default class Input {
           this.isTildePressed = eventResult;
         },
       },
+      // Function Keys
+      {
+        keyCode: "F1",
+        isPressed: (eventResult: boolean) => {
+          this.isF1Pressed = eventResult;
+          this.handleSinglePress("F1", eventResult, () => {
+            Emitter.emit("gameReset");
+          });
+        },
+      },
+      {
+        keyCode: "F2",
+        isPressed: (eventResult: boolean) => {
+          this.isF2Pressed = eventResult;
+          this.handleSinglePress("F2", eventResult, () => {
+            Emitter.emit("switchLevel");
+          });
+        },
+      },
+      {
+        keyCode: "F3",
+        isPressed: (eventResult: boolean) => {
+          this.isF3Pressed = eventResult;
+        },
+      },
+      {
+        keyCode: "F4",
+        isPressed: (eventResult: boolean) => {
+          this.isF4Pressed = eventResult;
+        },
+      },
+      {
+        keyCode: "F5",
+        isPressed: (eventResult: boolean) => {
+          this.isF5Pressed = eventResult;
+        },
+      },
     ];
+
+    // KeyPressStates to track if key has already run
+    this.keyPressStates = new Map();
 
     // Event listeners
     window.addEventListener(
@@ -156,6 +208,24 @@ export default class Input {
       },
       false
     );
+  }
+
+  // Handle firing a potential function but only once
+  private handleSinglePress(
+    key: string,
+    eventResult: boolean,
+    callback: () => void
+  ) {
+    if (eventResult) {
+      // On key press check if key is in map, add and run callback
+      if (!this.keyPressStates.get(key)) {
+        this.keyPressStates.set(key, true);
+        callback();
+      }
+    } else {
+      // On key release
+      this.keyPressStates.set(key, false);
+    }
   }
 
   private onKeyDown(keyName: string) {

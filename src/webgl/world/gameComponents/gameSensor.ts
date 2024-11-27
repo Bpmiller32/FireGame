@@ -19,6 +19,8 @@ export default class GameSensor {
   public isIntersectingTarget: boolean;
   public positionData: THREE.Vector3;
 
+  public isBeingDestroyed: boolean;
+
   constructor(
     name: string = "GameSensor",
     gameObjectType: string,
@@ -29,6 +31,8 @@ export default class GameSensor {
   ) {
     this.experience = Experience.getInstance();
     this.physics = this.experience.physics;
+
+    this.isBeingDestroyed = false;
 
     this.initialSize = new RAPIER.Vector2(0, 0);
     this.initalPosition = new RAPIER.Vector2(0, 0);
@@ -125,6 +129,11 @@ export default class GameSensor {
   }
 
   public update(callback?: () => void) {
+    // Exit early if object is destroyed
+    if (this.isBeingDestroyed) {
+      return;
+    }
+
     // Check that targetPhysicsBody first exists, and then check if they are intersecting
     if (
       this.targetPhysicsBody &&
@@ -154,5 +163,8 @@ export default class GameSensor {
       // Part of fix to defer destruction
       this.physicsBody = undefined;
     }
+
+    // Flag that object is being destroyed to avoid out of sync RAPIER calls -> errors
+    this.isBeingDestroyed = true;
   }
 }

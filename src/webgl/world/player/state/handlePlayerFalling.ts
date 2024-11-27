@@ -42,9 +42,18 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                            Handle Falling state                            */
   /* -------------------------------------------------------------------------- */
-  // Give buffer jump
-  if (player.groundWithinBufferRange && !player.input.isJump()) {
-    player.bufferJumpAvailable = true;
+  // Check if ground is within buffer range
+  if (player.groundWithinBufferRange) {
+    // Return collider to initial size
+    player.changeColliderSize({
+      width: player.initialSize.x,
+      height: player.initialSize.y,
+    });
+
+    // Give buffer jump
+    if (!player.input.isJump()) {
+      player.bufferJumpAvailable = true;
+    }
   }
 
   // Count buffer jumps

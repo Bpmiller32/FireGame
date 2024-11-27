@@ -13,12 +13,18 @@ import TrashCan from "../gameStructures/trashCan";
 import Emitter from "../../utils/eventEmitter";
 import CrazyEnemy from "../gameStructures/crazyEnemy";
 import Time from "../../utils/time";
+import Camera from "../../camera";
+import setCelesteAttributes from "../player/attributes/setCelesteAttributes";
+import setDkAttributes from "../player/attributes/setDkAttributes";
 
 export default class GameDirector {
   private experience: Experience;
   private world: World;
   private time: Time;
+  private camera: Camera;
   private player: Player;
+
+  private playerHasBeenSpawned!: boolean;
 
   private levelData!: LevelData;
 
@@ -33,6 +39,7 @@ export default class GameDirector {
     this.experience = Experience.getInstance();
     this.world = this.experience.world;
     this.time = this.experience.time;
+    this.camera = this.experience.camera;
     this.player = this.world.player!;
 
     this.initializeAttributes();
@@ -61,9 +68,31 @@ export default class GameDirector {
       this.spawnInterval = 0;
       this.enemyCount = 0;
 
+      clearInterval(this.spawningInterval);
+
       this.spawningInterval = setInterval(() => {
         this.spawnEnemiesWithLogic();
       }, 16);
+    });
+
+    Emitter.on("switchLevel", () => {
+      clearInterval(this.spawnInterval);
+      this.unloadLevelData();
+
+      let nextLevel: LevelData = BlenderExport;
+      if (this.levelData === BlenderExport) {
+        nextLevel = TestLevel;
+      }
+
+      this.loadLevelData(nextLevel, () => {
+        if (nextLevel === TestLevel) {
+          this.camera.setCameraFollow(true);
+          setCelesteAttributes(this.player);
+        } else {
+          this.camera.setCameraFollow(false);
+          setDkAttributes(this.player);
+        }
+      });
     });
   }
 
@@ -71,8 +100,10 @@ export default class GameDirector {
     // Set default level to load
     this.levelData = TestLevel;
 
+    this.playerHasBeenSpawned = false;
     this.isSpawningEnemies = false;
 
+    // Id for setInterval, used to clear interval
     this.spawningInterval = 0;
     // Tracks time since last spawn
     this.timeSinceLastSpawn = 0;
@@ -84,13 +115,20 @@ export default class GameDirector {
     this.enemyCount = 0;
   }
 
-  private importCameraSensors() {
-    for (const [_, value] of Object.entries(this.levelData)) {
-      if (value.type != "cameraSensor") {
-        continue;
+  private importLevelObjects(
+    gameObjectType: string,
+    callback: (value: any) => void
+  ) {
+    for (const value of Object.values(this.levelData)) {
+      if (value.type === gameObjectType) {
+        callback(value);
       }
+    }
+  }
 
-      const cameraSensor = new GameSensor(
+  private importCameraSensors() {
+    this.importLevelObjects("CameraSensor", (value) => {
+      const sensor = new GameSensor(
         "CameraSensor",
         GameObjectType.CUBE,
         { width: value.width, height: value.depth },
@@ -98,19 +136,15 @@ export default class GameDirector {
         -value.rotation[1]
       );
 
-      cameraSensor.setIntersectingTarget(this.player.physicsBody!);
-      cameraSensor.setPositionData(new THREE.Vector3(0, value.value0, 0));
+      sensor.setIntersectingTarget(this.player.physicsBody!);
+      sensor.setPositionData(new THREE.Vector3(0, value.value0, 0));
 
-      this.world.cameraSensors.push(cameraSensor);
-    }
+      this.world.cameraSensors.push(sensor);
+    });
   }
 
   private importWalls() {
-    for (const [_, value] of Object.entries(this.levelData)) {
-      if (value.type != "wall") {
-        continue;
-      }
-
+    this.importLevelObjects("Wall", (value) => {
       const wall = new Platform(
         {
           width: value.width,
@@ -125,138 +159,77 @@ export default class GameDirector {
       wall.setObjectName("Wall");
 
       this.world.walls.push(wall);
-    }
+    });
   }
 
   private importPlatforms() {
-    // Normal Platforms
-    for (const [_, value] of Object.entries(this.levelData)) {
-      if (value.type != "platform") {
-        continue;
-      }
+    const platformTypes = ["Platform", "OneWayPlatform"];
 
-      const platform = new Platform(
-        {
-          width: value.width,
-          height: value.depth,
-          depth: value.height,
-        },
-        { x: value.position[0], y: value.position[2] },
-        -value.rotation[1],
-        false
-      );
+    platformTypes.forEach((type) =>
+      this.importLevelObjects(type, (value) => {
+        const platform = new Platform(
+          { width: value.width, height: value.depth, depth: value.height },
+          { x: value.position[0], y: value.position[2] },
+          -value.rotation[1],
+          type === "OneWayPlatform"
+        );
 
-      // Used to check what floor the player is touching
-      platform.setObjectValue0(value.value0);
-      // Used to check if the platform is an edge platform, useful for gamefeel and coyoteJump
-      platform.setEdgePlatform(value.value1);
+        // Used to check what floor the player is touching
+        platform.setObjectValue0(value.value0);
 
-      this.world.platforms.push(platform);
-    }
+        // Used to check if the platform is an edge platform, useful for gamefeel and coyoteJump
+        platform.setEdgePlatform(value.value1);
 
-    // OneWayPlatforms
-    for (const [_, value] of Object.entries(this.levelData)) {
-      if (value.type != "oneWayPlatform") {
-        continue;
-      }
-
-      const oneWayPlatform = new Platform(
-        {
-          width: value.width,
-          height: value.depth,
-          depth: value.height,
-        },
-        { x: value.position[0], y: value.position[2] },
-        -value.rotation[1],
-        true
-      );
-
-      // Used to check what floor the player is touching
-      oneWayPlatform.setObjectValue0(value.value0);
-      // Used to check if the platform is an edge platform, useful for gamefeel and coyoteJump
-      oneWayPlatform.setEdgePlatform(value.value1);
-
-      this.world.platforms.push(oneWayPlatform);
-    }
+        this.world.platforms.push(platform);
+      })
+    );
   }
 
   private importTrashCans() {
-    for (const [_, value] of Object.entries(this.levelData)) {
-      if (value.type != "trashCan") {
-        continue;
-      }
-
+    this.importLevelObjects("TrashCan", (value) => {
       const trashCan = new TrashCan(
         { width: value.width, height: value.depth, depth: value.height },
         { x: value.position[0], y: value.position[2] },
         -value.rotation[1]
       );
 
+      trashCan.setObjectName("Wall");
+
       this.world.trashCans.push(trashCan);
-    }
+    });
   }
 
-  private importLadderTopSensors() {
-    for (const [_, value] of Object.entries(this.levelData)) {
-      if (value.type != "ladderTopSensor") {
-        continue;
-      }
+  private importLadderSensors() {
+    const ladderSensorTypes = [
+      "LadderTopSensor",
+      "LadderCoreSensor",
+      "LadderBottomSensor",
+    ];
 
-      const ladderTopSensor = new GameSensor(
-        "LadderTopSensor",
-        GameObjectType.CUBE,
-        { width: value.width, height: value.depth },
-        { x: value.position[0], y: value.position[2] },
-        -value.rotation[1],
-        value.value0
-      );
+    ladderSensorTypes.forEach((type) => {
+      console.log(type);
 
-      ladderTopSensor.setIntersectingTarget(this.player.physicsBody!);
+      this.importLevelObjects(type, (value) => {
+        const ladderSensor = new GameSensor(
+          type,
+          GameObjectType.CUBE,
+          { width: value.width, height: value.depth },
+          { x: value.position[0], y: value.position[2] },
+          -value.rotation[1],
+          value.value0
+        );
 
-      this.world.ladderTopSensors.push(ladderTopSensor);
-    }
-  }
+        ladderSensor.setIntersectingTarget(this.player.physicsBody!);
 
-  private importLadderCoreSensors() {
-    for (const [_, value] of Object.entries(this.levelData)) {
-      if (value.type != "ladderCoreSensor") {
-        continue;
-      }
-
-      const ladderCoreSensor = new GameSensor(
-        "LadderCoreSensor",
-        GameObjectType.CUBE,
-        { width: value.width, height: value.depth },
-        { x: value.position[0], y: value.position[2] },
-        -value.rotation[1],
-        value.value0
-      );
-
-      ladderCoreSensor.setIntersectingTarget(this.player.physicsBody!);
-
-      this.world.ladderCoreSensors.push(ladderCoreSensor);
-    }
-  }
-
-  private importLadderBottomSensors() {
-    for (const [_, value] of Object.entries(this.levelData)) {
-      if (value.type != "ladderBottomSensor") {
-        continue;
-      }
-
-      const ladderBottomSensor = new GameSensor(
-        "LadderBottomSensor",
-        GameObjectType.CUBE,
-        { width: value.width, height: value.depth },
-        { x: value.position[0], y: value.position[2] },
-        -value.rotation[1],
-        value.value0
-      );
-
-      ladderBottomSensor.setIntersectingTarget(this.player.physicsBody!);
-
-      this.world.ladderBottomSensors.push(ladderBottomSensor);
-    }
+        if (type == "LadderTopSensor") {
+          this.world.ladderTopSensors.push(ladderSensor);
+        } else if (type == "LadderCoreSensor") {
+          this.world.ladderCoreSensors.push(ladderSensor);
+        } else if (type == "LadderBottomSensor") {
+          this.world.ladderBottomSensors.push(ladderSensor);
+        }
+      });
+    });
   }
 
   private importTeleporters() {
@@ -264,35 +237,100 @@ export default class GameDirector {
     }
   }
 
-  public loadLevelData(levelName?: string) {
-    if (levelName && levelName == "blenderExport") {
+  private setPlayerStart() {
+    for (const value of Object.values(this.levelData)) {
+      if (value.type !== "PlayerStart") continue;
+
+      const [x, , z] = value.position;
+
+      if (this.playerHasBeenSpawned) {
+        // Teleport existing player if already spawned
+        this.player.teleportToPosition(x, z);
+        return;
+      }
+
+      // Create a new player if not yet spawned
+      this.world.player = new Player({ width: 1.75, height: 4 }, { x, y: z });
+      this.player = this.world.player;
+      this.playerHasBeenSpawned = true;
+
+      // Exit loop once player is set
+      return;
+    }
+  }
+
+  private setCameraStart() {
+    for (const value of Object.values(this.levelData)) {
+      if (value.type !== "CameraStart") continue;
+
+      const [x, y, z] = value.position;
+      this.camera.teleportToPosition(x, z, y);
+    }
+  }
+
+  public loadLevelData(levelData?: LevelData, callback?: () => void) {
+    // Set level json data to parse through
+    if (levelData) {
+      this.levelData = levelData;
+    } else {
+      // Default level to load
       this.levelData = BlenderExport;
     }
+
+    // Set player attributes if included
+    if (callback) {
+      callback();
+    }
+
+    // Must load player first to avoid problems with setting sensorTargets
+    this.setPlayerStart();
+    this.setCameraStart();
 
     this.importCameraSensors();
     this.importWalls();
     this.importPlatforms();
+    this.importLadderSensors();
     this.importTrashCans();
-
-    this.importLadderTopSensors();
-    this.importLadderCoreSensors();
-    this.importLadderBottomSensors();
   }
 
-  public spawnEnemy() {
+  public unloadLevelData() {
+    const destroyEntities = (entities: any[]) =>
+      entities.forEach((entity) => entity.destroy());
+
+    // Enemies and trashcans
+    destroyEntities(this.world.enemies);
+    destroyEntities(this.world.crazyEnemies);
+    destroyEntities(this.world.trashCans);
+
+    // Camera sensors
+    destroyEntities(this.world.cameraSensors);
+
+    // Ladders
+    destroyEntities(this.world.ladderTopSensors);
+    destroyEntities(this.world.ladderCoreSensors);
+    destroyEntities(this.world.ladderBottomSensors);
+
+    // Walls and platforms
+    destroyEntities(this.world.walls);
+    destroyEntities(this.world.platforms);
+  }
+
+  public spawnEnemy(position: { x: number; y: number } = { x: -15, y: 50 }) {
     this.world.enemies.push(
       new Enemy(1, {
-        x: -15,
-        y: 50,
+        x: position.x,
+        y: position.y,
       })
     );
   }
 
-  public spawnCrazyEnemy() {
+  public spawnCrazyEnemy(
+    position: { x: number; y: number } = { x: -15, y: 50 }
+  ) {
     this.world.crazyEnemies.push(
       new CrazyEnemy(1, {
-        x: -15,
-        y: 50,
+        x: position.x,
+        y: position.y,
       })
     );
   }
@@ -313,7 +351,7 @@ export default class GameDirector {
     ) {
       this.spawnCrazyEnemy(); // Spawn the first crazyEnemy
       this.timeSinceLastSpawn = 0;
-      this.spawnInterval = Math.random() * (3 - 2) + 2; // Random delay between 2 and 3 seconds
+      this.spawnInterval = Math.random() * (4 - 3) + 3; // Random delay between 3 and 4 seconds
       return;
     }
 
@@ -337,5 +375,14 @@ export default class GameDirector {
     }
   }
 
-  public destroy() {}
+  public destroy() {
+    // Events
+    Emitter.off("gameStart");
+    Emitter.off("gameOver");
+    Emitter.off("gameReset");
+    Emitter.off("switchLevel");
+
+    // Level data
+    this.unloadLevelData();
+  }
 }

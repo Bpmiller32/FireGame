@@ -19,6 +19,14 @@ onMounted(async () => {
 
     isResetButtonVisible.value = true;
   });
+
+  Emitter.on("gameReset", () => {
+    if (statusRef.value) {
+      statusRef.value.innerText = "";
+    }
+
+    isResetButtonVisible.value = false;
+  });
 });
 
 const handleButtonClicked = () => {

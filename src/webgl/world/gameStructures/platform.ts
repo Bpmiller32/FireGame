@@ -56,10 +56,13 @@ export default class Platform extends GameObject {
       return;
     }
 
+    // TODO: remove after test
+    // player.physicsBody?.collider(0));
+
     if (
       player &&
       this.isOneWayPlatform &&
-      player.currentTranslation.y - player.initalSize.y / 2 >
+      player.currentTranslation.y - player.currentSize.y / 2 >
         this.currentTranslation.y
     ) {
       GameUtils.getDataFromPhysicsBody(

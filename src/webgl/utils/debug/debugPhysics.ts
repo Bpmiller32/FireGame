@@ -17,7 +17,7 @@ export const debugPhysics = (physics: Physics, debug: Debug) => {
 
   // Debug gui
   const worldDebug = debug.ui?.addFolder("worldDebug");
-  // worldDebug?.open();
+  worldDebug?.open();
   worldDebug
     ?.add(physics, "renderObjectCount")
     .name("# of render entities")
