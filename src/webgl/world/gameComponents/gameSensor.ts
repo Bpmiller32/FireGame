@@ -1,52 +1,18 @@
-import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
-import Experience from "../../experience";
-import Physics from "../../physics";
-import GameObjectType from "../../utils/types/gameObjectType";
-import UserData from "../../utils/types/userData";
 import Emitter from "../../utils/eventEmitter";
 import GameUtils from "../../utils/gameUtils";
+import GameObject from "./gameObject";
 
-export default class GameSensor {
-  protected experience: Experience;
-  protected physics: Physics;
-
-  public initialSize: RAPIER.Vector2;
-  public initalPosition: RAPIER.Vector2;
-
-  public physicsBody?: RAPIER.RigidBody;
+export default class GameSensor extends GameObject {
   public targetPhysicsBody?: RAPIER.RigidBody;
   public isIntersectingTarget: boolean;
-  public positionData: THREE.Vector3;
+  public isTargetFullyInside: boolean;
 
-  public isBeingDestroyed: boolean;
+  constructor() {
+    super();
 
-  constructor(
-    name: string = "GameSensor",
-    gameObjectType: string,
-    size: { width: number; height: number },
-    position: { x: number; y: number },
-    rotation: number,
-    value?: number
-  ) {
-    this.experience = Experience.getInstance();
-    this.physics = this.experience.physics;
-
-    this.isBeingDestroyed = false;
-
-    this.initialSize = new RAPIER.Vector2(0, 0);
-    this.initalPosition = new RAPIER.Vector2(0, 0);
     this.isIntersectingTarget = false;
-    this.positionData = new THREE.Vector3(0, 0, 0);
-
-    this.createSensorPhysics(
-      name,
-      gameObjectType,
-      size,
-      position,
-      rotation,
-      value
-    );
+    this.isTargetFullyInside = false;
 
     // Remove targetPhysicsBody if it was destroyed
     Emitter.on("gameObjectRemoved", (removedGameObject) => {
@@ -59,87 +25,32 @@ export default class GameSensor {
     });
   }
 
-  // Combines setMesh and setPhysics, hopefully less ambiguous with gameObjectType
-  private createSensorPhysics(
-    name: string,
-    gameObjectType: string,
-    size: { width: number; height: number },
-    position: { x: number; y: number },
-    rotation: number,
-    value?: number
-  ) {
-    let physicsShape;
-
-    switch (gameObjectType) {
-      case GameObjectType.CUBE:
-        physicsShape = RAPIER.ColliderDesc.cuboid(
-          size.width / 2,
-          size.height / 2
-        )
-          .setSensor(true)
-          .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED);
-        break;
-      case GameObjectType.SPHERE:
-        physicsShape = RAPIER.ColliderDesc.ball(size.width)
-          .setSensor(true)
-          .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED);
-        break;
-
-      // Sensor can't be a Sprite or Map_Structure
-      default:
-        physicsShape = RAPIER.ColliderDesc.cuboid(
-          size.width / 2,
-          size.height / 2
-        )
-          .setSensor(true)
-          .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED);
-        break;
-    }
-
-    // Set inital size so I don't have to look for it in physicsBody.collider.shape.halfExtents later
-    this.initialSize = new RAPIER.Vector2(size.width, size.height);
-    this.initalPosition = new RAPIER.Vector2(position.x, position.y);
-
-    // Create physicsBody/rigidBody, set type, position, rotation (in radians), userdata,
-    this.physicsBody = this.physics.world.createRigidBody(
-      RAPIER.RigidBodyDesc.fixed()
-    );
-
-    this.physicsBody.setTranslation({ x: position.x, y: position.y }, true);
-
-    this.physicsBody.setRotation(rotation, true);
-
-    this.physicsBody.userData = {
-      name: name,
-      gameEntityType: this.constructor.name,
-      value0: value,
-    } as UserData;
-
-    // Create and attach collider to physicsBody/rigidbody
-    this.physics.world.createCollider(physicsShape!, this.physicsBody);
+  protected setAsSensor(value: boolean) {
+    this.physicsBody?.collider(0).setSensor(value);
+    this.physicsBody
+      ?.collider(0)
+      .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED);
   }
 
-  public setIntersectingTarget(target: RAPIER.RigidBody) {
+  public setIntersectingTarget<T extends GameObject>(target: T) {
     this.isIntersectingTarget = false;
-    this.targetPhysicsBody = target;
+    this.targetPhysicsBody = target.physicsBody;
   }
 
-  public setPositionData(newPositionData: THREE.Vector3) {
-    this.positionData = newPositionData;
-  }
-
-  public update(callback?: () => void) {
-    // Exit early if object is destroyed
-    if (this.isBeingDestroyed) {
+  public targetIntersectionCheck() {
+    // Exit early if object is destroyed, physicsBodies not ready or set
+    if (
+      this.isBeingDestroyed ||
+      !this.physicsBody?.collider(0) ||
+      !this.targetPhysicsBody?.collider(0)
+    ) {
       return;
     }
 
-    // Check that targetPhysicsBody first exists, and then check if they are intersecting
+    // Check if intersecting with target
     if (
-      this.targetPhysicsBody &&
-      this.targetPhysicsBody.collider(0) &&
       this.physics.world.intersectionPair(
-        this.physicsBody!.collider(0),
+        this.physicsBody.collider(0),
         this.targetPhysicsBody.collider(0)
       )
     ) {
@@ -147,24 +58,91 @@ export default class GameSensor {
     } else {
       this.isIntersectingTarget = false;
     }
+  }
 
-    // If a callback is provided, invoke it
-    if (callback) {
-      callback();
+  public targetFullyInsideIntersectionCheck<T extends GameObject>(
+    gameObject: T
+  ) {
+    // Exit early if object is destroyed, physicsBodies not ready or set
+    if (
+      this.isBeingDestroyed ||
+      !this.physicsBody?.collider(0) ||
+      !this.targetPhysicsBody?.collider(0)
+    ) {
+      return;
+    }
+
+    this.targetIntersectionCheck();
+
+    this.isTargetFullyInside = false;
+
+    const sensorMinX = this.currentTranslation.x - this.currentSize.x / 2;
+    const sensorMaxX = this.currentTranslation.x + this.currentSize.x / 2;
+
+    const objectMinX =
+      gameObject.currentTranslation.x - gameObject.currentSize.x / 2;
+    const objectMaxX =
+      gameObject.currentTranslation.x + gameObject.currentSize.x / 2;
+
+    if (objectMinX > sensorMinX && objectMaxX < sensorMaxX) {
+      this.isTargetFullyInside = true;
     }
   }
 
-  public destroy() {
-    // Remove physics body and collider from the physics world
-    if (this.physicsBody) {
-      this.physics.world.removeCollider(this.physicsBody.collider(0), true);
-      this.physics.world.removeRigidBody(this.physicsBody);
-
-      // Part of fix to defer destruction
-      this.physicsBody = undefined;
+  public anyIntersectionCheck() {
+    // Exit early if object is destroyed, physicsBodies not ready or set
+    if (this.isBeingDestroyed || !this.physicsBody?.collider(0)) {
+      return;
     }
 
-    // Flag that object is being destroyed to avoid out of sync RAPIER calls -> errors
-    this.isBeingDestroyed = true;
+    this.isIntersectingTarget = false;
+    let foundCollider: RAPIER.Collider | undefined;
+
+    this.physics.world.intersectionPairsWith(
+      this.physicsBody.collider(0),
+      (otherCollider) => {
+        this.isIntersectingTarget = true;
+
+        // Early exit: return the first collider found
+        foundCollider = otherCollider;
+      }
+    );
+
+    return foundCollider;
+  }
+
+  public anyIntersectionFullyInside() {
+    // Exit early if object is destroyed, physicsBodies not ready or set
+    if (this.isBeingDestroyed || !this.physicsBody?.collider(0)) {
+      return;
+    }
+
+    this.anyIntersectionCheck();
+
+    this.isTargetFullyInside = false;
+    let foundCollider: RAPIER.Collider | undefined;
+
+    this.physics.world.intersectionPairsWith(
+      this.physicsBody.collider(0),
+      (otherCollider) => {
+        const sensorMinX = this.currentTranslation.x - this.currentSize.x / 2;
+        const sensorMaxX = this.currentTranslation.x + this.currentSize.x / 2;
+
+        const colliderMinX =
+          otherCollider.translation().x -
+          (otherCollider.shape as RAPIER.Cuboid).halfExtents.x;
+        const colliderMaxX =
+          otherCollider.translation().x +
+          (otherCollider.shape as RAPIER.Cuboid).halfExtents.x;
+
+        if (colliderMinX > sensorMinX && colliderMaxX < sensorMaxX) {
+          this.isTargetFullyInside = true;
+          foundCollider = otherCollider;
+          return;
+        }
+      }
+    );
+
+    return foundCollider;
   }
 }

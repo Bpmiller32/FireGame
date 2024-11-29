@@ -21,6 +21,9 @@ const handlePlayerFalling = (player: Player) => {
 
     // Reset gating mechanism for counting buffer jumps
     player.wasBufferJumpUsed = false;
+
+    // Reset gating mechanism for changing collider size
+    player.hasColliderUpdated = false;
     return;
   }
 
@@ -30,6 +33,9 @@ const handlePlayerFalling = (player: Player) => {
     player.coyoteAvailable &&
     player.time.elapsed < player.timeFallWasEntered + player.coyoteTime
   ) {
+    // Reset gating mechanism for changing collider size
+    player.hasColliderUpdated = false;
+
     player.coyoteCount += 1;
 
     player.nextTranslation.y = 0;
@@ -44,11 +50,15 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Check if ground is within buffer range
   if (player.groundWithinBufferRange) {
-    // Return collider to initial size
-    player.changeColliderSize({
-      width: player.initialSize.x,
-      height: player.initialSize.y,
-    });
+    // Return collider to initial size, gate to only do this once instead of creating multiple colliders per tick in this state
+    if (!player.hasColliderUpdated) {
+      player.hasColliderUpdated = true;
+
+      player.changeColliderSize({
+        width: player.initialSize.x,
+        height: player.initialSize.y,
+      });
+    }
 
     // Give buffer jump
     if (!player.input.isJump()) {

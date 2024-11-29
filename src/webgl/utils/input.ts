@@ -174,6 +174,9 @@ export default class Input {
         keyCode: "F3",
         isPressed: (eventResult: boolean) => {
           this.isF3Pressed = eventResult;
+          this.handleSinglePress("F3", eventResult, () => {
+            Emitter.emit("manualCameraControl");
+          });
         },
       },
       {

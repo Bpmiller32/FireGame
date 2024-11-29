@@ -11,6 +11,7 @@ import Player from "./world/player/player";
 import { debugCamera, debugCameraUpdate } from "./utils/debug/debugCamera";
 import Input from "./utils/input";
 import Time from "./utils/time";
+import Emitter from "./utils/eventEmitter";
 
 export default class Camera {
   private experience: Experience;
@@ -31,6 +32,7 @@ export default class Camera {
   private xLookahead!: number;
   private lerpTimings!: THREE.Vector3;
 
+  public manualControl: boolean;
   public lastToggleTime: number;
   public instance: THREE.Camera;
   public cameraType!: string;
@@ -54,6 +56,7 @@ export default class Camera {
     // Default use the perspective camera
     this.instance = this.perspectiveCamera;
     this.cameraType = "perspective";
+    this.manualControl = false;
     this.lastToggleTime = 0;
     this.aspectRatio = this.sizes.width / this.sizes.height;
 
@@ -64,6 +67,11 @@ export default class Camera {
       this.debug = this.experience.debug;
       debugCamera(this, this.debug);
     }
+
+    // Events
+    Emitter.on("manualCameraControl", () => {
+      this.manualControl = !this.manualControl;
+    });
   }
 
   private initalizePerspectiveInstance() {
@@ -184,7 +192,12 @@ export default class Camera {
     // Run debug camera logic if needed
     if (this.debug) {
       debugCameraUpdate(this);
-      return;
+
+      if (!this.manualControl) {
+        this.perspectiveCamera.rotation.y = 0;
+      } else {
+        return;
+      }
     }
 
     // Update the targetPosition based on player location

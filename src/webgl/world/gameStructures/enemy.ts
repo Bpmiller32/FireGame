@@ -29,6 +29,7 @@ export default class Enemy extends GameObject {
     rotation: number = 0
   ) {
     super();
+
     this.createObjectPhysics(
       "Enemy",
       GameObjectType.SPHERE,
@@ -73,7 +74,7 @@ export default class Enemy extends GameObject {
       (otherCollider) => {
         // Check for collision with trashcan, destroy object
         if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
-          // Remove through event not directly to be consistent with GameDirector's purpose and defering destroy, saves a 2nd loop through collision check
+          // Remove through event not directly, helps remove targets from GameSensors
           Emitter.emit("gameObjectRemoved", this);
 
           // Light the trash can on fire
@@ -186,7 +187,7 @@ export default class Enemy extends GameObject {
     if (this.performSpecialRoll) {
       if (this.ladderSensorValue > 0) {
         this.direction = 1;
-      } else {
+      } else if (this.ladderSensorValue < 0) {
         this.direction = -1;
       }
     }

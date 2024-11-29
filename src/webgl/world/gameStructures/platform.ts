@@ -14,6 +14,7 @@ export default class Platform extends GameObject {
     isOneWayPlatform: boolean = false
   ) {
     super();
+
     this.createObjectPhysics(
       "Platform",
       GameObjectType.CUBE,
@@ -55,9 +56,6 @@ export default class Platform extends GameObject {
     if (!this.isOneWayPlatform) {
       return;
     }
-
-    // TODO: remove after test
-    // player.physicsBody?.collider(0));
 
     if (
       player &&

@@ -6,7 +6,6 @@ import Emitter from "../../utils/eventEmitter.ts";
 import Experience from "../../experience.ts";
 import Player from "../player/player.ts";
 import Camera from "../../camera.ts";
-import GameSensor from "../gameComponents/gameSensor.ts";
 import GameDirector from "../gameComponents/gameDirector.ts";
 import Platform from "../gameStructures/platform.ts";
 import Enemy from "../gameStructures/enemy.ts";
@@ -14,6 +13,9 @@ import GameUtils from "../../utils/gameUtils.ts";
 import TrashCan from "../gameStructures/trashCan.ts";
 import CrazyEnemy from "../gameStructures/crazyEnemy.ts";
 import BlenderExport from "./blenderExport.json";
+import CameraSensor from "../gameStructures/cameraSensor.ts";
+import LadderSensor from "../gameStructures/ladderSensor.ts";
+import Teleporter from "../gameStructures/teleporter.ts";
 
 export default class World {
   private experience: Experience;
@@ -23,20 +25,20 @@ export default class World {
   public gameDirector?: GameDirector;
 
   public player!: Player;
-  public cameraSensors: GameSensor[];
+  public cameraSensors: CameraSensor[];
 
   public enemies: Enemy[];
   public crazyEnemies: CrazyEnemy[];
 
   public trashCans: TrashCan[];
-  public teleporters: GameSensor[];
+  public teleporters: Teleporter[];
 
   public platforms: Platform[];
   public walls: Platform[];
 
-  public ladderCoreSensors: GameSensor[];
-  public ladderTopSensors: GameSensor[];
-  public ladderBottomSensors: GameSensor[];
+  public ladderCoreSensors: LadderSensor[];
+  public ladderTopSensors: LadderSensor[];
+  public ladderBottomSensors: LadderSensor[];
 
   constructor() {
     this.experience = Experience.getInstance();
@@ -82,9 +84,11 @@ export default class World {
         this.camera.initialPosition.z
       );
 
-      // Enemies
-      this.enemies.forEach((enemy) => enemy.destroy());
-      this.crazyEnemies.forEach((crazyEnemy) => crazyEnemy.destroy());
+      // Clear enemies, put water on TrashCan
+      this.enemies.forEach((enemy) => Emitter.emit("gameObjectRemoved", enemy));
+      this.crazyEnemies.forEach((crazyEnemy) =>
+        Emitter.emit("gameObjectRemoved", crazyEnemy)
+      );
       this.trashCans.forEach((trashCan) => (trashCan.isOnFire = false));
     });
 
@@ -102,7 +106,7 @@ export default class World {
 
   public update() {
     // Guard against player not ready yet
-    if (!this.player) {
+    if (!this.player || !this.player.physicsBody) {
       return;
     }
 
@@ -123,33 +127,30 @@ export default class World {
     });
 
     // Teleporters
-    this.teleporters.forEach((teleporter) => {});
-
-    // OneWayPlatforms
-    this.platforms.forEach((platform) => {
-      platform.update(this.player);
-
-      if (this.player.state == "climbing") {
-        platform.setOneWayPlatformActive(true);
-      }
+    this.teleporters.forEach((teleporter) => {
+      teleporter.update();
     });
+
+    // Platforms
+    GameUtils.updatePlatforms(this.platforms, this.player);
 
     // Camera sensors
     GameUtils.updateCameraSensors(this.camera, this.cameraSensors);
 
     // Ladder top detection
-    this.player.isTouching.ladderTop = GameUtils.isObjectTouchingAnySensor(
+    this.player.isTouching.ladderTop = GameUtils.isAnySensorTriggered(
       this.ladderTopSensors
     );
 
     // Ladder core detection
-    this.player.isTouching.ladderCore = GameUtils.isObjectFullyInsideAnySensor(
-      this.ladderCoreSensors,
-      this.player
-    );
+    this.player.isTouching.ladderCore =
+      GameUtils.isAnySensorTriggeredObjectFullyInside(
+        this.ladderCoreSensors,
+        this.player
+      );
 
     // Ladder bottom detection
-    this.player.isTouching.ladderBottom = GameUtils.isObjectTouchingAnySensor(
+    this.player.isTouching.ladderBottom = GameUtils.isAnySensorTriggered(
       this.ladderBottomSensors
     );
   }

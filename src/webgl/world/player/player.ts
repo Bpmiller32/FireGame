@@ -38,6 +38,7 @@ export default class Player extends GameObject {
   public characterController!: RAPIER.KinematicCharacterController;
   public colliderOffset!: number;
   public colliderOffsetThreshold!: number;
+  public hasColliderUpdated!: boolean;
   public isTouching!: ContactPoints;
   public currentFloor!: number;
 
@@ -127,6 +128,8 @@ export default class Player extends GameObject {
     this.colliderOffsetThreshold = this.colliderOffset + 0.001;
     this.currentPosition = new RAPIER.Vector2(0, 0);
     this.nextTranslation = new RAPIER.Vector2(0, 0);
+
+    this.hasColliderUpdated = false;
 
     this.currentFloor = 0;
 
@@ -261,6 +264,13 @@ export default class Player extends GameObject {
         this.isTouching.edgePlatform = true;
       } else {
         this.isTouching.edgePlatform = false;
+      }
+
+      // Detected clipping, teleport the character up to resolve it
+      if (this.currentSize.y < this.initialSize.y) {
+        const correctionAmount = this.initialSize.y - this.currentSize.y;
+
+        this.teleportRelative(0, correctionAmount);
       }
     }
 

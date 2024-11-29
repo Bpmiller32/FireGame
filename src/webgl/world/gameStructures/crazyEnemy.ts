@@ -27,6 +27,7 @@ export default class CrazyEnemy extends GameObject {
     rotation: number = 0
   ) {
     super();
+
     this.createObjectPhysics(
       "Enemy",
       GameObjectType.SPHERE,
@@ -74,7 +75,7 @@ export default class CrazyEnemy extends GameObject {
       (otherCollider) => {
         // Check for collision with trashcan, destroy object
         if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
-          // Remove through event not directly to be consistent with GameDirector's purpose and defering destroy, saves a 2nd loop through collision check
+          // Remove through event not directly, helps remove targets from GameSensors
           Emitter.emit("gameObjectRemoved", this);
 
           // Light the trash can on fire

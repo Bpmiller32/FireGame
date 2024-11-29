@@ -27,6 +27,7 @@ type EventMap = {
   gameReset: void;
 
   switchLevel: void;
+  manualCameraControl: void;
 };
 
 // Create an emitter instance

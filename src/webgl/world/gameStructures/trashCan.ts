@@ -10,6 +10,7 @@ export default class TrashCan extends GameObject {
     rotation: number
   ) {
     super();
+
     this.createObjectPhysics(
       "TrashCan",
       GameObjectType.CUBE,

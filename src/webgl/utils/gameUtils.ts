@@ -7,6 +7,9 @@ import UserData from "./types/userData";
 import GameObject from "../world/gameComponents/gameObject";
 import GameSensor from "../world/gameComponents/gameSensor";
 import Camera from "../camera";
+import Platform from "../world/gameStructures/platform";
+import Player from "../world/player/player";
+import CameraSensor from "../world/gameStructures/cameraSensor";
 
 export default class GameUtils {
   // Moves a value current towards target. Current: the current value, target: the value to move towards, maxDelta: the maximum change applied to the current value
@@ -81,87 +84,86 @@ export default class GameUtils {
     return activeObjects;
   }
 
-  // Check if GameObject is fully inside any of the sensors in the given array
-  public static isObjectFullyInsideAnySensor<
+  // Stop looping if any single sensor in the array is tripped and GameObject is fully inside the sensor's collider
+  public static isAnySensorTriggeredObjectFullyInside<
     T extends GameObject,
     U extends GameSensor
-  >(gameSensors: U[], gameObject: T) {
-    let isFullyInsideSensor = false;
+  >(gameSensors: U[], gameObject: T): boolean {
+    for (const sensor of gameSensors) {
+      sensor.targetFullyInsideIntersectionCheck(gameObject);
 
-    gameSensors.forEach((sensor) => {
-      sensor.update(() => {
-        if (
-          sensor.isIntersectingTarget &&
-          gameObject.currentTranslation.x - gameObject.currentSize.x / 2 >
-            sensor.initalPosition.x - sensor.initialSize.x / 2 &&
-          gameObject.currentTranslation.x + gameObject.currentSize.x / 2 <
-            sensor.initalPosition.x + sensor.initialSize.x / 2
-        ) {
-          isFullyInsideSensor = true;
-          return;
-        }
-      });
-    });
+      if (sensor.isIntersectingTarget && sensor.isTargetFullyInside) {
+        return true;
+      }
+    }
 
-    return isFullyInsideSensor;
+    return false;
   }
 
-  // Same as above but for one sensor given it's collider
+  // Same as above but for one sensor given it's collider, same logic as sensor but used for enemy
   public static isObjectFullyInsideSensor<
-    T extends GameObject,
-    U extends RAPIER.Collider
-  >(collider: U, gameObject: T) {
-    if (
-      gameObject.currentTranslation.x - gameObject.currentSize.x / 2 >
-        collider.translation().x -
-          (collider.shape as RAPIER.Cuboid).halfExtents.x &&
-      gameObject.currentTranslation.x + gameObject.currentSize.x / 2 <
-        collider.translation().x +
-          (collider.shape as RAPIER.Cuboid).halfExtents.x
-    ) {
+    T extends RAPIER.Collider,
+    U extends GameObject
+  >(collider: T, gameObject: U): boolean {
+    const objectMinX =
+      gameObject.currentTranslation.x - gameObject.currentSize.x / 2;
+    const objectMaxX =
+      gameObject.currentTranslation.x + gameObject.currentSize.x / 2;
+
+    const colliderMinX =
+      collider.translation().x -
+      (collider.shape as RAPIER.Cuboid).halfExtents.x;
+    const colliderMaxX =
+      collider.translation().x +
+      (collider.shape as RAPIER.Cuboid).halfExtents.x;
+
+    if (objectMinX > colliderMinX && objectMaxX < colliderMaxX) {
       return true;
     } else {
       return false;
     }
   }
 
-  public static isObjectTouchingAnySensor<U extends GameSensor>(
-    gameSensors: U[]
-  ) {
-    let isTouchingSensor = false;
+  // Stop looping if any single sensor in the array is tripped
+  public static isAnySensorTriggered<T extends GameSensor>(gameSensors: T[]) {
+    for (const sensor of gameSensors) {
+      sensor.targetIntersectionCheck();
 
-    gameSensors.forEach((sensor) => {
-      sensor.update(() => {
-        if (sensor.isIntersectingTarget) {
-          isTouchingSensor = true;
-          return;
-        }
-      });
-    });
+      if (sensor.isIntersectingTarget) {
+        // Return immediately if a sensor is intersecting
+        return true;
+      }
+    }
 
-    return isTouchingSensor;
+    // No sensors are intersecting
+    return false;
   }
 
-  public static updateCameraSensors<U extends GameSensor>(
+  // Needed to check all CameraSensors, stop looping if any single sensor is tripped
+  public static updateCameraSensors(
     camera: Camera,
-    gameSensors: U[]
+    cameraSensors: CameraSensor[]
   ) {
-    let isTouchingSensor = false;
-    let value = 0;
+    for (const sensor of cameraSensors) {
+      sensor.update(camera);
 
-    gameSensors.forEach((sensor) => {
-      sensor.update(() => {
-        if (sensor.isIntersectingTarget) {
-          isTouchingSensor = true;
-          value = sensor.positionData.y;
-          return;
-        }
-      });
-    });
-
-    if (isTouchingSensor) {
-      camera.changePositionY(value);
+      if (sensor.isIntersectingTarget) {
+        break;
+      }
     }
+  }
+
+  public static updatePlatforms(platforms: Platform[], player: Player) {
+    // Check once to improve performance
+    const isClimbing = player.state === "climbing";
+
+    platforms.forEach((platform) => {
+      platform.update(player);
+
+      if (isClimbing) {
+        platform.setOneWayPlatformActive(true);
+      }
+    });
   }
 
   public static radiansToDegrees(radians: number): number {

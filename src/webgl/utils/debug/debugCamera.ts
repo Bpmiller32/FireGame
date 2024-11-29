@@ -6,6 +6,7 @@ export const debugCamera = (camera: Camera, debug: Debug) => {
   const cameraDebug = debug.ui?.addFolder("cameraDebug");
   cameraDebug?.open();
   cameraDebug?.add(camera, "cameraType").name("type").listen();
+  cameraDebug?.add(camera, "manualControl").name("manualControl").listen();
   cameraDebug
     ?.add(camera.instance.position, "x")
     .name("xPosition")
