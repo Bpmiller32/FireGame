@@ -38,10 +38,10 @@ export default class CrazyEnemy extends GameObject {
     );
 
     this.initalizeAttributes();
-    this.setCollisionGroup(CollisionGroups.ENEMY);
-    this.setCollisionMask(CollisionGroups.PLAYER);
-
     this.createObjectGraphicsDebug("orange");
+
+    this.setCollisionGroup(CollisionGroups.ENEMY);
+    this.setCollisionMask(CollisionGroups.PLAYER_HIT_BOX);
   }
 
   private initalizeAttributes() {
@@ -86,6 +86,7 @@ export default class CrazyEnemy extends GameObject {
         // Check for collision with player
         if (GameUtils.getDataFromCollider(otherCollider).name == "Player") {
           Emitter.emit("gameOver");
+
           return;
         }
       }

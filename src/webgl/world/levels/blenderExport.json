@@ -2434,11 +2434,11 @@
     "Cube.128": {
         "width": 2.5,
         "height": 2.0,
-        "depth": 2.0,
+        "depth": 2.5,
         "position": [
             -6.769885063171387,
             -2.384185791015625e-07,
-            2.0
+            2.25
         ],
         "rotation": [
             0.0,
@@ -2510,11 +2510,11 @@
     "Cube.150": {
         "width": 2.5,
         "height": 2.0,
-        "depth": 2.0,
+        "depth": 2.5,
         "position": [
             -10.82196044921875,
             8.940696716308594e-08,
-            17.95448112487793
+            18.16584587097168
         ],
         "rotation": [
             0.0,
@@ -2567,11 +2567,11 @@
     "Cube.164": {
         "width": 2.5,
         "height": 2.0,
-        "depth": 2.0,
+        "depth": 2.5,
         "position": [
             15.14988374710083,
             -1.4603137969970703e-06,
-            25.939132690429688
+            26.189132690429688
         ],
         "rotation": [
             0.0,
@@ -2643,11 +2643,11 @@
     "Cube.175": {
         "width": 2.5,
         "height": 2.0,
-        "depth": 2.0,
+        "depth": 2.5,
         "position": [
             -4.0817365646362305,
             -2.8908252716064453e-06,
-            34.762935638427734
+            35.01293182373047
         ],
         "rotation": [
             0.0,
@@ -3558,7 +3558,7 @@
         "depth": 16.0,
         "position": [
             18.15362548828125,
-            0.75,
+            1.0,
             26.21921157836914
         ],
         "rotation": [
@@ -3577,7 +3577,7 @@
         "depth": 9.5,
         "position": [
             -17.8183536529541,
-            0.75,
+            1.0,
             20.705413818359375
         ],
         "rotation": [
@@ -3596,7 +3596,7 @@
         "depth": 14.0,
         "position": [
             -16.8183536529541,
-            0.75,
+            1.0,
             32.93245315551758
         ],
         "rotation": [
@@ -3685,7 +3685,7 @@
         "value0": 0,
         "value1": 0
     },
-    "WinState": {
+    "WinFlag": {
         "width": 2.0,
         "height": 2.0,
         "depth": 6.0,
@@ -3757,6 +3757,595 @@
             0.0
         ],
         "type": "CameraStart",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "ladder-broken": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -49.91311264038086,
+            -2.9578804969787598e-06,
+            23.919078826904297
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "ladder-long": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -38.009490966796875,
+            -3.553926944732666e-06,
+            30.434243202209473
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "platform": {
+        "width": 2.0,
+        "height": 2.0,
+        "depth": 2.0,
+        "position": [
+            -38.21332550048828,
+            0.0,
+            22.91570281982422
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "platform-overhang": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -61.48835372924805,
+            1.0845232158899307,
+            9.238580226898193
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            26.135929107666016,
+            0.0,
+            1.7603020668029785
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            22.13054847717285,
+            0.0,
+            1.5467929244041443
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low.003": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            18.15789222717285,
+            0.0,
+            1.2478802055120468
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low.004": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            10.137749910354614,
+            0.0,
+            0.7664566040039062
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low.006": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            2.1452064514160156,
+            0.0,
+            0.24816226959228516
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low-hexagon": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            6.137972712516785,
+            4.76837158203125e-07,
+            0.5173625648021698
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low-hexagon.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            14.134190082550049,
+            0.0,
+            1.015550136566162
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low-large.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -24.29576873779297,
+            4.76837158203125e-07,
+            0.0
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low-long": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -16.315486907958984,
+            0.0,
+            0.0
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low-narrow": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -0.9223182499408722,
+            7.152557373046875e-07,
+            0.0
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-low-narrow.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -11.17455768585205,
+            7.152557373046875e-07,
+            0.0
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "ladder": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -6.779147624969482,
+            0.2499999850988388,
+            2.9999999403953552
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "ladder-long.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            19.119632720947266,
+            -3.650784492492676e-07,
+            6.2478801012039185
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "platform-fortified": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -8.067460060119629,
+            3.5762786865234375e-07,
+            0.5899998545646667
+        ],
+        "rotation": [
+            0.0,
+            -0.0,
+            -1.570796251296997
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "platform-fortified.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -4.067459940910339,
+            3.5762786865234375e-07,
+            0.5899998545646667
+        ],
+        "rotation": [
+            0.0,
+            -0.0,
+            -1.570796251296997
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -13.844263076782227,
+            -4.76837158203125e-07,
+            9.246647834777832
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-hexagon": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            22.177366256713867,
+            -9.5367431640625e-07,
+            6.985424995422363
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-hexagon.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -9.833234786987305,
+            -9.5367431640625e-07,
+            9.006608009338379
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-large": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            4.159172534942627,
+            -9.5367431640625e-07,
+            7.975847244262695
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-large.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            0.18052387237548828,
+            3.0,
+            8.230008125305176
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-large.002": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -19.82863426208496,
+            3.164249897003174,
+            9.500807762145996
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-large.003": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -22.37251091003418,
+            -9.5367431640625e-07,
+            9.769087791442871
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-long": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -3.864530250430107,
+            0.0,
+            8.615272045135498
+        ],
+        "rotation": [
+            0.0,
+            0.03490658849477768,
+            3.725290298461914e-09
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-narrow": {
+        "width": 10.0,
+        "height": 10.0,
+        "depth": 8.0,
+        "position": [
+            9.905645370483398,
+            -2.086162567138672e-06,
+            7.749927520751953
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "platform-ramp": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            18.077539920806885,
+            1.1920928955078125e-06,
+            7.859708309173584
+        ],
+        "rotation": [
+            -0.24434612691402435,
+            -0.0,
+            1.5707963705062866
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "platform-ramp.001": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            13.854670524597168,
+            1.1920928955078125e-06,
+            8.21305775642395
+        ],
+        "rotation": [
+            -0.2967059910297394,
+            -0.0,
+            1.5707963705062866
+        ],
+        "type": "GraphicsObject",
+        "visible": true,
+        "value0": 0,
+        "value1": 0
+    },
+    "block-grass-overhang-low-hexagon.002": {
+        "width": 8.0,
+        "height": 8.0,
+        "depth": 8.0,
+        "position": [
+            -25.86709976196289,
+            -9.5367431640625e-07,
+            9.995007514953613
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "GraphicsObject",
         "visible": true,
         "value0": 0,
         "value1": 0

@@ -12,14 +12,16 @@ import Enemy from "../gameStructures/enemy.ts";
 import GameUtils from "../../utils/gameUtils.ts";
 import TrashCan from "../gameStructures/trashCan.ts";
 import CrazyEnemy from "../gameStructures/crazyEnemy.ts";
-import BlenderExport from "./blenderExport.json";
+import DkLevelData from "./blenderExport.json";
 import CameraSensor from "../gameStructures/cameraSensor.ts";
 import LadderSensor from "../gameStructures/ladderSensor.ts";
 import Teleporter from "../gameStructures/teleporter.ts";
+import ResourceLoader from "../../utils/resourceLoader.ts";
 
 export default class World {
   private experience: Experience;
   private camera: Camera;
+  private resources: ResourceLoader;
 
   // World assets
   public gameDirector?: GameDirector;
@@ -43,10 +45,9 @@ export default class World {
   constructor() {
     this.experience = Experience.getInstance();
     this.camera = this.experience.camera;
+    this.resources = this.experience.resources;
 
     this.cameraSensors = [];
-
-    // this.playerSpawn
 
     this.enemies = [];
     this.crazyEnemies = [];
@@ -62,9 +63,12 @@ export default class World {
     this.ladderBottomSensors = [];
 
     // Events
-    Emitter.on("resourcesReady", () => {
+    Emitter.on("resourcesReady", async () => {
       this.gameDirector = new GameDirector();
-      this.gameDirector.loadLevelData(BlenderExport);
+      await this.gameDirector.graphicsObject.createObjectGraphics(
+        this.resources.items.dkGraphicsData
+      );
+      this.gameDirector.loadLevelData(DkLevelData);
 
       Emitter.emit("gameStart");
     });

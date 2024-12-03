@@ -22,7 +22,7 @@ export default class LadderSensor extends GameSensor {
     this.setAsSensor(true);
     this.setLadderValue(0);
 
-    this.createObjectGraphicsDebug("green", 0.5);
+    this.createObjectGraphicsDebug("blue", 0.5);
   }
 
   public setLadderValue(value: number) {

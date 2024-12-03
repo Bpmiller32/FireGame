@@ -128,16 +128,6 @@ export default class GameObject {
     // Render setup based on object type
     switch (this.gameObjectType) {
       case GameObjectType.SPRITE:
-        this.mesh = new THREE.Sprite(this.material as THREE.SpriteMaterial);
-        if (this.spriteScale) {
-          this.mesh.scale.set(
-            this.spriteScale,
-            this.spriteScale,
-            this.spriteScale
-          );
-        }
-        break;
-
       case GameObjectType.CUBE:
         this.setGeometry(
           new THREE.BoxGeometry(this.currentSize.x, this.currentSize.y, 1)
@@ -227,22 +217,26 @@ export default class GameObject {
     );
   }
 
-  protected setCollisionGroup(collisionGroups: number) {
+  protected setCollisionGroup(
+    collisionGroups: number,
+    colliderIndex: number = 0
+  ) {
     // Physics body needs to be created
     if (!this.physicsBody) {
       return;
     }
 
     // Extract the current mask (upper 16 bits)
-    const currentMask = this.physicsBody.collider(0).collisionGroups() >> 16;
+    const currentMask =
+      this.physicsBody.collider(colliderIndex).collisionGroups() >> 16;
 
     // Set the group, keep the current mask
     this.physicsBody
-      .collider(0)
+      .collider(colliderIndex)
       .setCollisionGroups(collisionGroups | (currentMask << 16));
   }
 
-  protected setCollisionMask(collisionMask: number) {
+  protected setCollisionMask(collisionMask: number, colliderIndex: number = 0) {
     // Physics body needs to be created
     if (!this.physicsBody) {
       return;
@@ -250,11 +244,11 @@ export default class GameObject {
 
     // Extract the current group (lower 16 bits)
     const currentGroup =
-      this.physicsBody.collider(0).collisionGroups() & 0xffff;
+      this.physicsBody.collider(colliderIndex).collisionGroups() & 0xffff;
 
     // Set the mask, keep the current group
     this.physicsBody
-      .collider(0)
+      .collider(colliderIndex)
       .setCollisionGroups(currentGroup | (collisionMask << 16));
   }
 

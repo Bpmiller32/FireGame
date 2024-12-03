@@ -1,5 +1,6 @@
 import GameObject from "../gameComponents/gameObject";
 import GameObjectType from "../../utils/types/gameObjectType";
+import CollisionGroups from "../../utils/types/collisionGroups";
 
 export default class TrashCan extends GameObject {
   public isOnFire: boolean;
@@ -19,8 +20,10 @@ export default class TrashCan extends GameObject {
       rotation
     );
 
-    this.createObjectGraphicsDebug("purple");
-
+    this.createObjectGraphicsDebug("cyan");
     this.isOnFire = false;
+
+    this.setCollisionGroup(CollisionGroups.DEFAULT);
+    this.setCollisionMask(CollisionGroups.DEFAULT);
   }
 }

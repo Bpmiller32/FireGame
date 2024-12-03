@@ -65,4 +65,4 @@ file_path = "/Users/billymiller/Documents/GitHub/FireGame/src/webgl/world/levels
 with open(file_path, "w") as file:
     json.dump(blender_objects, file, indent=4)
 
-print("Dimensions, positions, and rotations for blender objects exported successfully.")
+print("Level data exported.")

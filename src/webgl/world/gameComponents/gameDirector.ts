@@ -17,17 +17,21 @@ import setDkAttributes from "../player/attributes/setDkAttributes";
 import CameraSensor from "../gameStructures/cameraSensor";
 import LadderSensor from "../gameStructures/ladderSensor";
 import Teleporter from "../gameStructures/teleporter";
+import GraphicsObject from "./graphicsObject";
+import ResourceLoader from "../../utils/resourceLoader";
 
 export default class GameDirector {
-  private experience: Experience;
-  private world: World;
-  private time: Time;
-  private camera: Camera;
-  private player: Player;
+  private experience!: Experience;
+  private world!: World;
+  private time!: Time;
+  private camera!: Camera;
+  private resources!: ResourceLoader;
+  private player!: Player;
 
   private playerHasBeenSpawned!: boolean;
 
-  private levelData!: LevelData;
+  public levelData!: LevelData;
+  public graphicsObject!: GraphicsObject;
 
   private isSpawningEnemies!: boolean;
   private spawningInterval!: number;
@@ -39,12 +43,6 @@ export default class GameDirector {
   private currentSpawnInterval!: number;
 
   constructor() {
-    this.experience = Experience.getInstance();
-    this.world = this.experience.world;
-    this.time = this.experience.time;
-    this.camera = this.experience.camera;
-    this.player = this.world.player!;
-
     this.initializeAttributes();
 
     // Events
@@ -81,30 +79,50 @@ export default class GameDirector {
       this.intervalIds.push(this.spawningInterval);
     });
 
-    Emitter.on("switchLevel", () => {
+    Emitter.on("switchLevel", async () => {
       this.intervalIds.forEach((id) => clearInterval(id));
       this.unloadLevelData();
 
+      // Level switching logic, revist when more levels are made
       let nextLevel: LevelData = BlenderExport;
       if (this.levelData === BlenderExport) {
         nextLevel = TestLevel;
       }
 
-      this.loadLevelData(nextLevel, () => {
-        if (nextLevel === TestLevel) {
-          this.camera.setCameraFollow(true);
-          setCelesteAttributes(this.player);
-        } else {
-          this.camera.setCameraFollow(false);
-          setDkAttributes(this.player);
-        }
-      });
+      if (nextLevel === TestLevel) {
+        // PlayerData
+        this.camera.setCameraFollow(true);
+        setCelesteAttributes(this.player);
+
+        // LevelData
+        this.loadLevelData(nextLevel);
+      } else {
+        // PlayerData
+        this.camera.setCameraFollow(false);
+        setDkAttributes(this.player);
+
+        // LevelData
+        this.loadLevelData(nextLevel);
+        // Graphics
+        await this.graphicsObject.createObjectGraphics(
+          this.resources.items.dkGraphicsData
+        );
+      }
     });
   }
 
   private initializeAttributes() {
+    // Experience fields
+    this.experience = Experience.getInstance();
+    this.world = this.experience.world;
+    this.time = this.experience.time;
+    this.camera = this.experience.camera;
+    this.resources = this.experience.resources;
+    this.player = this.world.player!;
+
     // Set default level to load
     this.levelData = TestLevel;
+    this.graphicsObject = new GraphicsObject();
 
     this.playerHasBeenSpawned = false;
     this.isSpawningEnemies = false;
@@ -294,18 +312,13 @@ export default class GameDirector {
     }
   }
 
-  public loadLevelData(levelData?: LevelData, callback?: () => void) {
+  public loadLevelData(levelData?: LevelData) {
     // Set level json data to parse through
     if (levelData) {
       this.levelData = levelData;
     } else {
       // Default level to load
       this.levelData = BlenderExport;
-    }
-
-    // Set player attributes if included
-    if (callback) {
-      callback();
     }
 
     // Must load player first to avoid problems with setting sensorTargets
@@ -317,7 +330,7 @@ export default class GameDirector {
     this.importPlatforms();
     this.importLadderSensors();
     this.importTrashCans();
-    this.importTeleporters();
+    // this.importTeleporters();
   }
 
   public unloadLevelData() {
@@ -345,6 +358,9 @@ export default class GameDirector {
 
     // Teleporters
     destroyEntities(this.world.teleporters);
+
+    // Graphics
+    this.graphicsObject.destroy();
   }
 
   public spawnEnemy(position: { x: number; y: number } = { x: -13, y: 50 }) {

@@ -6,7 +6,7 @@ for obj in bpy.context.selected_objects:
     game_object_value = obj.get("gameObjectValue0", None)  # Use get to avoid KeyError
     
     if game_object_value is not None:
-        obj["gameObjectValue1"] = 1
+        obj["gameObjectValue0"] = 0
     
 #    # Set the custom property
 #    if game_object_value is None:

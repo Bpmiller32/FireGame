@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier2d";
 import Time from "../../utils/time";
 import Input from "../../utils/input";
@@ -19,13 +20,14 @@ import Emitter from "../../utils/eventEmitter";
 import setDkAttributes from "./attributes/setDkAttributes";
 import GameUtils from "../../utils/gameUtils";
 import handlePlayerClimbing from "./state/handlePlayerClimbing";
+import CollisionGroups from "../../utils/types/collisionGroups";
 
 export default class Player extends GameObject {
   // Experience
-  public time: Time;
-  public input: Input;
+  public time!: Time;
+  public input!: Input;
   public debug?: Debug;
-  public resources: ResourceLoader;
+  public resources!: ResourceLoader;
 
   // Player state
   public direction!: number;
@@ -82,13 +84,10 @@ export default class Player extends GameObject {
   ) {
     super();
 
-    this.time = this.experience.time;
-    this.input = this.experience.input;
-    this.resources = this.experience.resources;
-
     this.initalizePlayerAttributes();
     this.setSpriteAnimator();
     this.setCharacterController();
+
     this.createObjectPhysics(
       "Player",
       GameObjectType.SPRITE,
@@ -97,7 +96,12 @@ export default class Player extends GameObject {
       0,
       RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
     );
-    this.createObjectGraphicsDebug("white");
+
+    this.createGraphicsObject();
+    this.createHitBoxCollider();
+
+    this.setCollisionGroup(CollisionGroups.PLAYER_BOUNDING_BOX, 0);
+    this.setCollisionGroup(CollisionGroups.PLAYER_HIT_BOX, 1);
 
     // Debug
     if (this.experience.debug.isActive) {
@@ -107,6 +111,11 @@ export default class Player extends GameObject {
   }
 
   private initalizePlayerAttributes() {
+    // Experience fields
+    this.time = this.experience.time;
+    this.input = this.experience.input;
+    this.resources = this.experience.resources;
+
     // Set inital state and direction
     this.state = PlayerStates.IDLE;
     this.direction = PlayerDirection.NEUTRAL;
@@ -152,6 +161,28 @@ export default class Player extends GameObject {
     this.spriteAnimator = new SpriteAnimator(this.resources.items.randy, 4, 6);
     this.spriteAnimator.state = SpriteAnimations.IDLE_RIGHT;
     this.setMaterial(this.spriteAnimator.material, 4);
+  }
+
+  private createGraphicsObject() {
+    this.mesh = new THREE.Sprite(this.material as THREE.SpriteMaterial);
+
+    if (this.spriteScale) {
+      this.mesh.scale.set(this.spriteScale, this.spriteScale, this.spriteScale);
+    }
+
+    this.scene.add(this.mesh);
+    this.syncGraphicsToPhysics();
+  }
+
+  private createHitBoxCollider() {
+    // Physics setup based on object type
+    const collider = this.createCollider(
+      { width: this.initialSize.x, height: this.initialSize.y * 0.625 },
+      GameObjectType.SPRITE
+    );
+
+    // Create and attach collider to physicsBody/rigidbody
+    this.physics.world.createCollider(collider, this.physicsBody);
   }
 
   private setCharacterController() {
@@ -266,12 +297,13 @@ export default class Player extends GameObject {
         this.isTouching.edgePlatform = false;
       }
 
-      // Detected clipping, teleport the character up to resolve it
-      if (this.currentSize.y < this.initialSize.y) {
-        const correctionAmount = this.initialSize.y - this.currentSize.y;
+      // TODO: remove?
+      // // Detected clipping, teleport the character up to resolve it
+      // if (this.currentSize.y < this.initialSize.y) {
+      //   const correctionAmount = this.initialSize.y - this.currentSize.y;
 
-        this.teleportRelative(0, correctionAmount);
-      }
+      //   this.teleportRelative(0, correctionAmount * 0.66);
+      // }
     }
 
     // Detect ground within buffer jump range

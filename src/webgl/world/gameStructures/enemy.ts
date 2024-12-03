@@ -40,10 +40,12 @@ export default class Enemy extends GameObject {
     );
 
     this.initalizeAttributes();
-    this.setCollisionGroup(CollisionGroups.ENEMY);
-    this.setCollisionMask(CollisionGroups.PLATFORM | CollisionGroups.PLAYER);
-
     this.createObjectGraphicsDebug("white");
+
+    this.setCollisionGroup(CollisionGroups.ENEMY);
+    this.setCollisionMask(
+      CollisionGroups.PLATFORM | CollisionGroups.PLAYER_HIT_BOX
+    );
   }
 
   private initalizeAttributes() {
@@ -91,6 +93,7 @@ export default class Enemy extends GameObject {
         // Check for collision with player
         if (GameUtils.getDataFromCollider(otherCollider).name == "Player") {
           Emitter.emit("gameOver");
+
           return;
         }
 
@@ -196,9 +199,11 @@ export default class Enemy extends GameObject {
   private updateCollisionMask() {
     // Set collision mask
     if (this.isCollidingWithPlatforms && this.performSpecialRoll == false) {
-      this.setCollisionMask(CollisionGroups.PLATFORM | CollisionGroups.PLAYER);
+      this.setCollisionMask(
+        CollisionGroups.PLATFORM | CollisionGroups.PLAYER_HIT_BOX
+      );
     } else {
-      this.setCollisionMask(CollisionGroups.PLAYER);
+      this.setCollisionMask(CollisionGroups.PLAYER_HIT_BOX);
     }
   }
 

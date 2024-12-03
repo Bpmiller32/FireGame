@@ -50,15 +50,16 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Check if ground is within buffer range
   if (player.groundWithinBufferRange) {
-    // Return collider to initial size, gate to only do this once instead of creating multiple colliders per tick in this state
-    if (!player.hasColliderUpdated) {
-      player.hasColliderUpdated = true;
+    // // TODO: remove?
+    // // Return collider to initial size, gate to only do this once instead of creating multiple colliders per tick in this state
+    // if (!player.hasColliderUpdated) {
+    //   player.hasColliderUpdated = true;
 
-      player.changeColliderSize({
-        width: player.initialSize.x,
-        height: player.initialSize.y,
-      });
-    }
+    //   player.changeColliderSize({
+    //     width: player.initialSize.x,
+    //     height: player.initialSize.y,
+    //   });
+    // }
 
     // Give buffer jump
     if (!player.input.isJump()) {

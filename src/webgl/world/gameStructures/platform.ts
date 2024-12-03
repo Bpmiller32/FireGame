@@ -27,7 +27,7 @@ export default class Platform extends GameObject {
 
     if (isOneWayPlatform) {
       this.setObjectName("OneWayPlatform");
-      this.createObjectGraphicsDebug("red");
+      this.createObjectGraphicsDebug("saddleBrown");
       this.setOneWayPlatformActive(true);
     } else {
       this.createObjectGraphicsDebug("pink");

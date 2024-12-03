@@ -49,6 +49,11 @@ export default class Experience {
     this.input = new Input();
     this.resources = new ResourceLoader([
       { name: "randy", type: "texture", path: "/randySpriteSheet.png" },
+      {
+        name: "dkGraphicsData",
+        type: "gltfModel",
+        path: "/dkGraphicsData.glb",
+      },
     ]);
 
     this.targetElement = canvas;

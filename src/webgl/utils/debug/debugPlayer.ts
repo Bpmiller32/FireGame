@@ -36,7 +36,7 @@ const debugPlayer = (player: Player, debug: Debug) => {
     .listen();
 
   const isTouching = playerDebug?.addFolder("isTouching");
-  isTouching?.open();
+  // isTouching?.open();
   isTouching?.add(player.isTouching, "ground").name("ground").listen();
   isTouching?.add(player.isTouching, "ceiling").name("ceiling").listen();
   isTouching?.add(player.isTouching, "leftSide").name("leftSide").listen();
