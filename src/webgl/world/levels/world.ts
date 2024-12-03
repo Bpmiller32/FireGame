@@ -16,12 +16,10 @@ import DkLevelData from "./blenderExport.json";
 import CameraSensor from "../gameStructures/cameraSensor.ts";
 import LadderSensor from "../gameStructures/ladderSensor.ts";
 import Teleporter from "../gameStructures/teleporter.ts";
-import ResourceLoader from "../../utils/resourceLoader.ts";
 
 export default class World {
   private experience: Experience;
   private camera: Camera;
-  private resources: ResourceLoader;
 
   // World assets
   public gameDirector?: GameDirector;
@@ -45,7 +43,6 @@ export default class World {
   constructor() {
     this.experience = Experience.getInstance();
     this.camera = this.experience.camera;
-    this.resources = this.experience.resources;
 
     this.cameraSensors = [];
 
@@ -65,9 +62,6 @@ export default class World {
     // Events
     Emitter.on("resourcesReady", async () => {
       this.gameDirector = new GameDirector();
-      await this.gameDirector.graphicsObject.createObjectGraphics(
-        this.resources.items.dkGraphicsData
-      );
       this.gameDirector.loadLevelData(DkLevelData);
 
       Emitter.emit("gameStart");

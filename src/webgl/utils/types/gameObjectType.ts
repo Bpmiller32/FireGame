@@ -1,8 +1,9 @@
 const GameObjectType = {
-  SPRITE: "sprite",
   CUBE: "cube",
   SPHERE: "sphere",
-  MAP_STRUCTURE: "map_structure",
+  CAPSULE: "capsule",
+  CONVEX_MESH: "convex_mesh",
+  POLYLINE: "polyline",
 };
 
 export default GameObjectType;

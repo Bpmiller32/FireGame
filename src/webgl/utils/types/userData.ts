@@ -4,7 +4,6 @@ export default interface UserData {
 
   value0: number;
   value1: number;
-
-  isEdgePlatform: boolean;
-  isOneWayPlatformActive: boolean;
+  value2: number;
+  value3: number;
 }

@@ -37,9 +37,8 @@ export default class GameUtils {
 
       value0: 0,
       value1: 0,
-
-      isEdgePlatform: undefined,
-      isOneWayPlatformActive: undefined,
+      value2: 0,
+      value3: 0,
     };
   }
 
@@ -55,9 +54,8 @@ export default class GameUtils {
 
       value0: 0,
       value1: 0,
-
-      isEdgePlatform: undefined,
-      isOneWayPlatformActive: undefined,
+      value2: 0,
+      value3: 0,
     };
   }
 
@@ -161,7 +159,7 @@ export default class GameUtils {
       platform.update(player);
 
       if (isClimbing) {
-        platform.setOneWayPlatformActive(true);
+        platform.setOneWayPlatformActive(1);
       }
     });
   }

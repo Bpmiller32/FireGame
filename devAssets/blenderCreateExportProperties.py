@@ -12,16 +12,12 @@ for obj in bpy.context.scene.objects:
             obj["gameObjectValue0"] = 0  
         if "gameObjectValue1" not in obj:
             obj["gameObjectValue1"] = 0  
-        if "gameObjectVisible" not in obj:
-            obj["gameObjectVisible"] = True 
+        if "gameObjectValue2" not in obj:
+            obj["gameObjectValue2"] = 0 
+        if "gameObjectValue3" not in obj:
+            obj["gameObjectValue3"] = 0   
             
-#        if "gameObjectType" in obj:
-#            obj["gameObjectType"] = "platform" 
-#        if "gameObjectValue0" in obj:
-#            obj["gameObjectValue0"] = 0  
-#        if "gameObjectValue1" in obj:
-#            obj["gameObjectValue1"] = 0  
-#        if "gameObjectVisible" in obj:
-#            obj["gameObjectVisible"] = True 
+        if "gameObjectVisible" in obj:
+            del obj["gameObjectVisible"]
 
 print("Custom properties added to selected objects.")

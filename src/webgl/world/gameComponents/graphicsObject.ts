@@ -27,7 +27,7 @@ export default class GraphicsObject {
     this.scene = this.experience.scene;
     this.resources = this.experience.resources;
 
-    // Later: allow scaling, positioning, rotation of MeshGroup
+    // TODO: later allow scaling, positioning, rotation of MeshGroup
     this.initialSize = new THREE.Vector2(0, 0);
     this.currentSize = new THREE.Vector2(0, 0);
     this.initialTranslation = new THREE.Vector2(0, 0);
@@ -52,7 +52,7 @@ export default class GraphicsObject {
   }
 
   private createMeshGroup() {
-    if (!this.meshGroup) {
+    if (this.meshGroup) {
       return;
     }
 
@@ -61,7 +61,7 @@ export default class GraphicsObject {
 
   private createAmbientLight() {
     // Create an AmbientLight for all PBR materials to be seen, not needed later when lighting is baked into MeshBasicMaterial
-    if (!this.ambientLight) {
+    if (this.ambientLight) {
       return;
     }
 

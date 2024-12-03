@@ -159,6 +159,7 @@ export default class GameDirector {
         -importedData.rotation[1]
       );
 
+      // Value table: [0] is the destination Y position for the Camera to move to
       sensor.setIntersectingTarget(this.player);
       sensor.setCameraPositionData(
         new THREE.Vector3(0, importedData.value0, 0)
@@ -177,8 +178,7 @@ export default class GameDirector {
           depth: importedData.height,
         },
         { x: importedData.position[0], y: importedData.position[2] },
-        -importedData.rotation[1],
-        false
+        -importedData.rotation[1]
       );
 
       wall.setObjectName("Wall");
@@ -188,7 +188,12 @@ export default class GameDirector {
   }
 
   private importPlatforms() {
-    const platformTypes = ["Platform", "OneWayPlatform"];
+    const platformTypes = [
+      "Platform",
+      // "OneWayPlatform",
+      "EdgeOneWayPlatform",
+      "LineOneWayPlatform",
+    ];
 
     platformTypes.forEach((type) =>
       this.importLevelObjects(type, (importedData) => {
@@ -200,14 +205,22 @@ export default class GameDirector {
           },
           { x: importedData.position[0], y: importedData.position[2] },
           -importedData.rotation[1],
-          type === "OneWayPlatform"
+          type === "EdgeOneWayPlatform" || type === "LineOneWayPlatform",
+          importedData.vertices
         );
 
         // Used to check what floor the player is touching
-        platform.setObjectValue0(importedData.value0);
+        platform.setPlatformFloorLevel(importedData.value0);
 
         // Used to check if the platform is an edge platform, useful for gamefeel and coyoteJump
         platform.setEdgePlatform(importedData.value1);
+
+        // Used to set the point where a OneWayPlatform is solid on a complex shape, default is the Y coord of the middle of the object
+        if (importedData.value2 != 0) {
+          platform.setOneWayEnablePoint(importedData.value2);
+        } else {
+          platform.setOneWayEnablePoint(importedData.position[2]);
+        }
 
         this.world.platforms.push(platform);
       })
@@ -247,6 +260,7 @@ export default class GameDirector {
           -importedData.rotation[1]
         );
 
+        // Value table: [0] is which direction the Enemy should move after touching this ladder
         ladderSensor.setIntersectingTarget(this.player);
         ladderSensor.setLadderValue(importedData.value0);
 
@@ -275,6 +289,7 @@ export default class GameDirector {
         -importedData.rotation[1]
       );
 
+      // Value table: [0] is teleport destination X, [1] is teleport destination Y
       teleporter.setTeleportPosition(importedData.value0, importedData.value1);
 
       this.world.teleporters.push(teleporter);
@@ -283,7 +298,9 @@ export default class GameDirector {
 
   private setPlayerStart() {
     for (const importedData of Object.values(this.levelData)) {
-      if (importedData.type !== "PlayerStart") continue;
+      if (importedData.type !== "PlayerStart") {
+        continue;
+      }
 
       const [x, , z] = importedData.position;
 
@@ -305,7 +322,9 @@ export default class GameDirector {
 
   private setCameraStart() {
     for (const importedData of Object.values(this.levelData)) {
-      if (importedData.type !== "CameraStart") continue;
+      if (importedData.type !== "CameraStart") {
+        continue;
+      }
 
       const [x, y, z] = importedData.position;
       this.camera.teleportToPosition(x, z, y);
@@ -361,6 +380,14 @@ export default class GameDirector {
 
     // Graphics
     this.graphicsObject.destroy();
+  }
+
+  public async loadGraphicsData(graphicsData: any) {
+    if (!graphicsData) {
+      return;
+    }
+
+    await this.graphicsObject.createObjectGraphics(graphicsData);
   }
 
   public spawnEnemy(position: { x: number; y: number } = { x: -13, y: 50 }) {

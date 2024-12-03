@@ -20,6 +20,7 @@ export default class GameObject {
   protected material?: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
   protected mesh?: THREE.Mesh | THREE.Sprite;
   protected spriteScale?: number;
+  protected vertices?: number[];
 
   public physicsBody?: RAPIER.RigidBody;
 
@@ -93,14 +94,33 @@ export default class GameObject {
     gameObjectType: string
   ) {
     switch (gameObjectType) {
-      case GameObjectType.SPRITE:
       case GameObjectType.CUBE:
         return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
       case GameObjectType.SPHERE:
         return RAPIER.ColliderDesc.ball(size.width / 2);
+      case GameObjectType.CAPSULE:
+        return RAPIER.ColliderDesc.capsule(size.height / 2, size.width);
+      case GameObjectType.CONVEX_MESH:
+        if (this.vertices && this.vertices.length > 0) {
+          return RAPIER.ColliderDesc.convexHull(
+            new Float32Array(this.vertices)
+          )!;
+        } else {
+          return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
+        }
+      case GameObjectType.POLYLINE:
+        if (this.vertices && this.vertices.length > 0) {
+          return RAPIER.ColliderDesc.polyline(new Float32Array(this.vertices));
+        } else {
+          return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
+        }
       default:
         return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
     }
+  }
+
+  protected setVertices(vertices: number[]) {
+    this.vertices = vertices.flat();
   }
 
   protected setGeometry(geometry?: THREE.BoxGeometry | THREE.SphereGeometry) {
@@ -127,7 +147,6 @@ export default class GameObject {
 
     // Render setup based on object type
     switch (this.gameObjectType) {
-      case GameObjectType.SPRITE:
       case GameObjectType.CUBE:
         this.setGeometry(
           new THREE.BoxGeometry(this.currentSize.x, this.currentSize.y, 1)
@@ -276,6 +295,24 @@ export default class GameObject {
     }
 
     GameUtils.getDataFromPhysicsBody(this.physicsBody).value1 = newValue;
+  }
+
+  public setObjectValue2(newValue?: number) {
+    if (!newValue) {
+      GameUtils.getDataFromPhysicsBody(this.physicsBody).value2 = 0;
+      return;
+    }
+
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value2 = newValue;
+  }
+
+  public setObjectValue3(newValue?: number) {
+    if (!newValue) {
+      GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = 0;
+      return;
+    }
+
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = newValue;
   }
 
   public changeColliderSize(newSize: { width: number; height: number }) {

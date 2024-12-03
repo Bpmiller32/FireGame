@@ -90,15 +90,15 @@ export default class Player extends GameObject {
 
     this.createObjectPhysics(
       "Player",
-      GameObjectType.SPRITE,
+      GameObjectType.CUBE,
       size,
       position,
       0,
       RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
     );
 
-    this.createGraphicsObject();
     this.createHitBoxCollider();
+    this.createGraphicsObject();
 
     this.setCollisionGroup(CollisionGroups.PLAYER_BOUNDING_BOX, 0);
     this.setCollisionGroup(CollisionGroups.PLAYER_HIT_BOX, 1);
@@ -178,7 +178,7 @@ export default class Player extends GameObject {
     // Physics setup based on object type
     const collider = this.createCollider(
       { width: this.initialSize.x, height: this.initialSize.y * 0.625 },
-      GameObjectType.SPRITE
+      GameObjectType.CUBE
     );
 
     // Create and attach collider to physicsBody/rigidbody
@@ -229,11 +229,11 @@ export default class Player extends GameObject {
       // Tried CollisionGroups, filterGroups in this function and class. Tried EventQueue and drainCollisionEvents in Physics class, either don't work at all as documented or don't work in a useful way.... Resorting to only using predicate
       undefined,
       undefined,
-      // Don't collide with sensors or OneWayPlatforms while under them
+      // Don't collide with sensors or OneWayPlatforms while active
       (collider) =>
         !(
           collider.isSensor() ||
-          GameUtils.getDataFromCollider(collider).isOneWayPlatformActive
+          GameUtils.getDataFromCollider(collider).value3 > 0
         )
     );
 
@@ -275,13 +275,13 @@ export default class Player extends GameObject {
       up: this.shapeCast(PlayerDirection.NEUTRAL, PlayerDirection.UP),
     };
 
-    // Detect ground collisions, ignore walls
+    // Detect ground collisions, ignore walls and active OneWayPlatforms
     const downCast = shapeCasts.down;
     if (
       downCast &&
       downCast.toi <= this.colliderOffsetThreshold &&
       GameUtils.getDataFromCollider(downCast.collider).name !== "Wall" &&
-      !GameUtils.getDataFromCollider(downCast.collider).isOneWayPlatformActive
+      GameUtils.getDataFromCollider(downCast.collider).value3 < 1
     ) {
       // Establish that ground is being touched
       this.isTouching.ground = true;
@@ -291,19 +291,11 @@ export default class Player extends GameObject {
         downCast.collider
       ).value0;
 
-      if (GameUtils.getDataFromCollider(downCast.collider).isEdgePlatform) {
+      if (GameUtils.getDataFromCollider(downCast.collider).value1 > 0) {
         this.isTouching.edgePlatform = true;
       } else {
         this.isTouching.edgePlatform = false;
       }
-
-      // TODO: remove?
-      // // Detected clipping, teleport the character up to resolve it
-      // if (this.currentSize.y < this.initialSize.y) {
-      //   const correctionAmount = this.initialSize.y - this.currentSize.y;
-
-      //   this.teleportRelative(0, correctionAmount * 0.66);
-      // }
     }
 
     // Detect ground within buffer jump range
@@ -372,7 +364,7 @@ export default class Player extends GameObject {
       (collider) =>
         !(
           collider.isSensor() ||
-          GameUtils.getDataFromCollider(collider).isOneWayPlatformActive
+          GameUtils.getDataFromCollider(collider).value3 > 0
         )
     );
 

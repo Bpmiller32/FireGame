@@ -6,49 +6,75 @@ import Player from "../player/player";
 
 export default class Platform extends GameObject {
   private isOneWayPlatform: boolean;
+  private oneWayEnablePoint: number;
 
   constructor(
     size: { width: number; height: number; depth: number },
     position: { x: number; y: number },
     rotation: number,
-    isOneWayPlatform: boolean = false
+    isOneWayPlatform: boolean = false,
+    verticies: number[] = []
   ) {
     super();
 
-    this.createObjectPhysics(
-      "Platform",
-      GameObjectType.CUBE,
-      size,
-      position,
-      rotation
-    );
+    // Determine if the platform uses complex collider with vertices or a cube shape
+    const isComplexCollider = verticies.length > 0;
+    let objectType;
 
-    this.isOneWayPlatform = isOneWayPlatform;
-
-    if (isOneWayPlatform) {
-      this.setObjectName("OneWayPlatform");
-      this.createObjectGraphicsDebug("saddleBrown");
-      this.setOneWayPlatformActive(true);
+    if (isComplexCollider) {
+      objectType = GameObjectType.POLYLINE;
+      this.setVertices(verticies);
+      this.oneWayEnablePoint = 0;
     } else {
-      this.createObjectGraphicsDebug("pink");
-      this.setOneWayPlatformActive(false);
+      objectType = GameObjectType.CUBE;
+      this.oneWayEnablePoint = position.y;
     }
 
+    // Determine platform's objectName, debugGraphics color
+    let objectName: string;
+    let graphicsColor: string;
+
+    if (isOneWayPlatform) {
+      objectName = "OneWayPlatform";
+      graphicsColor = "red";
+      this.setOneWayPlatformActive(1);
+    } else {
+      objectName = "Platform";
+      graphicsColor = "pink";
+      this.setOneWayPlatformActive(0);
+    }
+
+    // Create the physics object based on the shape
+    this.createObjectPhysics(objectName, objectType, size, position, rotation);
+
+    // Handle one-way platform-specific properties
+    this.isOneWayPlatform = isOneWayPlatform;
+    this.setObjectName(objectName);
+    this.createObjectGraphicsDebug(graphicsColor);
+
+    // Set collision groups and masks
     this.setCollisionGroup(CollisionGroups.PLATFORM);
     this.setCollisionMask(CollisionGroups.DEFAULT);
   }
 
-  public setOneWayPlatformActive(value: boolean) {
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).isOneWayPlatformActive =
-      value;
+  // GameObjectValue[0] is the floor level of the platform
+  public setPlatformFloorLevel(value: number) {
+    this.setObjectValue0(value);
   }
 
-  public setEdgePlatform(value?: number) {
-    if (value && value > 0) {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).isEdgePlatform = true;
-    } else {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).isEdgePlatform = false;
-    }
+  // GameObjectValue[1] is whether or not the platform is an edge platform
+  public setEdgePlatform(value: number) {
+    this.setObjectValue1(value);
+  }
+
+  // GameObjectValue[2] is the enable point Y coordinate for OneWay, needed for ComplexColliders
+  public setOneWayEnablePoint(value: number) {
+    this.oneWayEnablePoint = value;
+  }
+
+  // GameObjectValue[3] is whether or not the platform is currently OneWay
+  public setOneWayPlatformActive(value: number) {
+    this.setObjectValue3(value);
   }
 
   public update(player: Player) {
@@ -61,15 +87,11 @@ export default class Platform extends GameObject {
       player &&
       this.isOneWayPlatform &&
       player.currentTranslation.y - player.currentSize.y / 2 >
-        this.currentTranslation.y
+        this.oneWayEnablePoint
     ) {
-      GameUtils.getDataFromPhysicsBody(
-        this.physicsBody
-      ).isOneWayPlatformActive = false;
+      GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = 0;
     } else {
-      GameUtils.getDataFromPhysicsBody(
-        this.physicsBody
-      ).isOneWayPlatformActive = true;
+      GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = 1;
     }
   }
 }
