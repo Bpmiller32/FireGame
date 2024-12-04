@@ -6,13 +6,25 @@ export default class LadderSensor extends GameSensor {
   constructor(
     size: { width: number; height: number },
     position: { x: number; y: number },
-    rotation: number = 0
+    rotation: number = 0,
+    verticies: number[] = []
   ) {
     super();
 
+    // Determine if the platform uses complex collider with vertices or a cube shape
+    const isComplexCollider = verticies.length > 0;
+    let objectType;
+
+    if (isComplexCollider) {
+      objectType = GameObjectType.CONVEX_MESH;
+      this.setVertices(verticies);
+    } else {
+      objectType = GameObjectType.CUBE;
+    }
+
     this.createObjectPhysics(
       "LadderSensor",
-      GameObjectType.CUBE,
+      objectType,
       { width: size.width, height: size.height },
       position,
       rotation,
@@ -20,9 +32,8 @@ export default class LadderSensor extends GameSensor {
     );
 
     this.setAsSensor(true);
-    this.setLadderValue(0);
 
-    this.createObjectGraphicsDebug("blue", 0.5);
+    // this.createObjectGraphicsDebug("blue", 0.5);
   }
 
   public setLadderValue(value: number) {

@@ -50,7 +50,7 @@ export default class Platform extends GameObject {
     // Handle one-way platform-specific properties
     this.isOneWayPlatform = isOneWayPlatform;
     this.setObjectName(objectName);
-    this.createObjectGraphicsDebug(graphicsColor);
+    // this.createObjectGraphicsDebug(graphicsColor);
 
     // Set collision groups and masks
     this.setCollisionGroup(CollisionGroups.PLATFORM);

@@ -87,6 +87,12 @@ export default class GameObject {
 
     // Create and attach collider to physicsBody/rigidbody
     this.physics.world.createCollider(collider, this.physicsBody);
+
+    // Set GameObjectValues to their defaults
+    this.setObjectValue0();
+    this.setObjectValue1();
+    this.setObjectValue2();
+    this.setObjectValue3();
   }
 
   protected createCollider(

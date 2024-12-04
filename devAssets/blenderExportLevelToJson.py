@@ -20,14 +20,30 @@ for obj in bpy.context.scene.objects:
         gameObjectValue2 = obj.get("gameObjectValue2")
         gameObjectValue3 = obj.get("gameObjectValue3")
         
-        # Get 2D vertices only for "ConvexOneWayPlatform" or "LineOneWayPlatform" objects
+        # Get 2D vertices only for objects with "ComplexColliders"
         vertices_2d = []
-        if gameObjectType == "ConvexOneWayPlatform" or gameObjectType == "LineOneWayPlatform":
+        if gameObjectType == "ConvexOneWayPlatform" or gameObjectType == "LineOneWayPlatform" or gameObjectType == "LadderBottomSensor":
             # Get the object's vertices in world space and project onto the X-Z plane
             vertices_2d = [[(obj.matrix_world @ vert.co)[0], (obj.matrix_world @ vert.co)[2]] for vert in obj.data.vertices]
             
             # Sort the vertices by the x-coordinate
             vertices_2d = sorted(vertices_2d, key=lambda v: v[0])
+            
+            # Because in RAPIER these objects are drawn by vertices position the object position and anchor point will be a multiplier on top of each vertex
+            
+            # Make the object active, select the object
+            bpy.context.view_layer.objects.active = obj  
+            obj.select_set(True)
+            
+            # Apply all transforms
+            bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)  # Apply transforms
+            
+            # Move the object's origin to (0, 0, 0)
+            bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)  # Set cursor to (0, 0, 0)
+            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')  # Set origin to cursor
+            
+            # Deselect the object afterward
+            obj.select_set(False)  
 
         # Store bounding box coordinates, dimensions, and position in the dictionary
         blender_objects[obj.name] = {

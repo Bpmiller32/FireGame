@@ -1,4 +1,7 @@
 export default interface GameObjectContactPoints {
+  // Allow dynamic keys
+  [key: string]: boolean;
+
   ground: boolean;
   ceiling: boolean;
   leftSide: boolean;

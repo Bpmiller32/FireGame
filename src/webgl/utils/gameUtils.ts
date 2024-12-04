@@ -82,23 +82,7 @@ export default class GameUtils {
     return activeObjects;
   }
 
-  // Stop looping if any single sensor in the array is tripped and GameObject is fully inside the sensor's collider
-  public static isAnySensorTriggeredObjectFullyInside<
-    T extends GameObject,
-    U extends GameSensor
-  >(gameSensors: U[], gameObject: T): boolean {
-    for (const sensor of gameSensors) {
-      sensor.targetFullyInsideIntersectionCheck(gameObject);
-
-      if (sensor.isIntersectingTarget && sensor.isTargetFullyInside) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  // Same as above but for one sensor given it's collider, same logic as sensor but used for enemy
+  // Checks not only if the targetObject is intersecting with sensor, but is fully inside it
   public static isObjectFullyInsideSensor<
     T extends RAPIER.Collider,
     U extends GameObject
@@ -137,6 +121,22 @@ export default class GameUtils {
     return false;
   }
 
+  // Stop looping if any single sensor in the array is tripped and GameObject is fully inside the sensor's collider
+  public static isAnySensorTriggeredObjectFullyInside<
+    T extends GameObject,
+    U extends GameSensor
+  >(gameSensors: U[], gameObject: T): boolean {
+    for (const sensor of gameSensors) {
+      sensor.targetFullyInsideIntersectionCheck(gameObject);
+
+      if (sensor.isIntersectingTarget && sensor.isTargetFullyInside) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   // Needed to check all CameraSensors, stop looping if any single sensor is tripped
   public static updateCameraSensors(
     camera: Camera,
@@ -151,6 +151,7 @@ export default class GameUtils {
     }
   }
 
+  // Convienence function to update OneWayPlatforms
   public static updatePlatforms(platforms: Platform[], player: Player) {
     // Check once to improve performance
     const isClimbing = player.state === "climbing";
@@ -168,31 +169,11 @@ export default class GameUtils {
     return radians * (180 / Math.PI);
   }
 
-  public static lerp(
-    start: number,
-    end: number,
-    t: number,
-    deltaTime: number,
-    duration: number
-  ): number {
-    const clampedT = Math.min(Math.max(t, 0), 1); // Clamp t to [0, 1]
-    const easedT = 0.5 * (1 - Math.cos(Math.PI * clampedT));
-    return start + (end - start) * easedT * deltaTime * (1 / duration);
-  }
-
   public static calculatePercentChance(probability: number) {
     return Math.random() < probability;
   }
 
   public static getRandomNumber(min: number, max: number): number {
     return Math.random() * (max - min) + min;
-  }
-
-  public static clamp(min: number, max: number): number {
-    return Math.random() * (max - min) + min;
-  }
-
-  public static easeInOutSin(time: number) {
-    return 0.5 * (1 - Math.cos(Math.PI * time));
   }
 }

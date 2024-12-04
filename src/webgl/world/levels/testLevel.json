@@ -16,7 +16,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform": {
         "width": 4.0,
@@ -35,7 +37,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.001": {
         "width": 4.0,
@@ -54,7 +58,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.002": {
         "width": 4.0,
@@ -73,7 +79,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "Floor.001": {
         "width": 2.0000085830688477,
@@ -92,7 +100,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.003": {
         "width": 4.0,
@@ -111,7 +121,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.004": {
         "width": 4.0,
@@ -130,7 +142,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.005": {
         "width": 4.0,
@@ -149,7 +163,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.006": {
         "width": 4.0,
@@ -168,7 +184,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.007": {
         "width": 4.0,
@@ -187,7 +205,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.008": {
         "width": 4.0,
@@ -206,7 +226,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "Floor.002": {
         "width": 48.328460693359375,
@@ -225,7 +247,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "Floor.003": {
         "width": 2.0,
@@ -244,7 +268,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.009": {
         "width": 4.0,
@@ -263,7 +289,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.010": {
         "width": 4.0,
@@ -282,7 +310,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.011": {
         "width": 4.0,
@@ -301,7 +331,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.012": {
         "width": 6.2440948486328125,
@@ -320,7 +352,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.013": {
         "width": 10.336929321289062,
@@ -339,7 +373,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.014": {
         "width": 2.0,
@@ -358,7 +394,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.015": {
         "width": 2.0,
@@ -377,7 +415,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.016": {
         "width": 4.0,
@@ -396,7 +436,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "Floor.004": {
         "width": 2.0,
@@ -415,7 +457,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.017": {
         "width": 4.0,
@@ -434,7 +478,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.018": {
         "width": 4.0,
@@ -453,7 +499,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.019": {
         "width": 4.0,
@@ -472,7 +520,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "Floor.005": {
         "width": 36.14483642578125,
@@ -491,7 +541,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "Floor.006": {
         "width": 6.1618804931640625,
@@ -510,7 +562,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "Floor.007": {
         "width": 2.0,
@@ -529,7 +583,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "Floor.008": {
         "width": 2.0,
@@ -548,7 +604,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.020": {
         "width": 4.0,
@@ -567,7 +625,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.021": {
         "width": 6.0,
@@ -586,7 +646,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.022": {
         "width": 6.0,
@@ -605,7 +667,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.023": {
         "width": 6.0,
@@ -624,7 +688,9 @@
         "type": "Platform",
         "visible": true,
         "value0": 0,
-        "value1": 1
+        "value1": 1,
+        "value2": 0,
+        "value3": 0
     },
     "MediumPlatform.024": {
         "width": 161.83223724365234,

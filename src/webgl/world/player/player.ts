@@ -21,6 +21,8 @@ import setDkAttributes from "./attributes/setDkAttributes";
 import GameUtils from "../../utils/gameUtils";
 import handlePlayerClimbing from "./state/handlePlayerClimbing";
 import CollisionGroups from "../../utils/types/collisionGroups";
+import GameObjectContactPoints from "../../utils/types/contactPoints";
+import TestLevel from "../levels/testLevel.json";
 
 export default class Player extends GameObject {
   // Experience
@@ -254,7 +256,8 @@ export default class Player extends GameObject {
   }
 
   private resetCollisions() {
-    this.isTouching = {
+    // Use assign instead of replacing with a JS Object, fixes issue with dat.gui
+    Object.assign(this.isTouching, {
       ground: false,
       ceiling: false,
       leftSide: false,
@@ -263,7 +266,7 @@ export default class Player extends GameObject {
       ladderCore: false,
       ladderTop: false,
       ladderBottom: false,
-    };
+    });
   }
 
   private getShapeCastCollisions() {

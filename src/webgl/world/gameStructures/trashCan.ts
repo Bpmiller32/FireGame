@@ -20,7 +20,7 @@ export default class TrashCan extends GameObject {
       rotation
     );
 
-    this.createObjectGraphicsDebug("cyan");
+    // this.createObjectGraphicsDebug("cyan");
     this.isOnFire = false;
 
     this.setCollisionGroup(CollisionGroups.DEFAULT);

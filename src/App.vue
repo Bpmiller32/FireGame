@@ -42,7 +42,7 @@ const handleButtonClicked = () => {
 
 <template>
   <div class="absolute w-full h-full">
-    <p class="text-white">firePlatformerEngine v0.1.0</p>
+    <p class="text-white">firePlatformerEngine v0.2.0</p>
     <p ref="statusRef" class="text-white"></p>
     <button
       v-if="isResetButtonVisible"

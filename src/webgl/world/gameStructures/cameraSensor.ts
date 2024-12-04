@@ -26,7 +26,7 @@ export default class CameraSensor extends GameSensor {
     );
 
     this.setAsSensor(true);
-    this.createObjectGraphicsDebug("yellow", 0.1);
+    // this.createObjectGraphicsDebug("yellow", 0.1);
   }
 
   public setCameraPositionData(newPositionData: THREE.Vector3) {
