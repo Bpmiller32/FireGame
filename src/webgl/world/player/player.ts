@@ -21,8 +21,6 @@ import setDkAttributes from "./attributes/setDkAttributes";
 import GameUtils from "../../utils/gameUtils";
 import handlePlayerClimbing from "./state/handlePlayerClimbing";
 import CollisionGroups from "../../utils/types/collisionGroups";
-import GameObjectContactPoints from "../../utils/types/contactPoints";
-import TestLevel from "../levels/testLevel.json";
 
 export default class Player extends GameObject {
   // Experience
@@ -100,7 +98,7 @@ export default class Player extends GameObject {
     );
 
     this.createHitBoxCollider();
-    this.createGraphicsObject();
+    this.createSpriteGraphics();
 
     this.setCollisionGroup(CollisionGroups.PLAYER_BOUNDING_BOX, 0);
     this.setCollisionGroup(CollisionGroups.PLAYER_HIT_BOX, 1);
@@ -165,7 +163,7 @@ export default class Player extends GameObject {
     this.setMaterial(this.spriteAnimator.material, 4);
   }
 
-  private createGraphicsObject() {
+  private createSpriteGraphics() {
     this.mesh = new THREE.Sprite(this.material as THREE.SpriteMaterial);
 
     if (this.spriteScale) {

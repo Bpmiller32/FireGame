@@ -12,6 +12,14 @@ onMounted(async () => {
   const webglExperience = Experience.getInstance();
   await webglExperience.configure(webglRef.value);
 
+  Emitter.on("gameWin", () => {
+    if (statusRef.value) {
+      statusRef.value.innerText = "Game Win!";
+    }
+
+    isResetButtonVisible.value = true;
+  });
+
   Emitter.on("gameOver", () => {
     if (statusRef.value) {
       statusRef.value.innerText = "Game Over!";

@@ -18,7 +18,7 @@ export default class GameObject {
     | THREE.SphereGeometry
     | THREE.CapsuleGeometry;
   protected material?: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
-  protected mesh?: THREE.Mesh | THREE.Sprite;
+  protected mesh?: THREE.Mesh | THREE.Sprite | THREE.Group;
   protected spriteScale?: number;
   protected vertices?: number[];
 
@@ -36,7 +36,7 @@ export default class GameObject {
     this.initializeAttributes();
   }
 
-  protected initializeAttributes() {
+  private initializeAttributes() {
     this.experience = Experience.getInstance();
     this.scene = this.experience.scene;
     this.physics = this.experience.physics;
@@ -141,6 +141,44 @@ export default class GameObject {
     this.spriteScale = spriteScale;
   }
 
+  private disposeMeshHelper(object: THREE.Object3D) {
+    if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
+      // Dispose geometry
+      object.geometry?.dispose();
+
+      // Dispose material(s)
+      let materials: THREE.Material[];
+      if (Array.isArray(object.material)) {
+        materials = object.material;
+      } else {
+        materials = [object.material];
+      }
+      materials.forEach((material) => material?.dispose());
+    }
+  }
+
+  private createMeshGroup() {
+    if (this.mesh) {
+      return;
+    }
+
+    this.mesh = new THREE.Group();
+  }
+
+  private async addMeshesAsync(meshes: any[], batchSize: number) {
+    // Needed to load meshes from BlenderScene async, otherwise operation is blocking with too many synchronous loads to THREE.Scene
+    for (let i = 0; i < meshes.length; i += batchSize) {
+      const batchOfMeshes = meshes.slice(i, i + batchSize);
+
+      batchOfMeshes.forEach((mesh) => this.mesh!.add(mesh));
+
+      // Allow other operations to execute
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    this.scene.add(this.mesh!);
+  }
+
   protected createObjectGraphicsDebug(meshColor: string, opacity: number = 1) {
     // Check to set transparent property on MeshBasicMaterial
     let isMaterialTransparent: boolean;
@@ -176,38 +214,7 @@ export default class GameObject {
             transparent: isMaterialTransparent,
           })
         );
-        this.mesh = new THREE.Mesh(
-          this.geometry,
-          new THREE.ShaderMaterial({
-            uniforms: {
-              // First stripe color
-              stripeColor1: { value: new THREE.Color(0xffffff) },
-              // Second stripe color
-              stripeColor2: { value: new THREE.Color(0x000000) },
-              // Stripe width
-              stripeWidth: { value: 2.0 },
-            },
-            vertexShader: `
-            varying vec3 vUv; 
-            void main() {
-              vUv = position; 
-              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-          `,
-            fragmentShader: `
-            uniform vec3 stripeColor1;
-            uniform vec3 stripeColor2;
-            uniform float stripeWidth;
-            varying vec3 vUv;
-  
-            void main() {
-              float stripes = mod(floor(vUv.y * stripeWidth), 2.0); // Alternating stripes
-              vec3 color = mix(stripeColor1, stripeColor2, stripes);
-              gl_FragColor = vec4(color, 1.0);
-            }
-          `,
-          })
-        );
+        this.mesh = new THREE.Mesh(this.geometry, this.material);
         break;
 
       default:
@@ -356,12 +363,35 @@ export default class GameObject {
     this.teleportRelative(deltaX, deltaY);
   }
 
+  public async createObjectGraphics(resourceFromLoader: any) {
+    // Create the MeshGroup if it doesn't exist
+    this.createMeshGroup();
+
+    const blenderMeshes = resourceFromLoader.scene.children
+      .filter((child: any) => child?.isMesh)
+      // Clone meshes without affecting the original blenderScene meshes' parent
+      .map((mesh: THREE.Mesh) => mesh.clone());
+
+    // Add meshes to the scene in batches of 5
+    await this.addMeshesAsync(blenderMeshes, 5);
+
+    this.syncGraphicsToPhysics();
+  }
+
   public destroy() {
-    // Remove mesh from the scene if it exists
+    // Remove the main mesh from the scene if it exists
     if (this.mesh) {
-      this.mesh.geometry.dispose();
-      (this.mesh.material as THREE.Material).dispose();
+      this.disposeMeshHelper(this.mesh);
       this.scene.remove(this.mesh);
+
+      // Dispose and remove all children of the mesh
+      this.mesh.children.forEach((child) => {
+        this.disposeMeshHelper(child);
+      });
+
+      // Clear mesh's children and reference
+      this.mesh.clear();
+      this.mesh = undefined;
     }
 
     // Dispose of geometry and material if they exist

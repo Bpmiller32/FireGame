@@ -16,6 +16,7 @@ import DkLevelData from "./blenderExport.json";
 import CameraSensor from "../gameStructures/cameraSensor.ts";
 import LadderSensor from "../gameStructures/ladderSensor.ts";
 import Teleporter from "../gameStructures/teleporter.ts";
+import WinFlag from "../gameStructures/winFlag.ts";
 
 export default class World {
   private experience: Experience;
@@ -31,6 +32,7 @@ export default class World {
   public crazyEnemies: CrazyEnemy[];
 
   public trashCans: TrashCan[];
+  public winFlags: WinFlag[];
   public teleporters: Teleporter[];
 
   public platforms: Platform[];
@@ -50,6 +52,7 @@ export default class World {
     this.crazyEnemies = [];
 
     this.trashCans = [];
+    this.winFlags = [];
     this.teleporters = [];
 
     this.platforms = [];
@@ -127,6 +130,11 @@ export default class World {
     // Teleporters
     this.teleporters.forEach((teleporter) => {
       teleporter.update();
+    });
+
+    // WinFlag
+    this.winFlags.forEach((winFlag) => {
+      winFlag.update();
     });
 
     // Platforms

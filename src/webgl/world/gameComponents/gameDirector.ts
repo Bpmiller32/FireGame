@@ -19,6 +19,7 @@ import LadderSensor from "../gameStructures/ladderSensor";
 import Teleporter from "../gameStructures/teleporter";
 import GraphicsObject from "./graphicsObject";
 import ResourceLoader from "../../utils/resourceLoader";
+import WinFlag from "../gameStructures/winFlag";
 
 export default class GameDirector {
   private experience!: Experience;
@@ -72,8 +73,8 @@ export default class GameDirector {
 
       this.intervalIds.forEach((id) => clearInterval(id));
 
-      this.spawningInterval = setInterval(() => {
-        this.spawnEnemiesWithLogic();
+      this.spawningInterval = setInterval(async () => {
+        await this.spawnEnemiesWithLogic();
       }, 16);
 
       this.intervalIds.push(this.spawningInterval);
@@ -243,9 +244,23 @@ export default class GameDirector {
         -importedData.rotation[1]
       );
 
-      trashCan.setObjectName("TrashCan");
-
       this.world.trashCans.push(trashCan);
+    });
+  }
+
+  private importWinFlags() {
+    this.importLevelObjects("WinFlag", (importedData) => {
+      const winFlag = new WinFlag(
+        {
+          width: importedData.width,
+          height: importedData.depth,
+          depth: importedData.height,
+        },
+        { x: importedData.position[0], y: importedData.position[2] },
+        -importedData.rotation[1]
+      );
+
+      this.world.winFlags.push(winFlag);
     });
   }
 
@@ -354,6 +369,7 @@ export default class GameDirector {
     this.importPlatforms();
     this.importLadderSensors();
     this.importTrashCans();
+    this.importWinFlags();
     // this.importTeleporters();
   }
 
@@ -363,10 +379,11 @@ export default class GameDirector {
       entities.length = 0;
     };
 
-    // Enemies and trashcans
+    // Enemies and trashcans and winflags
     destroyEntities(this.world.enemies);
     destroyEntities(this.world.crazyEnemies);
     destroyEntities(this.world.trashCans);
+    destroyEntities(this.world.winFlags);
 
     // Camera sensors
     destroyEntities(this.world.cameraSensors);
@@ -395,13 +412,17 @@ export default class GameDirector {
     await this.graphicsObject.createObjectGraphics(graphicsData);
   }
 
-  public spawnEnemy(position: { x: number; y: number } = { x: -13, y: 50 }) {
-    this.world.enemies.push(
-      new Enemy(1, {
-        x: position.x,
-        y: position.y,
-      })
-    );
+  public async spawnEnemy(
+    position: { x: number; y: number } = { x: -13, y: 50 }
+  ) {
+    const enemy = new Enemy(1, {
+      x: position.x,
+      y: position.y,
+    });
+
+    await enemy.createObjectGraphics(this.resources.items.enemy);
+
+    this.world.enemies.push(enemy);
   }
 
   public spawnCrazyEnemy(
@@ -415,7 +436,7 @@ export default class GameDirector {
     );
   }
 
-  public spawnEnemiesWithLogic() {
+  public async spawnEnemiesWithLogic() {
     // Stop if spawning is disabled
     if (!this.isSpawningEnemies) {
       return;
@@ -447,7 +468,7 @@ export default class GameDirector {
       if (this.enemyCount % 8 === 0) {
         this.spawnCrazyEnemy();
       } else {
-        this.spawnEnemy();
+        await this.spawnEnemy();
       }
 
       // Reset time and randomize the next spawn interval

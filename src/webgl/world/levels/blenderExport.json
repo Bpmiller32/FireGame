@@ -5910,27 +5910,6 @@
         "value2": 0,
         "value3": 0
     },
-    "WinFlag": {
-        "vertices": [],
-        "width": 2.0,
-        "height": 2.0,
-        "depth": 6.0,
-        "position": [
-            -3.490218162536621,
-            -6.554068022524007e-06,
-            51.91337585449219
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "TrashCan",
-        "value0": 0,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
     "PlayerStart": {
         "vertices": [],
         "width": 2.0,
@@ -5989,6 +5968,27 @@
             0.0
         ],
         "type": "CameraStart",
+        "value0": 0,
+        "value1": 0,
+        "value2": 0,
+        "value3": 0
+    },
+    "WinFlag": {
+        "vertices": [],
+        "width": 2.0,
+        "height": 2.0,
+        "depth": 5.0,
+        "position": [
+            -3.500638961791992,
+            -6.8608560468419455e-06,
+            51.41337585449219
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "type": "WinFlag",
         "value0": 0,
         "value1": 0,
         "value2": 0,
