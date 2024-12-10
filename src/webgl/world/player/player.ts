@@ -233,7 +233,7 @@ export default class Player extends GameObject {
       (collider) =>
         !(
           collider.isSensor() ||
-          GameUtils.getDataFromCollider(collider).value3 > 0
+          GameUtils.isOneWayPlatformAndActive(collider, "OneWayPlatform")
         )
     );
 
@@ -281,8 +281,11 @@ export default class Player extends GameObject {
     if (
       downCast &&
       downCast.toi <= this.colliderOffsetThreshold &&
-      GameUtils.getDataFromCollider(downCast.collider).name !== "Wall" &&
-      GameUtils.getDataFromCollider(downCast.collider).value3 < 1
+      GameUtils.isColliderName(downCast.collider, "Wall") == false &&
+      GameUtils.isOneWayPlatformAndActive(
+        downCast.collider,
+        "OneWayPlatform"
+      ) == false
     ) {
       // Establish that ground is being touched
       this.isTouching.ground = true;
@@ -316,7 +319,7 @@ export default class Player extends GameObject {
     if (
       leftCast &&
       leftCast.toi <= this.colliderOffsetThreshold &&
-      GameUtils.getDataFromCollider(leftCast.collider).name !== "OneWayPlatform"
+      GameUtils.isColliderName(leftCast.collider, "OneWayPlatform") == false
     ) {
       this.isTouching.leftSide = true;
     }
@@ -326,8 +329,7 @@ export default class Player extends GameObject {
     if (
       rightCast &&
       rightCast.toi <= this.colliderOffsetThreshold &&
-      GameUtils.getDataFromCollider(rightCast.collider).name !==
-        "OneWayPlatform"
+      GameUtils.isColliderName(rightCast.collider, "OneWayPlatform") == false
     ) {
       this.isTouching.rightSide = true;
     }
@@ -337,7 +339,7 @@ export default class Player extends GameObject {
     if (
       upCast &&
       upCast.toi <= this.colliderOffsetThreshold &&
-      GameUtils.getDataFromCollider(upCast.collider).name !== "OneWayPlatform"
+      GameUtils.isColliderName(upCast.collider, "OneWayPlatform") == false
     ) {
       this.isTouching.ceiling = true;
     }
@@ -365,7 +367,7 @@ export default class Player extends GameObject {
       (collider) =>
         !(
           collider.isSensor() ||
-          GameUtils.getDataFromCollider(collider).value3 > 0
+          GameUtils.isOneWayPlatformAndActive(collider, "OneWayPlatform")
         )
     );
 

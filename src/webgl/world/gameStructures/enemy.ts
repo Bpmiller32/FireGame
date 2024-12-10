@@ -79,7 +79,7 @@ export default class Enemy extends GameObject {
       this.physicsBody!.collider(0),
       (otherCollider) => {
         // Check for collision with trashcan, destroy object
-        if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
+        if (GameUtils.isColliderName(otherCollider, "TrashCan")) {
           // Remove through event not directly, helps remove targets from GameSensors
           Emitter.emit("gameObjectRemoved", this);
 
@@ -89,22 +89,20 @@ export default class Enemy extends GameObject {
         }
 
         // Check for collision with wall
-        if (GameUtils.getDataFromCollider(otherCollider).name == "Wall") {
+        if (GameUtils.isColliderName(otherCollider, "Wall")) {
           this.direction = this.direction * -1;
           return;
         }
 
         // Check for collision with player
-        if (GameUtils.getDataFromCollider(otherCollider).name == "Player") {
+        if (GameUtils.isColliderName(otherCollider, "Player")) {
           Emitter.emit("gameOver");
 
           return;
         }
 
         // Check for collision with platform
-        if (
-          GameUtils.getDataFromCollider(otherCollider).name == "OneWayPlatform"
-        ) {
+        if (GameUtils.isColliderName(otherCollider, "OneWayPlatform")) {
           // Above the platform collide, otherwise phase through
           if (
             this.physicsBody!.translation().y > otherCollider.translation().y
@@ -131,8 +129,7 @@ export default class Enemy extends GameObject {
       (otherCollider) => {
         // Check for touching ladder core, also fully inside the ladder core
         if (
-          GameUtils.getDataFromCollider(otherCollider).name ===
-            "LadderCoreSensor" &&
+          GameUtils.isColliderName(otherCollider, "LadderCoreSensor") &&
           GameUtils.getDataFromCollider(otherCollider).value0 !== 0 &&
           GameUtils.isObjectFullyInsideSensor(otherCollider, this)
         ) {
@@ -142,10 +139,7 @@ export default class Enemy extends GameObject {
         }
 
         // Check for touching ladder bottom
-        if (
-          GameUtils.getDataFromCollider(otherCollider).name ===
-          "LadderBottomSensor"
-        ) {
+        if (GameUtils.isColliderName(otherCollider, "LadderBottomSensor")) {
           this.performSpecialRoll = false;
         }
       }

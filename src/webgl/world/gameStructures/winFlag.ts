@@ -23,7 +23,7 @@ export default class WinFlag extends GameObject {
       rotation
     );
 
-    this.createObjectGraphicsDebug("cyan");
+    // this.createObjectGraphicsDebug("cyan");
 
     this.colliderOffset = 0.01;
     this.isBeingTouched = false;

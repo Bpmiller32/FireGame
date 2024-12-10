@@ -74,7 +74,7 @@ export default class CrazyEnemy extends GameObject {
       this.physicsBody!.collider(0),
       (otherCollider) => {
         // Check for collision with trashcan, destroy object
-        if (GameUtils.getDataFromCollider(otherCollider).name == "TrashCan") {
+        if (GameUtils.isColliderName(otherCollider, "TrashCan")) {
           // Remove through event not directly, helps remove targets from GameSensors
           Emitter.emit("gameObjectRemoved", this);
 
@@ -84,7 +84,7 @@ export default class CrazyEnemy extends GameObject {
         }
 
         // Check for collision with player
-        if (GameUtils.getDataFromCollider(otherCollider).name == "Player") {
+        if (GameUtils.isColliderName(otherCollider, "Player")) {
           Emitter.emit("gameOver");
 
           return;

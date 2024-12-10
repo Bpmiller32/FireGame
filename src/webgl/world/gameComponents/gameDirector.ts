@@ -17,12 +17,13 @@ import setDkAttributes from "../player/attributes/setDkAttributes";
 import CameraSensor from "../gameStructures/cameraSensor";
 import LadderSensor from "../gameStructures/ladderSensor";
 import Teleporter from "../gameStructures/teleporter";
-import GraphicsObject from "./graphicsObject";
 import ResourceLoader from "../../utils/resourceLoader";
 import WinFlag from "../gameStructures/winFlag";
+import GameObject from "./gameObject";
 
 export default class GameDirector {
   private experience!: Experience;
+  private scene!: THREE.Scene;
   private world!: World;
   private time!: Time;
   private camera!: Camera;
@@ -32,7 +33,8 @@ export default class GameDirector {
   private playerHasBeenSpawned!: boolean;
 
   public levelData!: LevelData;
-  public graphicsObject!: GraphicsObject;
+  public graphicsObject!: GameObject;
+  private ambientLight?: THREE.AmbientLight;
 
   private isSpawningEnemies!: boolean;
   private spawningInterval!: number;
@@ -115,6 +117,7 @@ export default class GameDirector {
   private initializeAttributes() {
     // Experience fields
     this.experience = Experience.getInstance();
+    this.scene = this.experience.scene;
     this.world = this.experience.world;
     this.time = this.experience.time;
     this.camera = this.experience.camera;
@@ -123,7 +126,7 @@ export default class GameDirector {
 
     // Set default level to load
     this.levelData = TestLevel;
-    this.graphicsObject = new GraphicsObject();
+    this.graphicsObject = new GameObject();
 
     this.playerHasBeenSpawned = false;
     this.isSpawningEnemies = false;
@@ -360,6 +363,12 @@ export default class GameDirector {
       this.levelData = BlenderExport;
     }
 
+    // Create an AmbientLight for all PBR materials to be seen, not needed later when lighting is baked into MeshBasicMaterial
+    if (!this.ambientLight) {
+      this.ambientLight = new THREE.AmbientLight(0xffffff, 1);
+      this.experience.scene.add(this.ambientLight);
+    }
+
     // Must load player first to avoid problems with setting sensorTargets
     this.setPlayerStart();
     this.setCameraStart();
@@ -402,6 +411,12 @@ export default class GameDirector {
 
     // Graphics
     this.graphicsObject.destroy();
+
+    // Remove the ambientLight
+    if (!this.ambientLight) {
+      this.scene.remove(this.ambientLight!);
+      this.ambientLight = undefined;
+    }
   }
 
   public async loadGraphicsData(graphicsData: any) {
@@ -425,15 +440,17 @@ export default class GameDirector {
     this.world.enemies.push(enemy);
   }
 
-  public spawnCrazyEnemy(
+  public async spawnCrazyEnemy(
     position: { x: number; y: number } = { x: -13, y: 50 }
   ) {
-    this.world.crazyEnemies.push(
-      new CrazyEnemy(1, {
-        x: position.x,
-        y: position.y,
-      })
-    );
+    const crazyEnemy = new CrazyEnemy(1, {
+      x: position.x,
+      y: position.y,
+    });
+
+    await crazyEnemy.createObjectGraphics(this.resources.items.enemy);
+
+    this.world.crazyEnemies.push(crazyEnemy);
   }
 
   public async spawnEnemiesWithLogic() {
@@ -466,7 +483,7 @@ export default class GameDirector {
 
       // Spawn a crazyEnemy every 8th spawn
       if (this.enemyCount % 8 === 0) {
-        this.spawnCrazyEnemy();
+        await this.spawnCrazyEnemy();
       } else {
         await this.spawnEnemy();
       }

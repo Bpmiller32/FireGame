@@ -141,6 +141,28 @@ export default class GameObject {
     this.spriteScale = spriteScale;
   }
 
+  private createMeshGroup() {
+    if (this.mesh) {
+      return;
+    }
+
+    this.mesh = new THREE.Group();
+  }
+
+  private async addMeshesToGroupAsync(meshes: any[], batchSize: number) {
+    // Needed to load meshes from BlenderScene async, otherwise operation is blocking with too many synchronous loads to THREE.Scene
+    for (let i = 0; i < meshes.length; i += batchSize) {
+      const batchOfMeshes = meshes.slice(i, i + batchSize);
+
+      batchOfMeshes.forEach((mesh) => this.mesh!.add(mesh));
+
+      // Allow other operations to execute
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    this.scene.add(this.mesh!);
+  }
+
   private disposeMeshHelper(object: THREE.Object3D) {
     if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
       // Dispose geometry
@@ -155,28 +177,6 @@ export default class GameObject {
       }
       materials.forEach((material) => material?.dispose());
     }
-  }
-
-  private createMeshGroup() {
-    if (this.mesh) {
-      return;
-    }
-
-    this.mesh = new THREE.Group();
-  }
-
-  private async addMeshesAsync(meshes: any[], batchSize: number) {
-    // Needed to load meshes from BlenderScene async, otherwise operation is blocking with too many synchronous loads to THREE.Scene
-    for (let i = 0; i < meshes.length; i += batchSize) {
-      const batchOfMeshes = meshes.slice(i, i + batchSize);
-
-      batchOfMeshes.forEach((mesh) => this.mesh!.add(mesh));
-
-      // Allow other operations to execute
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-
-    this.scene.add(this.mesh!);
   }
 
   protected createObjectGraphicsDebug(meshColor: string, opacity: number = 1) {
@@ -373,7 +373,7 @@ export default class GameObject {
       .map((mesh: THREE.Mesh) => mesh.clone());
 
     // Add meshes to the scene in batches of 5
-    await this.addMeshesAsync(blenderMeshes, 5);
+    await this.addMeshesToGroupAsync(blenderMeshes, 5);
 
     this.syncGraphicsToPhysics();
   }

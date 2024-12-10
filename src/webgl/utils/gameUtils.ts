@@ -59,6 +59,27 @@ export default class GameUtils {
     };
   }
 
+  // Helper function, checks just the name from the given collider
+  static isColliderName(collider: Collider, name: string) {
+    if ((collider.parent()?.userData as UserData).name == name) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // Helper function, checks if collider is a OneWayPlatform and if so is it active
+  static isOneWayPlatformAndActive(collider: Collider, name: string) {
+    if (
+      GameUtils.isColliderName(collider, name) &&
+      (collider.parent()?.userData as UserData).value3 > 0
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
   // Calculates what the collision mask on a collider must be without having the collider itself
   static calculateCollisionMask(group: number, mask: number) {
     const groupString = group.toString(2).padStart(16, "0");
@@ -82,7 +103,7 @@ export default class GameUtils {
     return activeObjects;
   }
 
-  // Checks not only if the targetObject is intersecting with sensor, but is fully inside it
+  // Needed for Enemy, non-sesnors. Checks not only if the targetObject is intersecting with sensor, but is fully inside it
   public static isObjectFullyInsideSensor<
     T extends RAPIER.Collider,
     U extends GameObject

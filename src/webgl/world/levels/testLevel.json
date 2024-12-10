@@ -707,8 +707,8 @@
             0.0
         ],
         "type": "CameraSensor",
-        "value0": 21,
-        "value1": 0
+        "value1": 21,
+        "value0": 0
     },
     "MediumPlatform.025": {
         "width": 60.65732383728027,
@@ -725,8 +725,8 @@
             0.0
         ],
         "type": "CameraSensor",
-        "value0": 34,
-        "value1": 0
+        "value1": 34,
+        "value0": 0
     },
     "MediumPlatform.026": {
         "width": 60.65732765197754,
@@ -743,8 +743,8 @@
             0.0
         ],
         "type": "CameraSensor",
-        "value0": 48,
-        "value1": 0
+        "value1": 48,
+        "value0": 0
     },
     "MediumPlatform.027": {
         "width": 75.91126823425293,
@@ -761,8 +761,8 @@
             0.0
         ],
         "type": "CameraSensor",
-        "value0": 62,
-        "value1": 0
+        "value1": 62,
+        "value0": 0
     },
     "MediumPlatform.028": {
         "width": 48.373046875,
@@ -779,8 +779,8 @@
             0.0
         ],
         "type": "CameraSensor",
-        "value0": 38,
-        "value1": 0
+        "value1": 38,
+        "value0": 0
     },
     "MediumPlatform.029": {
         "width": 48.373046875,
@@ -797,8 +797,8 @@
             0.0
         ],
         "type": "CameraSensor",
-        "value0": 28,
-        "value1": 0
+        "value1": 28,
+        "value0": 0
     },
     "PlayerStart": {
         "width": 2.0,
