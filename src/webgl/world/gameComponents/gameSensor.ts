@@ -5,14 +5,13 @@ import GameObject from "./gameObject";
 
 export default class GameSensor extends GameObject {
   public targetPhysicsBody?: RAPIER.RigidBody;
-  public isIntersectingTarget: boolean;
-  public isTargetFullyInside: boolean;
+  public isIntersectingTarget!: boolean;
+  public isTargetFullyInside!: boolean;
 
   constructor() {
     super();
 
-    this.isIntersectingTarget = false;
-    this.isTargetFullyInside = false;
+    this.initializeSensorAttributes();
 
     // Remove targetPhysicsBody if it was destroyed
     Emitter.on("gameObjectRemoved", (removedGameObject) => {
@@ -23,6 +22,11 @@ export default class GameSensor extends GameObject {
         this.targetPhysicsBody = undefined;
       }
     });
+  }
+
+  private initializeSensorAttributes() {
+    this.isIntersectingTarget = false;
+    this.isTargetFullyInside = false;
   }
 
   protected setAsSensor(value: boolean) {

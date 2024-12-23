@@ -5,20 +5,20 @@ import Player from "../player/player";
 import LevelData from "../../utils/types/levelData";
 import TestLevel from "../levels/testLevel.json";
 import BlenderExport from "../levels/blenderExport.json";
-import Platform from "../gameStructures/platform";
-import Enemy from "../gameStructures/enemy";
-import TrashCan from "../gameStructures/trashCan";
+import Platform from "../gameEntities/platform";
+import Enemy from "../gameEntities/enemy";
+import TrashCan from "../gameEntities/trashCan";
 import Emitter from "../../utils/eventEmitter";
-import CrazyEnemy from "../gameStructures/crazyEnemy";
+import CrazyEnemy from "../gameEntities/crazyEnemy";
 import Time from "../../utils/time";
 import Camera from "../../camera";
 import setCelesteAttributes from "../player/attributes/setCelesteAttributes";
 import setDkAttributes from "../player/attributes/setDkAttributes";
-import CameraSensor from "../gameStructures/cameraSensor";
-import LadderSensor from "../gameStructures/ladderSensor";
-import Teleporter from "../gameStructures/teleporter";
+import CameraSensor from "../gameEntities/cameraSensor";
+import LadderSensor from "../gameEntities/ladderSensor";
+import Teleporter from "../gameEntities/teleporter";
 import ResourceLoader from "../../utils/resourceLoader";
-import WinFlag from "../gameStructures/winFlag";
+import WinFlag from "../gameEntities/winFlag";
 import GameObject from "./gameObject";
 
 export default class GameDirector {

@@ -7,16 +7,16 @@ import Experience from "../../experience.ts";
 import Player from "../player/player.ts";
 import Camera from "../../camera.ts";
 import GameDirector from "../gameComponents/gameDirector.ts";
-import Platform from "../gameStructures/platform.ts";
-import Enemy from "../gameStructures/enemy.ts";
+import Platform from "../gameEntities/platform.ts";
+import Enemy from "../gameEntities/enemy.ts";
 import GameUtils from "../../utils/gameUtils.ts";
-import TrashCan from "../gameStructures/trashCan.ts";
-import CrazyEnemy from "../gameStructures/crazyEnemy.ts";
+import TrashCan from "../gameEntities/trashCan.ts";
+import CrazyEnemy from "../gameEntities/crazyEnemy.ts";
 import DkLevelData from "./blenderExport.json";
-import CameraSensor from "../gameStructures/cameraSensor.ts";
-import LadderSensor from "../gameStructures/ladderSensor.ts";
-import Teleporter from "../gameStructures/teleporter.ts";
-import WinFlag from "../gameStructures/winFlag.ts";
+import CameraSensor from "../gameEntities/cameraSensor.ts";
+import LadderSensor from "../gameEntities/ladderSensor.ts";
+import Teleporter from "../gameEntities/teleporter.ts";
+import WinFlag from "../gameEntities/winFlag.ts";
 
 export default class World {
   private experience: Experience;

@@ -7,9 +7,9 @@ import UserData from "./types/userData";
 import GameObject from "../world/gameComponents/gameObject";
 import GameSensor from "../world/gameComponents/gameSensor";
 import Camera from "../camera";
-import Platform from "../world/gameStructures/platform";
+import Platform from "../world/gameEntities/platform";
 import Player from "../world/player/player";
-import CameraSensor from "../world/gameStructures/cameraSensor";
+import CameraSensor from "../world/gameEntities/cameraSensor";
 
 export default class GameUtils {
   // Moves a value current towards target. Current: the current value, target: the value to move towards, maxDelta: the maximum change applied to the current value
