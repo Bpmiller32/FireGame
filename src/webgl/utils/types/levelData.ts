@@ -1,18 +1,19 @@
-interface LevelEntity {
+export interface LevelEntity {
   width: number;
   depth: number;
   height: number;
   position: number[];
   rotation: number[];
   type: string;
+  vertices?: number[];
   value0?: number;
   value1?: number;
   value2?: number;
   value3?: number;
 }
 
-interface LevelData {
+export interface LevelData {
   [key: string]: LevelEntity;
 }
 
-export default LevelData;
+export type { LevelData as default };
