@@ -9,7 +9,7 @@ import Time from "./utils/time";
 import ResourceLoader from "./utils/resourceLoader";
 import Camera from "./camera";
 import Renderer from "./renderer";
-import World from "./world/ecs/world";
+import World from "./world/levels/world";
 import Debug from "./utils/debug";
 import Input from "./utils/input";
 import Physics from "./physics";
@@ -64,7 +64,7 @@ export default class Experience {
     this.renderer = new Renderer();
     this.physics = new Physics();
     await this.physics.configure();
-    this.world = World.getInstance();
+    this.world = new World();
 
     // Sizes resize event
     Emitter.on("resize", () => {
@@ -79,7 +79,7 @@ export default class Experience {
       }
 
       this.physics.update();
-      this.world.update(this.time.delta);
+      this.world.update();
       this.renderer.update();
 
       if (this.debug.isActive) {

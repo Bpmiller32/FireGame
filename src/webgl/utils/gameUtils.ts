@@ -103,13 +103,15 @@ export default class GameUtils {
     return activeObjects;
   }
 
-  // Needed for Enemy, non-sensors. Checks not only if the targetObject is intersecting with sensor, but is fully inside it
-  public static isObjectFullyInsideSensor<T extends RAPIER.Collider>(
-    collider: T,
-    gameObject: { currentTranslation: RAPIER.Vector; currentSize: RAPIER.Vector2 }
-  ): boolean {
-    const objectMinX = gameObject.currentTranslation.x - gameObject.currentSize.x / 2;
-    const objectMaxX = gameObject.currentTranslation.x + gameObject.currentSize.x / 2;
+  // Needed for Enemy, non-sesnors. Checks not only if the targetObject is intersecting with sensor, but is fully inside it
+  public static isObjectFullyInsideSensor<
+    T extends RAPIER.Collider,
+    U extends GameObject
+  >(collider: T, gameObject: U): boolean {
+    const objectMinX =
+      gameObject.currentTranslation.x - gameObject.currentSize.x / 2;
+    const objectMaxX =
+      gameObject.currentTranslation.x + gameObject.currentSize.x / 2;
 
     const colliderMinX =
       collider.translation().x -

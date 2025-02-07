@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import mitt from "mitt";
-import { IGameObject } from "../world/ecs/types/gameTypes";
+import GameObject from "../world/gameComponents/gameObject";
 
 type EventMap = {
   // app state
@@ -19,7 +19,7 @@ type EventMap = {
   resourcesReady: void;
 
   // Game events
-  gameObjectRemoved: IGameObject;
+  gameObjectRemoved: GameObject;
 
   gameStart: void;
   gameOver: void;
