@@ -33,3 +33,4 @@ dist-ssr
 .env
 
 devAssets/dkLevelblend.blend1
+/.firebase

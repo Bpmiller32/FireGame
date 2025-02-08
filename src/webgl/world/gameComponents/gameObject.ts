@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import * as RAPIER from "@dimforge/rapier2d";
+import * as RAPIER from "@dimforge/rapier2d-compat";
 import Experience from "../../experience";
 import Physics from "../../physics";
 import GameObjectType from "../../utils/types/gameObjectType";

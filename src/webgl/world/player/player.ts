@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import * as RAPIER from "@dimforge/rapier2d";
+import * as RAPIER from "@dimforge/rapier2d-compat";
 import Time from "../../utils/time";
 import Input from "../../utils/input";
 import Debug from "../../utils/debug";
@@ -194,7 +194,7 @@ export default class Player extends GameObject {
     this.characterController.enableSnapToGround(this.colliderOffset);
     // Autostep if the step height is smaller than 0.5, its width is larger than 0.2, and allow stepping on dynamic bodies.
     this.characterController.enableAutostep(0.5, 0.2, true);
-    // Don’t allow climbing slopes larger than 45 degrees.
+    // Don't allow climbing slopes larger than 45 degrees.
     this.characterController.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
     // Automatically slide down on slopes smaller than 30 degrees.
     this.characterController.setMinSlopeSlideAngle((30 * Math.PI) / 180);
@@ -230,7 +230,7 @@ export default class Player extends GameObject {
       undefined,
       undefined,
       // Don't collide with sensors or OneWayPlatforms while active
-      (collider) =>
+      (collider: RAPIER.Collider) =>
         !(
           collider.isSensor() ||
           GameUtils.isOneWayPlatformAndActive(collider, "OneWayPlatform")
@@ -364,7 +364,7 @@ export default class Player extends GameObject {
       undefined,
       undefined,
       // Don't collide with sensors or OneWayPlatforms while under them
-      (collider) =>
+      (collider: RAPIER.Collider) =>
         !(
           collider.isSensor() ||
           GameUtils.isOneWayPlatformAndActive(collider, "OneWayPlatform")

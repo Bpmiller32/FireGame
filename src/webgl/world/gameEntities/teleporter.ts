@@ -1,4 +1,4 @@
-import * as RAPIER from "@dimforge/rapier2d";
+import * as RAPIER from "@dimforge/rapier2d-compat";
 import GameObjectType from "../../utils/types/gameObjectType";
 import GameSensor from "../gameComponents/gameSensor";
 

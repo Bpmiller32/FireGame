@@ -4,7 +4,7 @@
 
 import * as THREE from "three";
 import Experience from "./experience";
-import RAPIER from "@dimforge/rapier2d";
+import RAPIER from "@dimforge/rapier2d-compat";
 import Debug from "./utils/debug";
 import { debugPhysics, debugPhysicsUpdate } from "./utils/debug/debugPhysics";
 import Emitter from "./utils/eventEmitter";
@@ -31,8 +31,8 @@ export default class Physics {
     this.experience = Experience.getInstance();
     this.scene = this.experience.scene;
 
-    const rapier = await import("@dimforge/rapier2d");
-    this.world = new rapier.World({ x: 0.0, y: -9.81 });
+    await RAPIER.init();
+    this.world = new RAPIER.World({ x: 0.0, y: -9.81 });
     this.isPaused = false;
 
     // Events

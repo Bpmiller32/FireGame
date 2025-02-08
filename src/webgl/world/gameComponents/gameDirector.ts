@@ -16,7 +16,7 @@ import setCelesteAttributes from "../player/attributes/setCelesteAttributes";
 import setDkAttributes from "../player/attributes/setDkAttributes";
 import CameraSensor from "../gameEntities/cameraSensor";
 import LadderSensor from "../gameEntities/ladderSensor";
-import Teleporter from "../gameEntities/teleporter";
+// import Teleporter from "../gameEntities/teleporter";
 import ResourceLoader from "../../utils/resourceLoader";
 import WinFlag from "../gameEntities/winFlag";
 import GameObject from "./gameObject";
@@ -301,23 +301,23 @@ export default class GameDirector {
     });
   }
 
-  private importTeleporters() {
-    this.importLevelObjects("Teleporter", (importedData) => {
-      const teleporter = new Teleporter(
-        {
-          width: importedData.width,
-          height: importedData.depth,
-        },
-        { x: importedData.position[0], y: importedData.position[2] },
-        -importedData.rotation[1]
-      );
+  // private importTeleporters() {
+  //   this.importLevelObjects("Teleporter", (importedData) => {
+  //     const teleporter = new Teleporter(
+  //       {
+  //         width: importedData.width,
+  //         height: importedData.depth,
+  //       },
+  //       { x: importedData.position[0], y: importedData.position[2] },
+  //       -importedData.rotation[1]
+  //     );
 
-      // Value table: [0] is teleport destination X, [1] is teleport destination Y
-      teleporter.setTeleportPosition(importedData.value0, importedData.value1);
+  //     // Value table: [0] is teleport destination X, [1] is teleport destination Y
+  //     teleporter.setTeleportPosition(importedData.value0, importedData.value1);
 
-      this.world.teleporters.push(teleporter);
-    });
-  }
+  //     this.world.teleporters.push(teleporter);
+  //   });
+  // }
 
   private setPlayerStart() {
     for (const importedData of Object.values(this.levelData)) {

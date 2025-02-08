@@ -30,17 +30,14 @@ export default class Platform extends GameObject {
       this.oneWayEnablePoint = position.y;
     }
 
-    // Determine platform's objectName, debugGraphics color
+    // Determine platform's objectName
     let objectName: string;
-    let graphicsColor: string;
 
     if (isOneWayPlatform) {
       objectName = "OneWayPlatform";
-      graphicsColor = "red";
       this.setOneWayPlatformActive(1);
     } else {
       objectName = "Platform";
-      graphicsColor = "pink";
       this.setOneWayPlatformActive(0);
     }
 

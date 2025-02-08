@@ -1,4 +1,4 @@
-import RAPIER from "@dimforge/rapier2d";
+import RAPIER from "@dimforge/rapier2d-compat";
 import GameUtils from "../../utils/gameUtils";
 import Emitter from "../../utils/eventEmitter";
 import CollisionGroups from "../../utils/types/collisionGroups";

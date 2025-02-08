@@ -1,19 +1,18 @@
-import * as THREE from "three";
 import Emitter from "../../utils/eventEmitter";
 import Time from "../../utils/time";
 import GameUtils from "../../utils/gameUtils";
 import GameObject from "../gameComponents/gameObject";
 import GameObjectType from "../../utils/types/gameObjectType";
 import CollisionGroups from "../../utils/types/collisionGroups";
-import RAPIER from "@dimforge/rapier2d";
+import RAPIER from "@dimforge/rapier2d-compat";
 import Player from "../player/player";
 import PlayerStates from "../../utils/types/playerStates";
 import TrashCan from "./trashCan";
-import ResourceLoader from "../../utils/resourceLoader";
+// import ResourceLoader from "../../utils/resourceLoader";
 
 export default class Enemy extends GameObject {
   private time!: Time;
-  private resources!: ResourceLoader;
+  // private resources!: ResourceLoader;
 
   private groundSpeed!: number;
   private direction!: number;
@@ -53,7 +52,7 @@ export default class Enemy extends GameObject {
 
   private initalizeAttributes() {
     this.time = this.experience.time;
-    this.resources = this.experience.resources;
+    // this.resources = this.experience.resources;
 
     this.groundSpeed = 14;
     this.direction = 1;

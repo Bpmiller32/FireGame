@@ -2,7 +2,7 @@
 /*                  Convenience functions and utils for game                  */
 /* -------------------------------------------------------------------------- */
 
-import RAPIER, { Collider, RigidBody } from "@dimforge/rapier2d";
+import RAPIER, { Collider, RigidBody } from "@dimforge/rapier2d-compat";
 import UserData from "./types/userData";
 import GameObject from "../world/gameComponents/gameObject";
 import GameSensor from "../world/gameComponents/gameSensor";

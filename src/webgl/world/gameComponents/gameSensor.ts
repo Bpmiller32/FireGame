@@ -1,4 +1,4 @@
-import * as RAPIER from "@dimforge/rapier2d";
+import * as RAPIER from "@dimforge/rapier2d-compat";
 import Emitter from "../../utils/eventEmitter";
 import GameUtils from "../../utils/gameUtils";
 import GameObject from "./gameObject";
