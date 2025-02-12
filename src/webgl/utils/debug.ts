@@ -11,7 +11,8 @@ export default class Debug {
   public stats?: Stats;
 
   constructor() {
-    this.isActive = window.location.hash === "#debug";
+    // this.isActive = window.location.hash === "#debug";
+    this.isActive = true;
 
     if (this.isActive) {
       // Debug gui

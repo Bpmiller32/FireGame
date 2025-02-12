@@ -49,14 +49,17 @@ export default class GameDirector {
     this.initializeAttributes();
 
     // Events
-    Emitter.on("gameStart", () => {
-      this.isSpawningEnemies = true;
+    Emitter.on("gameStart", async () => {
+      // // Set initial camera and player settings for BlenderExport level
+      // this.camera.setCameraFollow(false);
+      // setDkAttributes(this.player);
 
-      // // Start a timer or game loop for spawning logic, runs roughly 60 times per second with 16
-      // this.spawningInterval = setInterval(() => {
-      //   this.spawnEnemiesWithLogic();
-      // }, 16);
-      // this.intervalIds.push(this.spawningInterval);
+      // // Load graphics since we're starting with BlenderExport level
+      // await this.graphicsObject.createObjectGraphics(
+      //   this.resources.items.dkGraphicsData
+      // );
+
+      this.isSpawningEnemies = true;
     });
 
     Emitter.on("gameOver", () => {
@@ -125,7 +128,7 @@ export default class GameDirector {
     this.player = this.world.player!;
 
     // Set default level to load
-    this.levelData = TestLevel;
+    this.levelData = BlenderExport;
     this.graphicsObject = new GameObject();
 
     this.playerHasBeenSpawned = false;
@@ -354,7 +357,7 @@ export default class GameDirector {
     }
   }
 
-  public loadLevelData(levelData?: LevelData) {
+  public async loadLevelData(levelData?: LevelData) {
     // Set level json data to parse through
     if (levelData) {
       this.levelData = levelData;
@@ -380,6 +383,13 @@ export default class GameDirector {
     this.importTrashCans();
     this.importWinFlags();
     // this.importTeleporters();
+
+    // Load graphics if this is the BlenderExport level
+    if (this.levelData === BlenderExport) {
+      await this.graphicsObject.createObjectGraphics(
+        this.resources.items.dkGraphicsData
+      );
+    }
   }
 
   public unloadLevelData() {

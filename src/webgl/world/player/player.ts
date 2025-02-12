@@ -158,7 +158,7 @@ export default class Player extends GameObject {
 
   private setSpriteAnimator() {
     // Set initial sprite loop
-    this.spriteAnimator = new SpriteAnimator(this.resources.items.randy, 4, 6);
+    this.spriteAnimator = new SpriteAnimator(this.resources.items.randy as THREE.Texture, 4, 6);
     this.spriteAnimator.state = SpriteAnimations.IDLE_RIGHT;
     this.setMaterial(this.spriteAnimator.material, 4);
   }

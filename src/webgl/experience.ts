@@ -48,12 +48,12 @@ export default class Experience {
     this.time = new Time();
     this.input = new Input();
     this.resources = new ResourceLoader([
-      { name: "randy", type: "texture", path: "/randySpriteSheet.png" },
-      { name: "enemy", type: "gltfModel", path: "/enemy.glb" },
+      { name: "randy", type: "texture", path: "/assets/textures/randySpriteSheet.png" },
+      { name: "enemy", type: "gltfModel", path: "/assets/models/enemy.glb" },
       {
         name: "dkGraphicsData",
         type: "gltfModel",
-        path: "/dkGraphicsData.glb",
+        path: "/assets/models/dkGraphicsData.glb",
       },
     ]);
 
