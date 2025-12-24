@@ -6,10 +6,8 @@ import RAPIER, { Collider, RigidBody } from "@dimforge/rapier2d-compat";
 import UserData from "./types/userData";
 import GameObject from "../world/gameComponents/gameObject";
 import GameSensor from "../world/gameComponents/gameSensor";
-import Camera from "../camera";
 import Platform from "../world/gameEntities/platform";
 import Player from "../world/player/player";
-import CameraSensor from "../world/gameEntities/cameraSensor";
 
 export default class GameUtils {
   // Moves a value current towards target. Current: the current value, target: the value to move towards, maxDelta: the maximum change applied to the current value
@@ -130,11 +128,13 @@ export default class GameUtils {
   /**
    * TEMPORARY: Check if player is intersecting with any sensor (for ladder detection)
    * This uses manual intersection checking until Player is refactored to use callbacks
-   * 
+   *
    * @param gameSensors - Array of sensors to check
    * @returns true if player is intersecting with any sensor
    */
-  public static isAnySensorTriggered<T extends GameSensor>(gameSensors: T[]): boolean {
+  public static isAnySensorTriggered<T extends GameSensor>(
+    gameSensors: T[]
+  ): boolean {
     for (const sensor of gameSensors) {
       // Manual intersection check - only needed for Player until it's refactored
       if (!sensor.physicsBody?.collider(0) || !sensor.physics?.world) {
@@ -160,7 +160,7 @@ export default class GameUtils {
   /**
    * TEMPORARY: Check if GameObject is fully inside any sensor (for ladder detection)
    * This uses manual intersection checking until Player is refactored to use callbacks
-   * 
+   *
    * @param gameSensors - Array of sensors to check
    * @param gameObject - The GameObject to check if fully inside
    * @returns true if GameObject is fully inside any sensor

@@ -26,7 +26,7 @@ export default class Physics {
   public isPaused!: boolean;
 
   // GameObject registration system - maps collider handles to GameObjects
-  private gameObjectRegistry: Map<number, GameObject>;
+  private gameObjectRegistry!: Map<number, GameObject>;
 
   public renderObjectCount!: number;
   public phyiscsObjectCount!: number;

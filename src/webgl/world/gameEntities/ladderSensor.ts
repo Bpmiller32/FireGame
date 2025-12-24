@@ -6,7 +6,7 @@ import Player from "../player/player";
 
 /**
  * LadderSensor - Detects when the player is touching a ladder
- * 
+ *
  * Ladder sensors now use the event-driven callback system.
  * No need to call update() or check manually - it's automatic!
  */
@@ -61,7 +61,7 @@ export default class LadderSensor extends GameSensor {
     if (other instanceof Player) {
       // TODO: Notify player they're touching a ladder
       // This will be handled when we refactor Player to use callbacks
-      console.log("🪜 Player entered ladder zone");
+      // console.log("🪜 Player entered ladder zone");
     }
   }
 
@@ -70,7 +70,7 @@ export default class LadderSensor extends GameSensor {
    */
   public onSensorExit(other: GameObject): void {
     if (other instanceof Player) {
-      console.log("🪜 Player exited ladder zone");
+      // console.log("🪜 Player exited ladder zone");
     }
   }
 }

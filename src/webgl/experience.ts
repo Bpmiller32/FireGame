@@ -9,7 +9,7 @@ import Time from "./utils/time";
 import ResourceLoader from "./utils/resourceLoader";
 import Camera from "./camera";
 import Renderer from "./renderer";
-import World from "./world/levels/world";
+import GameDirector from "./world/gameComponents/gameDirector";
 import Debug from "./utils/debug";
 import Input from "./utils/input";
 import Physics from "./physics";
@@ -31,7 +31,7 @@ export default class Experience {
   public camera!: Camera;
   public renderer!: Renderer;
   public physics!: Physics;
-  public world!: World;
+  public gameDirector!: GameDirector;
 
   // Singleton check/constructor
   public static getInstance(): Experience {
@@ -64,7 +64,7 @@ export default class Experience {
     this.renderer = new Renderer();
     this.physics = new Physics();
     await this.physics.configure();
-    this.world = new World();
+    this.gameDirector = new GameDirector();
 
     // Sizes resize event
     Emitter.on("resize", () => {
@@ -79,7 +79,7 @@ export default class Experience {
       }
 
       this.physics.update();
-      this.world.update();
+      this.gameDirector.update();
       this.renderer.update();
 
       if (this.debug.isActive) {
@@ -95,7 +95,7 @@ export default class Experience {
     this.input.destroy();
 
     // Scene items first
-    this.world.destroy();
+    this.gameDirector.destroy();
 
     // Camera then physics then renderer then resources
     this.camera.destroy();
