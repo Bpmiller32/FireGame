@@ -9,7 +9,7 @@ import GameUtils from "../../utils/gameUtils";
 export default class GameObject {
   protected experience!: Experience;
   protected scene!: THREE.Scene;
-  protected physics!: Physics;
+  public physics!: Physics;  // Made public for GameUtils temporary sensor checking
 
   protected gameObjectType!: string;
 
@@ -31,6 +31,84 @@ export default class GameObject {
   public currentRotation!: number;
 
   public isBeingDestroyed!: boolean;
+
+  // ============================================================================
+  // COLLISION CALLBACKS - Override these in subclasses to handle collisions
+  // ============================================================================
+
+  /**
+   * Called when this GameObject starts colliding with another solid GameObject
+   * Override this method in subclasses to define collision behavior
+   * 
+   * @param other - The GameObject this object collided with
+   * 
+   * @example
+   * ```typescript
+   * protected onCollisionEnter(other: GameObject) {
+   *   if (other instanceof Player) {
+   *     console.log("Enemy hit player!");
+   *     Emitter.emit("gameOver");
+   *   }
+   * }
+   * ```
+   */
+  public onCollisionEnter?(other: GameObject): void;
+
+  /**
+   * Called when this GameObject stops colliding with another solid GameObject
+   * Override this method in subclasses to define collision exit behavior
+   * 
+   * @param other - The GameObject this object stopped colliding with
+   */
+  public onCollisionExit?(other: GameObject): void;
+
+  /**
+   * Called every frame while this GameObject is colliding with another solid GameObject
+   * Override this method in subclasses to define continuous collision behavior
+   * Note: This is not yet implemented - add if needed
+   * 
+   * @param other - The GameObject this object is colliding with
+   */
+  public onCollisionStay?(other: GameObject): void;
+
+  // ============================================================================
+  // SENSOR CALLBACKS - Override these in subclasses to handle sensor triggers
+  // ============================================================================
+
+  /**
+   * Called when this GameObject (as a sensor) detects another GameObject entering
+   * Override this method in subclasses to define sensor trigger behavior
+   * 
+   * @param other - The GameObject that entered this sensor
+   * 
+   * @example
+   * ```typescript
+   * protected onSensorEnter(other: GameObject) {
+   *   if (other instanceof Player) {
+   *     console.log("Player entered ladder zone!");
+   *     this.camera.changePosition(this.targetPosition);
+   *   }
+   * }
+   * ```
+   */
+  public onSensorEnter?(other: GameObject): void;
+
+  /**
+   * Called when this GameObject (as a sensor) detects another GameObject exiting
+   * Override this method in subclasses to define sensor exit behavior
+   * 
+   * @param other - The GameObject that exited this sensor
+   */
+  public onSensorExit?(other: GameObject): void;
+
+  /**
+   * Called every frame while another GameObject is inside this sensor
+   * Override this method in subclasses to define continuous sensor behavior
+   * Note: This is not yet implemented - add if needed
+   * 
+   * @param other - The GameObject that is inside this sensor
+   */
+  public onSensorStay?(other: GameObject): void;
 
   constructor() {
     this.initializeAttributes();
@@ -93,6 +171,43 @@ export default class GameObject {
     this.setObjectValue1();
     this.setObjectValue2();
     this.setObjectValue3();
+
+    // Register this GameObject with the physics system for collision/sensor callbacks
+    this.physics.registerGameObject(this);
+
+    // Auto-enable collision/sensor events if callbacks are defined
+    this.enablePhysicsEvents();
+  }
+
+  /**
+   * Automatically enable collision/sensor events if the GameObject has callbacks defined
+   * This allows the event system to efficiently only process events for objects that need them
+   */
+  private enablePhysicsEvents() {
+    if (!this.physicsBody) {
+      return;
+    }
+
+    const collider = this.physicsBody.collider(0);
+
+    // Determine which events to enable based on callbacks defined
+    let eventsToEnable = 0;
+
+    // Enable collision events if any collision callbacks are defined
+    if (this.onCollisionEnter || this.onCollisionExit || this.onCollisionStay) {
+      eventsToEnable |= RAPIER.ActiveEvents.COLLISION_EVENTS;
+    }
+
+    // Enable intersection events if any sensor callbacks are defined
+    // Note: In Rapier, sensors use collision events, not separate intersection events
+    if (this.onSensorEnter || this.onSensorExit || this.onSensorStay) {
+      eventsToEnable |= RAPIER.ActiveEvents.COLLISION_EVENTS;
+    }
+
+    // Set the active events if any callbacks are defined
+    if (eventsToEnable > 0) {
+      collider.setActiveEvents(eventsToEnable);
+    }
   }
 
   protected createCollider(

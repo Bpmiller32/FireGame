@@ -163,11 +163,11 @@ export default class GameDirector {
       const sensor = new CameraSensor(
         { width: importedData.width, height: importedData.depth },
         { x: importedData.position[0], y: importedData.position[2] },
-        -importedData.rotation[1]
+        -importedData.rotation[1],
+        this.camera // Pass camera instance for automatic sensor callbacks
       );
 
       // Value table: [0] is the destination X position for the Camera to move to, [1] is Y, [2] is Z
-      sensor.setIntersectingTarget(this.player);
       sensor.setCameraPositionData(
         new THREE.Vector3(
           importedData.value0,
@@ -287,9 +287,9 @@ export default class GameDirector {
         );
 
         // Value table: [0] is which direction the Enemy should move after touching this ladder
-        ladderSensor.setIntersectingTarget(this.player);
         ladderSensor.setLadderValue(importedData.value0);
 
+        // Set the sensor name for identification in callbacks
         if (type == "LadderTopSensor") {
           ladderSensor.setObjectName("LadderTopSensor");
           this.world.ladderTopSensors.push(ladderSensor);

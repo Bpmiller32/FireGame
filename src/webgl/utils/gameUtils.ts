@@ -127,49 +127,68 @@ export default class GameUtils {
     }
   }
 
-  // Stop looping if any single sensor in the array is tripped
-  public static isAnySensorTriggered<T extends GameSensor>(gameSensors: T[]) {
+  /**
+   * TEMPORARY: Check if player is intersecting with any sensor (for ladder detection)
+   * This uses manual intersection checking until Player is refactored to use callbacks
+   * 
+   * @param gameSensors - Array of sensors to check
+   * @returns true if player is intersecting with any sensor
+   */
+  public static isAnySensorTriggered<T extends GameSensor>(gameSensors: T[]): boolean {
     for (const sensor of gameSensors) {
-      sensor.targetIntersectionCheck();
+      // Manual intersection check - only needed for Player until it's refactored
+      if (!sensor.physicsBody?.collider(0) || !sensor.physics?.world) {
+        continue;
+      }
 
-      if (sensor.isIntersectingTarget) {
-        // Return immediately if a sensor is intersecting
+      let isIntersecting = false;
+      sensor.physics.world.intersectionPairsWith(
+        sensor.physicsBody.collider(0),
+        () => {
+          isIntersecting = true;
+        }
+      );
+
+      if (isIntersecting) {
         return true;
       }
     }
 
-    // No sensors are intersecting
     return false;
   }
 
-  // Stop looping if any single sensor in the array is tripped and GameObject is fully inside the sensor's collider
+  /**
+   * TEMPORARY: Check if GameObject is fully inside any sensor (for ladder detection)
+   * This uses manual intersection checking until Player is refactored to use callbacks
+   * 
+   * @param gameSensors - Array of sensors to check
+   * @param gameObject - The GameObject to check if fully inside
+   * @returns true if GameObject is fully inside any sensor
+   */
   public static isAnySensorTriggeredObjectFullyInside<
     T extends GameObject,
     U extends GameSensor
   >(gameSensors: U[], gameObject: T): boolean {
     for (const sensor of gameSensors) {
-      sensor.targetFullyInsideIntersectionCheck(gameObject);
+      if (!sensor.physicsBody?.collider(0) || !sensor.physics?.world) {
+        continue;
+      }
 
-      if (sensor.isIntersectingTarget && sensor.isTargetFullyInside) {
+      let isIntersecting = false;
+      sensor.physics.world.intersectionPairsWith(
+        sensor.physicsBody.collider(0),
+        () => {
+          isIntersecting = true;
+        }
+      );
+
+      // Check if intersecting AND fully inside
+      if (isIntersecting && sensor.isFullyInside(gameObject)) {
         return true;
       }
     }
 
     return false;
-  }
-
-  // Needed to check all CameraSensors, stop looping if any single sensor is tripped
-  public static updateCameraSensors(
-    camera: Camera,
-    cameraSensors: CameraSensor[]
-  ) {
-    for (const sensor of cameraSensors) {
-      sensor.update(camera);
-
-      if (sensor.isIntersectingTarget) {
-        break;
-      }
-    }
   }
 
   // Convienence function to update OneWayPlatforms

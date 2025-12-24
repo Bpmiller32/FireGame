@@ -8,6 +8,7 @@ import RAPIER from "@dimforge/rapier2d-compat";
 import Player from "../player/player";
 import PlayerStates from "../../utils/types/playerStates";
 import TrashCan from "./trashCan";
+import UserData from "../../utils/types/userData";
 // import ResourceLoader from "../../utils/resourceLoader";
 
 export default class Enemy extends GameObject {
@@ -24,6 +25,7 @@ export default class Enemy extends GameObject {
   private isInsideLadder!: boolean;
   private didRunSpecialRollCheckOnce!: boolean;
   private performSpecialRoll!: boolean;
+  private ladderBottomCooldown!: number;
 
   constructor(
     size: number,
@@ -44,10 +46,82 @@ export default class Enemy extends GameObject {
     this.initalizeAttributes();
     // this.createObjectGraphicsDebug("white");
 
+    // Set collision groups: Enemy collides with platforms and both player colliders
     this.setCollisionGroup(CollisionGroups.ENEMY);
     this.setCollisionMask(
-      CollisionGroups.PLATFORM | CollisionGroups.PLAYER_HIT_BOX
+      CollisionGroups.PLATFORM |
+        CollisionGroups.PLAYER_HIT_BOX |
+        CollisionGroups.PLAYER_BOUNDING_BOX
     );
+  }
+
+  /**
+   * Collision callback - handles all enemy collisions with game objects
+   * Uses the event-driven collision system for better performance
+   */
+  public onCollisionEnter(other: GameObject): void {
+    const otherCollider = other.physicsBody?.collider(0);
+    if (!otherCollider) return;
+
+    // Player collision - trigger game over
+    const userData = other.physicsBody?.userData as UserData;
+    if (userData && userData.name === "Player") {
+      Emitter.emit("gameOver");
+      return;
+    }
+
+    // TrashCan collision - destroy enemy and light can on fire
+    if (GameUtils.isColliderName(otherCollider, "TrashCan")) {
+      Emitter.emit("gameObjectRemoved", this);
+      (other as TrashCan).isOnFire = true;
+      return;
+    }
+
+    // Wall collision - reverse direction
+    if (GameUtils.isColliderName(otherCollider, "Wall")) {
+      this.direction = this.direction * -1;
+      return;
+    }
+
+    // OneWayPlatform collision - check if enemy is above platform
+    if (GameUtils.isColliderName(otherCollider, "OneWayPlatform")) {
+      if (this.physicsBody!.translation().y > otherCollider.translation().y) {
+        this.isCollidingWithPlatforms = true;
+        this.currentFloor = GameUtils.getDataFromCollider(otherCollider).value0;
+      }
+      return;
+    }
+
+    // Platform collision - set grounded state
+    if (GameUtils.isColliderName(otherCollider, "Platform")) {
+      this.isCollidingWithPlatforms = true;
+      return;
+    }
+  }
+
+  /**
+   * Collision exit callback - handles when enemy stops colliding with objects
+   */
+  public onCollisionExit(other: GameObject): void {
+    const otherCollider = other.physicsBody?.collider(0);
+    if (!otherCollider) return;
+
+    // Ignore sensors - they don't have physics
+    if (otherCollider.isSensor()) return;
+
+    // Leaving a platform - update collision state and turn around
+    if (
+      GameUtils.isColliderName(otherCollider, "OneWayPlatform") ||
+      GameUtils.isColliderName(otherCollider, "Platform")
+    ) {
+      // Mark as not colliding with platforms
+      this.isCollidingWithPlatforms = false;
+      
+      // Turn around when leaving platform edge (prevents falling off)
+      if (!this.performSpecialRoll) {
+        this.direction = this.direction * -1;
+      }
+    }
   }
 
   private initalizeAttributes() {
@@ -62,63 +136,19 @@ export default class Enemy extends GameObject {
     this.isInsideLadder = false;
     this.didRunSpecialRollCheckOnce = false;
     this.performSpecialRoll = false;
+    this.ladderBottomCooldown = 0;
   }
 
-  private checkCollisionsAndDestruction(trashCan: TrashCan) {
-    // Exit early if object is destroyed
-    if (this.isBeingDestroyed) {
-      return;
+  /**
+   * Sensor intersections for ladders
+   * Uses cooldown system to prevent getting stuck oscillating at ladder bottom
+   */
+  private checkLadderIntersections() {
+    // Decrease cooldown timer
+    if (this.ladderBottomCooldown > 0) {
+      this.ladderBottomCooldown -= this.time.delta;
     }
 
-    // Reset colliding with platforms in case enemy is in freefall
-    this.isCollidingWithPlatforms = false;
-
-    // Check for all collisions
-    this.physics.world.contactPairsWith(
-      this.physicsBody!.collider(0),
-      (otherCollider) => {
-        // Check for collision with trashcan, destroy object
-        if (GameUtils.isColliderName(otherCollider, "TrashCan")) {
-          // Remove through event not directly, helps remove targets from GameSensors
-          Emitter.emit("gameObjectRemoved", this);
-
-          // Light the trash can on fire
-          trashCan.isOnFire = true;
-          return;
-        }
-
-        // Check for collision with wall
-        if (GameUtils.isColliderName(otherCollider, "Wall")) {
-          this.direction = this.direction * -1;
-          return;
-        }
-
-        // Check for collision with player
-        if (GameUtils.isColliderName(otherCollider, "Player")) {
-          Emitter.emit("gameOver");
-
-          return;
-        }
-
-        // Check for collision with platform
-        if (GameUtils.isColliderName(otherCollider, "OneWayPlatform")) {
-          // Above the platform collide, otherwise phase through
-          if (
-            this.physicsBody!.translation().y > otherCollider.translation().y
-          ) {
-            this.isCollidingWithPlatforms = true;
-          }
-
-          // Set the current floor this enemy is on
-          this.currentFloor =
-            GameUtils.getDataFromCollider(otherCollider).value0;
-          return;
-        }
-      }
-    );
-  }
-
-  private checkIntersections() {
     // Reset intersecting with ladders
     this.isInsideLadder = false;
 
@@ -137,9 +167,13 @@ export default class Enemy extends GameObject {
           this.isInsideLadder = true;
         }
 
-        // Check for touching ladder bottom
-        if (GameUtils.isColliderName(otherCollider, "LadderBottomSensor")) {
+        // Check for touching ladder bottom - reset to horizontal rolling
+        // Only trigger if cooldown has expired to prevent oscillation
+        if (GameUtils.isColliderName(otherCollider, "LadderBottomSensor") && this.ladderBottomCooldown <= 0) {
           this.performSpecialRoll = false;
+          this.isCollidingWithPlatforms = true;
+          // Set cooldown to 1 second to prevent immediate re-triggering
+          this.ladderBottomCooldown = 1.0;
         }
       }
     );
@@ -194,13 +228,17 @@ export default class Enemy extends GameObject {
   }
 
   private updateCollisionMask() {
-    // Set collision mask
+    // Set collision mask - MUST ALWAYS include PLAYER_BOUNDING_BOX!
     if (this.isCollidingWithPlatforms && this.performSpecialRoll == false) {
       this.setCollisionMask(
-        CollisionGroups.PLATFORM | CollisionGroups.PLAYER_HIT_BOX
+        CollisionGroups.PLATFORM |
+          CollisionGroups.PLAYER_HIT_BOX |
+          CollisionGroups.PLAYER_BOUNDING_BOX
       );
     } else {
-      this.setCollisionMask(CollisionGroups.PLAYER_HIT_BOX);
+      this.setCollisionMask(
+        CollisionGroups.PLAYER_HIT_BOX | CollisionGroups.PLAYER_BOUNDING_BOX
+      );
     }
   }
 
@@ -218,17 +256,27 @@ export default class Enemy extends GameObject {
   }
 
   public update(player: Player, trashCan: TrashCan) {
-    this.checkCollisionsAndDestruction(trashCan);
-
+    // Exit early if object is destroyed
     if (this.isBeingDestroyed) {
       return;
     }
 
-    this.checkIntersections();
+    // DON'T reset isCollidingWithPlatforms here!
+    // It's managed by onCollisionEnter (sets true) and onCollisionExit (sets false)
+
+    // Check ladder sensor intersections
+    this.checkLadderIntersections();
+
+    // Calculate special roll behavior
     this.calculateSpecialRoll(player, trashCan);
+
+    // Update collision mask based on platform state
     this.updateCollisionMask();
+
+    // Update movement
     this.updateMovement();
 
+    // Sync graphics to physics position
     this.syncGraphicsToPhysics();
   }
 }

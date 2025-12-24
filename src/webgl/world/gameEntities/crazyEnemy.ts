@@ -1,11 +1,11 @@
 import RAPIER from "@dimforge/rapier2d-compat";
-import GameUtils from "../../utils/gameUtils";
 import Emitter from "../../utils/eventEmitter";
 import CollisionGroups from "../../utils/types/collisionGroups";
 import TrashCan from "./trashCan";
 import Time from "../../utils/time";
 import GameObject from "../gameComponents/gameObject";
 import GameObjectType from "../../utils/types/gameObjectType";
+import Player from "../player/player";
 
 export default class CrazyEnemy extends GameObject {
   private time!: Time;
@@ -40,8 +40,35 @@ export default class CrazyEnemy extends GameObject {
     this.initalizeAttributes();
     this.createObjectGraphicsDebug("orange");
 
+    // Set collision groups: CrazyEnemy collides with platforms, walls, and both player colliders
     this.setCollisionGroup(CollisionGroups.ENEMY);
-    this.setCollisionMask(CollisionGroups.PLAYER_HIT_BOX);
+    this.setCollisionMask(
+      CollisionGroups.PLATFORM | 
+      CollisionGroups.PLAYER_HIT_BOX | 
+      CollisionGroups.PLAYER_BOUNDING_BOX
+    );
+  }
+
+  /**
+   * COLLISION CALLBACK - Called when crazy enemy collides with another GameObject
+   * This replaces the old manual contactPairsWith checking
+   */
+  public onCollisionEnter(other: GameObject): void {
+    // Collision with Player - Game Over!
+    if (other instanceof Player) {
+      console.log("💀 Crazy Enemy hit player - Game Over!");
+      Emitter.emit("gameOver");
+      return;
+    }
+
+    // Collision with TrashCan - Enemy is destroyed
+    if (other instanceof TrashCan) {
+      console.log("🔥 Crazy Enemy fell into trash can!");
+      Emitter.emit("gameObjectRemoved", this);
+      // Light the trash can on fire
+      (other as TrashCan).isOnFire = true;
+      return;
+    }
   }
 
   private initalizeAttributes() {
@@ -61,36 +88,6 @@ export default class CrazyEnemy extends GameObject {
     this.stopThreshold = 0.5;
     this.directionVector = new RAPIER.Vector2(0, 0);
     this.distanceToTarget = 1;
-  }
-
-  private checkCollisionsAndDestruction(trashCan: TrashCan) {
-    // Exit early if object is destroyed
-    if (this.isBeingDestroyed) {
-      return;
-    }
-
-    // Check for all collisions
-    this.physics.world.contactPairsWith(
-      this.physicsBody!.collider(0),
-      (otherCollider) => {
-        // Check for collision with trashcan, destroy object
-        if (GameUtils.isColliderName(otherCollider, "TrashCan")) {
-          // Remove through event not directly, helps remove targets from GameSensors
-          Emitter.emit("gameObjectRemoved", this);
-
-          // Light the trash can on fire
-          trashCan.isOnFire = true;
-          return;
-        }
-
-        // Check for collision with player
-        if (GameUtils.isColliderName(otherCollider, "Player")) {
-          Emitter.emit("gameOver");
-
-          return;
-        }
-      }
-    );
   }
 
   private calculateDirection() {
@@ -157,15 +154,16 @@ export default class CrazyEnemy extends GameObject {
   }
 
   public update(trashCan: TrashCan) {
-    this.checkCollisionsAndDestruction(trashCan);
-
+    // Exit early if object is destroyed
     if (this.isBeingDestroyed) {
       return;
     }
 
+    // Calculate movement direction and update
     this.calculateDirection();
     this.updateMovement();
 
+    // Sync graphics to physics position
     this.syncGraphicsToPhysics();
   }
 }

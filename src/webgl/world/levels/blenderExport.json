@@ -5,14 +5,14 @@
         "height": 2.070507049560547,
         "depth": 1.9047616720199585,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
             1.5707963705062866,
-            -0.0,
-            0.0
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -22,39 +22,18 @@
     },
     "Cube": {
         "vertices": [],
-        "width": 28.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 28,
+        "height": 2,
+        "depth": 2,
         "position": [
             -13.818353652954102,
-            0.0,
-            0.0
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 1,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.003": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            2.15362548828125,
-            0.0,
-            0.24816226959228516
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 1,
@@ -64,18 +43,18 @@
     },
     "Cube.001": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             6.15362548828125,
-            0.0,
+            0,
             0.5173625946044922
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 1,
@@ -85,18 +64,18 @@
     },
     "Cube.002": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             10.153624534606934,
-            0.0,
+            0,
             0.7664566040039062
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 1,
@@ -106,18 +85,18 @@
     },
     "Cube.004": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             14.153624534606934,
-            0.0,
+            0,
             1.0155502557754517
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 1,
@@ -127,18 +106,18 @@
     },
     "Cube.005": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             18.15362548828125,
-            0.0,
+            0,
             1.247880220413208
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 1,
@@ -148,18 +127,18 @@
     },
     "Cube.006": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             22.15362548828125,
-            0.0,
+            0,
             1.5467928647994995
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 1,
@@ -169,18 +148,18 @@
     },
     "Cube.007": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             26.15362548828125,
-            0.0,
+            0,
             1.760301947593689
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 1,
@@ -188,41 +167,20 @@
         "value2": 0,
         "value3": 0
     },
-    "Cube.017": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            22.17088508605957,
-            0.0,
-            6.985420227050781
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "EdgeOneWayPlatform",
-        "value0": 2,
-        "value1": 1,
-        "value2": 0,
-        "value3": 0
-    },
     "Cube.018": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             18.17088508605957,
-            0.0,
+            0,
             7.255153179168701
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -232,18 +190,18 @@
     },
     "Cube.019": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             14.17088508605957,
-            0.0,
+            0,
             7.483510494232178
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -253,18 +211,18 @@
     },
     "Cube.020": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             10.17088508605957,
-            0.0,
+            0,
             7.749927520751953
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -274,18 +232,18 @@
     },
     "Cube.021": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             6.17088508605957,
-            0.0,
+            0,
             7.9758477210998535
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -295,18 +253,18 @@
     },
     "Cube.022": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             2.1708850860595703,
-            0.0,
+            0,
             8.230008125305176
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -316,18 +274,18 @@
     },
     "Cube.023": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -1.8291149139404297,
-            0.0,
+            0,
             8.512408256530762
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -337,18 +295,18 @@
     },
     "Cube.024": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -5.82911491394043,
-            0.0,
+            0,
             8.738327980041504
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -358,18 +316,18 @@
     },
     "Cube.025": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -9.82911491394043,
-            0.0,
+            0,
             9.006608009338379
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -379,18 +337,18 @@
     },
     "Cube.026": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -13.82911491394043,
-            0.0,
+            0,
             9.246647834777832
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -400,18 +358,18 @@
     },
     "Cube.027": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -17.82911491394043,
-            0.0,
+            0,
             9.500807762145996
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -421,18 +379,18 @@
     },
     "Cube.028": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -21.82911491394043,
-            0.0,
+            0,
             9.769087791442871
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -442,18 +400,18 @@
     },
     "Cube.029": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -25.82911491394043,
-            0.0,
+            0,
             9.995007514953613
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 2,
@@ -461,41 +419,20 @@
         "value2": 0,
         "value3": 0
     },
-    "Cube.030": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            -21.757301330566406,
-            0.0,
-            15.229599952697754
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "EdgeOneWayPlatform",
-        "value0": 3,
-        "value1": 1,
-        "value2": 0,
-        "value3": 0
-    },
     "Cube.031": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -17.757301330566406,
-            0.0,
+            0,
             15.507198333740234
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -505,18 +442,18 @@
     },
     "Cube.032": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -13.757301330566406,
-            0.0,
+            0,
             15.738551139831543
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -526,18 +463,18 @@
     },
     "Cube.033": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -9.757301330566406,
-            0.0,
+            0,
             15.95448112487793
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -547,18 +484,18 @@
     },
     "Cube.034": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -5.757301330566406,
-            0.0,
+            0,
             16.232105255126953
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -568,18 +505,18 @@
     },
     "Cube.035": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -1.7573013305664062,
-            0.0,
+            0,
             16.4788818359375
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -589,18 +526,18 @@
     },
     "Cube.036": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             2.2426986694335938,
-            0.0,
+            0,
             16.725658416748047
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -610,18 +547,18 @@
     },
     "Cube.037": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             6.242698669433594,
-            0.0,
+            0,
             17.00328254699707
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -631,18 +568,18 @@
     },
     "Cube.038": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             10.242698669433594,
-            0.0,
+            0,
             17.21921157836914
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -652,18 +589,18 @@
     },
     "Cube.039": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             14.242698669433594,
-            0.0,
+            0,
             17.512258529663086
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -673,18 +610,18 @@
     },
     "Cube.040": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             18.242698669433594,
-            0.0,
+            0,
             17.74361228942871
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -694,18 +631,18 @@
     },
     "Cube.041": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             22.242698669433594,
-            0.0,
+            0,
             17.974966049194336
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -715,18 +652,18 @@
     },
     "Cube.042": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             26.242698669433594,
-            0.0,
+            0,
             18.237165451049805
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 3,
@@ -734,41 +671,20 @@
         "value2": 0,
         "value3": 0
     },
-    "Cube.043": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            22.1549129486084,
-            0.0,
-            23.47130012512207
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "EdgeOneWayPlatform",
-        "value0": 4,
-        "value1": 1,
-        "value2": 0,
-        "value3": 0
-    },
     "Cube.044": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             18.1549129486084,
-            0.0,
+            0,
             23.711528778076172
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -778,18 +694,18 @@
     },
     "Cube.045": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             14.154912948608398,
-            0.0,
+            0,
             23.939132690429688
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -799,18 +715,18 @@
     },
     "Cube.046": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             10.154912948608398,
-            0.0,
+            0,
             24.204669952392578
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -820,18 +736,18 @@
     },
     "Cube.047": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             6.154912948608398,
-            0.0,
+            0,
             24.47020721435547
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -841,18 +757,18 @@
     },
     "Cube.048": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             2.1549129486083984,
-            0.0,
+            0,
             24.697811126708984
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -862,18 +778,18 @@
     },
     "Cube.049": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -1.8450870513916016,
-            0.0,
+            0,
             24.963348388671875
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -883,18 +799,18 @@
     },
     "Cube.050": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -5.845087051391602,
-            0.0,
+            0,
             25.19095230102539
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -904,18 +820,18 @@
     },
     "Cube.051": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -9.845087051391602,
-            0.0,
+            0,
             25.469133377075195
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -925,18 +841,18 @@
     },
     "Cube.052": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -13.845087051391602,
-            0.0,
+            0,
             25.722026824951172
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -946,18 +862,18 @@
     },
     "Cube.053": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -17.8450870513916,
-            0.0,
+            0,
             25.93698501586914
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -967,18 +883,18 @@
     },
     "Cube.054": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -21.8450870513916,
-            0.0,
+            0,
             26.215166091918945
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -988,18 +904,18 @@
     },
     "Cube.055": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -25.8450870513916,
-            0.0,
+            0,
             26.455413818359375
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 4,
@@ -1007,41 +923,20 @@
         "value2": 0,
         "value3": 0
     },
-    "Cube.056": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            -21.75396728515625,
-            -6.138675701095053e-08,
-            31.701099395751953
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "EdgeOneWayPlatform",
-        "value0": 5,
-        "value1": 1,
-        "value2": 0,
-        "value3": 0
-    },
     "Cube.057": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -17.75396728515625,
-            -5.978009909313187e-08,
+            -5.978009909313187e-8,
             31.95218849182129
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1051,18 +946,18 @@
     },
     "Cube.058": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -13.75396728515625,
-            -6.299342203419656e-08,
+            -6.299342203419656e-8,
             32.191349029541016
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1072,18 +967,18 @@
     },
     "Cube.059": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -9.75396728515625,
-            -1.0797991478739277e-07,
+            -1.0797991478739277e-7,
             32.46638107299805
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1093,18 +988,18 @@
     },
     "Cube.060": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -5.75396728515625,
-            -2.252661204238393e-07,
+            -2.252661204238393e-7,
             32.68162536621094
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1114,18 +1009,18 @@
     },
     "Cube.061": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             -1.75396728515625,
-            -4.871517376159318e-07,
+            -4.871517376159318e-7,
             32.95665740966797
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1135,18 +1030,18 @@
     },
     "Cube.062": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             2.24603271484375,
-            -5.176783020033326e-07,
+            -5.176783020033326e-7,
             33.21973419189453
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1156,18 +1051,18 @@
     },
     "Cube.063": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             6.24603271484375,
-            -6.928042921572342e-07,
+            -6.928042921572342e-7,
             33.446937561035156
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1177,18 +1072,18 @@
     },
     "Cube.064": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             10.24603271484375,
-            -9.145234116658685e-07,
+            -9.145234116658685e-7,
             33.72196960449219
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1198,18 +1093,18 @@
     },
     "Cube.065": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             14.24603271484375,
-            -1.1780157365137711e-06,
+            -0.0000011780157365137711,
             33.925254821777344
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1219,18 +1114,18 @@
     },
     "Cube.066": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             18.24603271484375,
-            -1.3981282336317236e-06,
+            -0.0000013981282336317236,
             34.21224594116211
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1240,18 +1135,18 @@
     },
     "Cube.067": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             22.24603271484375,
-            -1.566827563692641e-06,
+            -0.000001566827563692641,
             34.439449310302734
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1261,18 +1156,18 @@
     },
     "Cube.068": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             26.24603271484375,
-            -1.7066070086002583e-06,
+            -0.0000017066070086002583,
             34.714481353759766
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 5,
@@ -1280,41 +1175,20 @@
         "value2": 0,
         "value3": 0
     },
-    "Cube.069": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            22.156408309936523,
-            -2.4072414817055687e-06,
-            39.929100036621094
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "EdgeOneWayPlatform",
-        "value0": 6,
-        "value1": 1,
-        "value2": 0,
-        "value3": 0
-    },
     "Cube.070": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             18.156408309936523,
-            -2.4072414817055687e-06,
+            -0.0000024072414817055687,
             40.18380355834961
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 6,
@@ -1324,18 +1198,18 @@
     },
     "Cube.071": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             14.156408309936523,
-            -2.4006187686609337e-06,
+            -0.0000024006187686609337,
             40.446693420410156
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 6,
@@ -1345,18 +1219,18 @@
     },
     "Cube.072": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 4,
+        "height": 2,
+        "depth": 2,
         "position": [
             10.156408309936523,
-            -2.4260061763925478e-06,
+            -0.0000024260061763925478,
             40.693153381347656
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 6,
@@ -1366,1278 +1240,18 @@
     },
     "Cube.073": {
         "vertices": [],
-        "width": 36.0,
-        "height": 2.0,
-        "depth": 2.0,
+        "width": 36,
+        "height": 2,
+        "depth": 2,
         "position": [
             -9.843591690063477,
-            -2.4625364858366083e-06,
+            -0.0000024625364858366083,
             40.93245315551758
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 6,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.074": {
-        "vertices": [],
-        "width": 12.0,
-        "height": 2.0,
-        "depth": 2.0,
-        "position": [
-            0.15818153321743011,
-            -2.7111109375255182e-06,
-            47.91337585449219
-        ],
-        "rotation": [
-            0.0,
-            0.0,
-            0.0
-        ],
-        "type": "EdgeOneWayPlatform",
-        "value0": 7,
-        "value1": 1,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.010": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -1.7095975875854492,
-            0.0,
-            0.7562870383262634
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 1,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.011": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            2.199000835418701,
-            0.0,
-            1.0254874229431152
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 1,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.012": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            6.198999404907227,
-            0.0,
-            1.2745814323425293
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 1,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.013": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            10.198999404907227,
-            0.0,
-            1.5236749649047852
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 1,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.014": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            14.19900131225586,
-            0.0,
-            1.756005048751831
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 1,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.015": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            18.19900131225586,
-            0.0,
-            2.054917812347412
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 1,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.016": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            22.19900131225586,
-            0.0,
-            2.2684268951416016
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 1,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.075": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            22.12550926208496,
-            0.0,
-            7.763278484344482
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.076": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            18.12550926208496,
-            0.0,
-            7.991635799407959
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.077": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            14.125509262084961,
-            0.0,
-            8.258052825927734
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.078": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            10.125510215759277,
-            7.482668706870754e-08,
-            8.483972549438477
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.079": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            6.125510215759277,
-            7.482668706870754e-08,
-            8.73813247680664
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.080": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            2.1255099773406982,
-            7.482668706870754e-08,
-            9.020532608032227
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.081": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -1.8744900226593018,
-            1.959746640523008e-07,
-            9.246452331542969
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.082": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -5.874489784240723,
-            1.959746640523008e-07,
-            9.514732360839844
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.083": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -9.874489784240723,
-            1.959746640523008e-07,
-            9.754772186279297
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.084": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -13.874489784240723,
-            1.959746640523008e-07,
-            10.008932113647461
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.085": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -17.874488830566406,
-            1.959746640523008e-07,
-            10.277212142944336
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.086": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -21.87449073791504,
-            1.959746640523008e-07,
-            10.503131866455078
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 2,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.087": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -21.711925506591797,
-            1.959746640523008e-07,
-            16.015323638916016
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.088": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -17.711925506591797,
-            1.959746640523008e-07,
-            16.24667739868164
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.089": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -13.711926460266113,
-            1.716072972612892e-08,
-            16.462604522705078
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.090": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -9.711926460266113,
-            -7.445919436577242e-10,
-            16.740230560302734
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.091": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -5.711926460266113,
-            4.3314685171935707e-10,
-            16.98700714111328
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.092": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -1.7119262218475342,
-            -5.986912299249525e-09,
-            17.233783721923828
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.093": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            2.288073778152466,
-            -1.2406975002932086e-08,
-            17.51140785217285
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.094": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            6.288073539733887,
-            -4.986290491615364e-09,
-            17.727336883544922
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.095": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            10.288073539733887,
-            -3.808551696238283e-09,
-            18.020383834838867
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.096": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            14.288073539733887,
-            -1.7826412346266807e-08,
-            18.251737594604492
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.097": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            18.288074493408203,
-            -2.677907318116013e-08,
-            18.483091354370117
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.098": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            22.288074493408203,
-            -2.6956200827044086e-08,
-            18.745290756225586
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 3,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.099": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            22.10953712463379,
-            1.2840075669373618e-08,
-            24.219654083251953
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.100": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            18.10953712463379,
-            -7.887791753091733e-09,
-            24.44725799560547
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.101": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            14.109538078308105,
-            -2.6887910564710182e-08,
-            24.71279525756836
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.102": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            10.109538078308105,
-            1.3716615399061993e-08,
-            24.97833251953125
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.103": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            6.1095380783081055,
-            2.494948603271041e-08,
-            25.205936431884766
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.104": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            2.1095378398895264,
-            2.4954545096989023e-08,
-            25.471473693847656
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.105": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -1.8904621601104736,
-            1.8909972254732565e-08,
-            25.699077606201172
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.106": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -5.8904619216918945,
-            1.1137657907056564e-08,
-            25.977258682250977
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.107": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -9.890461921691895,
-            2.064277992985808e-08,
-            26.230152130126953
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.108": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -13.890461921691895,
-            1.54646073724507e-08,
-            26.445110321044922
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.109": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -17.89046287536621,
-            -2.6857534862756438e-08,
-            26.723291397094727
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.110": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -21.89046287536621,
-            -2.858021730389737e-08,
-            26.963539123535156
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 4,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.111": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -21.70859146118164,
-            -3.1199704153550556e-08,
-            32.46031188964844
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.112": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -17.70859146118164,
-            -1.3572062584898958e-07,
-            32.6994743347168
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.113": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -13.708592414855957,
-            -7.006634206163653e-08,
-            32.97450637817383
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.114": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -9.708592414855957,
-            -2.428306515867007e-07,
-            33.18975067138672
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.115": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -5.708592414855957,
-            -4.2941690026054857e-07,
-            33.46478271484375
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.116": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            -1.708592176437378,
-            -4.345950799233833e-07,
-            33.72785949707031
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.117": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            2.291407823562622,
-            -7.196576916612685e-07,
-            33.95506286621094
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.118": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            6.291407585144043,
-            -9.718930868984899e-07,
-            34.23009490966797
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.119": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            10.291407585144043,
-            -1.1532961252669338e-06,
-            34.433380126953125
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.120": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            14.291407585144043,
-            -1.4659975704489625e-06,
-            34.72037124633789
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.121": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            18.29140853881836,
-            -1.5921127669571433e-06,
-            34.947574615478516
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.122": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            22.29140853881836,
-            -1.6197516288229963e-06,
-            35.22260665893555
-        ],
-        "rotation": [
-            0.0,
-            -0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 5,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.123": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            22.111032485961914,
-            -2.371300070080906e-06,
-            40.69192886352539
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 6,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.124": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            18.111032485961914,
-            -2.371300070080906e-06,
-            40.95481872558594
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 6,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.125": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            14.11103343963623,
-            -2.4248549834737787e-06,
-            41.20127868652344
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
-        ],
-        "type": "OneWayPlatform",
-        "value0": 6,
-        "value1": 0,
-        "value2": 0,
-        "value3": 0
-    },
-    "Cube.126": {
-        "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 0.5,
-        "position": [
-            10.11038875579834,
-            -2.545786855989718e-06,
-            41.44057846069336
-        ],
-        "rotation": [
-            0.0,
-            0.12217304855585098,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "OneWayPlatform",
         "value0": 6,
@@ -2749,17 +1363,17 @@
             ]
         ],
         "width": 51.970184326171875,
-        "height": 0.0,
+        "height": 0,
         "depth": 3.2273306846618652,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LineOneWayPlatform",
         "value0": 2,
@@ -2771,11 +1385,11 @@
         "vertices": [
             [
                 -27.818355560302734,
-                1.0
+                1
             ],
             [
                 -1.7760934829711914,
-                1.0
+                1
             ],
             [
                 0.2450275421142578,
@@ -2835,17 +1449,17 @@
             ]
         ],
         "width": 55.971981048583984,
-        "height": 2.664327621459961e-05,
+        "height": 0.00002664327621459961,
         "depth": 1.760298728942871,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LineOneWayPlatform",
         "value0": 1,
@@ -3049,17 +1663,17 @@
             ]
         ],
         "width": 51.97019958496094,
-        "height": 0.0,
+        "height": 0,
         "depth": 3.2174530029296875,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LineOneWayPlatform",
         "value0": 3,
@@ -3259,17 +1873,17 @@
             ]
         ],
         "width": 51.970184326171875,
-        "height": 0.0,
+        "height": 0,
         "depth": 3.231363296508789,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LineOneWayPlatform",
         "value0": 4,
@@ -3465,17 +2079,17 @@
             ]
         ],
         "width": 51.97018051147461,
-        "height": 1.6689300537109375e-06,
+        "height": 0.0000016689300537109375,
         "depth": 3.2497901916503906,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LineOneWayPlatform",
         "value0": 5,
@@ -3551,17 +2165,17 @@
             ]
         ],
         "width": 51.97018051147461,
-        "height": 1.1920928955078125e-07,
+        "height": 1.1920928955078125e-7,
         "depth": 1.2361259460449219,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LineOneWayPlatform",
         "value0": 6,
@@ -3571,18 +2185,18 @@
     },
     "Cube.009": {
         "vertices": [],
-        "width": 2.0,
-        "height": 2.0,
-        "depth": 68.0,
+        "width": 2,
+        "height": 2,
+        "depth": 68,
         "position": [
             -28.8183536529541,
-            0.0,
+            0,
             31.035503387451172
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "Wall",
         "value0": 0,
@@ -3592,18 +2206,18 @@
     },
     "Cube.148": {
         "vertices": [],
-        "width": 2.0,
-        "height": 2.0,
-        "depth": 68.0,
+        "width": 2,
+        "height": 2,
+        "depth": 68,
         "position": [
             29.1816463470459,
-            -1.0339854839003237e-07,
+            -1.0339854839003237e-7,
             31.03550910949707
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "Wall",
         "value0": 0,
@@ -3615,16 +2229,16 @@
         "vertices": [],
         "width": 4.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -5.99336051940918,
-            -3.8605153918069846e-07,
+            -3.8605153918069846e-7,
             7.73832893371582
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -3635,17 +2249,17 @@
     "Cube.135": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             -2.8012306690216064,
-            -1.1931235803785967e-06,
+            -0.0000011931235803785967,
             21.8789005279541
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3656,17 +2270,17 @@
     "Cube.136": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             -6.769885063171387,
-            -1.1931235803785967e-06,
+            -0.0000011931235803785967,
             14.406599998474121
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3677,17 +2291,17 @@
     "Cube.137": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             19.14688491821289,
-            -2.501449216651963e-07,
+            -2.501449216651963e-7,
             12.655200004577637
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3698,17 +2312,17 @@
     "Cube.144": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             -18.7829647064209,
-            -2.1017717699578498e-06,
+            -0.0000021017717699578498,
             20.90719985961914
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3719,17 +2333,17 @@
     "Cube.183": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             19.184234619140625,
-            -6.077743364585331e-06,
+            -0.000006077743364585331,
             45.68380355834961
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3740,17 +2354,17 @@
     "Cube.185": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             -4.0817365646362305,
-            -2.931385097326711e-06,
+            -0.000002931385097326711,
             46.33250045776367
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3761,17 +2375,17 @@
     "Cube.153": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             1.1921510696411133,
-            -2.3633258479094366e-06,
+            -0.0000023633258479094366,
             30.363300323486328
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3782,17 +2396,17 @@
     "Cube.159": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             19.176006317138672,
-            -2.1755863599537406e-07,
+            -2.1755863599537406e-7,
             29.111499786376953
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3803,17 +2417,17 @@
     "Cube.170": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             -10.766530990600586,
-            -3.366940973137389e-06,
+            -0.000003366940973137389,
             30.936115264892578
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3824,17 +2438,17 @@
     "Cube.172": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             -8.069997787475586,
-            -4.4215012167114764e-06,
+            -0.0000044215012167114764,
             37.96638107299805
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3845,17 +2459,17 @@
     "Cube.174": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             -18.759822845458984,
-            -4.479728431761032e-06,
+            -0.000004479728431761032,
             37.35219955444336
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3866,17 +2480,17 @@
     "Cube.181": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             15.149171829223633,
-            -3.366940973137389e-06,
+            -0.000003366940973137389,
             39.61220169067383
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3887,17 +2501,17 @@
     "Cube.182": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
             5.220050811767578,
-            -6.989970188442385e-06,
+            -0.000006989970188442385,
             53.31340026855469
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderTopSensor",
         "value0": 0,
@@ -3908,17 +2522,17 @@
     "Cube.130": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 10.0,
+        "height": 2,
+        "depth": 10,
         "position": [
             19.14688491821289,
-            0.0,
+            0,
             7.155200004577637
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -3929,17 +2543,17 @@
     "Cube.128": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 2.5,
         "position": [
             -6.769885063171387,
-            -2.2672264776701923e-07,
+            -2.2672264776701923e-7,
             2.25
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -3950,17 +2564,17 @@
     "Cube.129": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 3.0,
+        "height": 2,
+        "depth": 3,
         "position": [
             -6.769885063171387,
-            -2.2672264776701923e-07,
+            -2.2672264776701923e-7,
             12.406599998474121
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -3971,17 +2585,17 @@
     "Cube.133": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 12.5,
         "position": [
             -2.8012306690216064,
-            -3.7826555399078643e-07,
+            -3.7826555399078643e-7,
             15.128900527954102
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 1,
@@ -3992,17 +2606,17 @@
     "Cube.143": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 10.5,
         "position": [
             -18.7829647064209,
-            1.2260926496310276e-08,
+            1.2260926496310276e-8,
             15.15719985961914
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 1,
@@ -4013,17 +2627,17 @@
     "Cube.150": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 2.5,
         "position": [
             -10.82196044921875,
-            6.811777097937011e-08,
+            6.811777097937011e-8,
             18.16584587097168
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -4034,17 +2648,17 @@
     "Cube.152": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 13.0,
+        "height": 2,
+        "depth": 13,
         "position": [
             1.1921510696411133,
-            -5.828308076161193e-07,
+            -5.828308076161193e-7,
             23.363300323486328
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -4055,17 +2669,17 @@
     "Cube.158": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 10.0,
+        "height": 2,
+        "depth": 10,
         "position": [
             19.176006317138672,
-            -2.878727514143975e-07,
+            -2.878727514143975e-7,
             23.611499786376953
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -4076,17 +2690,17 @@
     "Cube.164": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 2.5,
         "position": [
             15.149884223937988,
-            -1.4760755675524706e-06,
+            -0.0000014760755675524706,
             26.189132690429688
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 1,
@@ -4097,17 +2711,17 @@
     "Cube.169": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 3.0,
+        "height": 2,
+        "depth": 3,
         "position": [
             -10.766530990600586,
-            -1.85708586286637e-06,
+            -0.00000185708586286637,
             28.936115264892578
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -4118,17 +2732,17 @@
     "Cube.171": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 11.5,
         "position": [
             -8.069997787475586,
-            -2.2193889890331775e-06,
+            -0.0000022193889890331775,
             31.716381072998047
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 1,
@@ -4139,17 +2753,17 @@
     "Cube.173": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 10.5,
         "position": [
             -18.759822845458984,
-            -1.9153130779159255e-06,
+            -0.0000019153130779159255,
             31.60219955444336
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 1,
@@ -4160,17 +2774,17 @@
     "Cube.175": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 2.5,
         "position": [
             -4.0817365646362305,
-            -2.900407707784325e-06,
+            -0.000002900407707784325,
             35.01293182373047
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -4181,17 +2795,17 @@
     "Cube.176": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 10.5,
         "position": [
             19.184234619140625,
-            -2.5299341359641403e-06,
+            -0.0000025299341359641403,
             39.93380355834961
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -4202,17 +2816,17 @@
     "Cube.177": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 11.5,
         "position": [
             5.220050811767578,
-            -3.9079791349649895e-06,
+            -0.0000039079791349649895,
             47.06340026855469
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 1,
@@ -4223,17 +2837,17 @@
     "Cube.178": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 12.5,
         "position": [
             -11.05544662475586,
-            -3.675070047393092e-06,
+            -0.000003675070047393092,
             48.18245315551758
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 0,
@@ -4244,17 +2858,17 @@
     "Cube.179": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 12.5,
         "position": [
             -7.091818332672119,
-            -2.6617910862114513e-06,
+            -0.0000026617910862114513,
             48.18245315551758
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 0,
@@ -4265,17 +2879,17 @@
     "Cube.180": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 3.0,
+        "height": 2,
+        "depth": 3,
         "position": [
             15.149171829223633,
-            -2.0961354039172875e-06,
+            -0.0000020961354039172875,
             37.61220169067383
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": 1,
@@ -4286,17 +2900,17 @@
     "Cube.184": {
         "vertices": [],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 2.0,
+        "height": 2,
+        "depth": 2,
         "position": [
             -4.0817365646362305,
-            -2.900407707784325e-06,
+            -0.000002900407707784325,
             44.83250045776367
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderCoreSensor",
         "value0": -1,
@@ -4388,17 +3002,17 @@
             ]
         ],
         "width": 3.9775829315185547,
-        "height": 2.0,
+        "height": 2,
         "depth": 1.3581541776657104,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -4442,17 +3056,17 @@
             ]
         ],
         "width": 2.5,
-        "height": 2.0,
+        "height": 2,
         "depth": 0.9999999403953552,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -4611,14 +3225,14 @@
         "height": 2.0000009536743164,
         "depth": 1.3586816787719727,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -4778,17 +3392,17 @@
             ]
         ],
         "width": 3.9776384830474854,
-        "height": 2.0,
+        "height": 2,
         "depth": 1.358154296875,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -4904,17 +3518,17 @@
             ]
         ],
         "width": 3.1218690872192383,
-        "height": 2.0,
+        "height": 2,
         "depth": 1.114415168762207,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5094,17 +3708,17 @@
             ]
         ],
         "width": 3.992546319961548,
-        "height": 2.0,
+        "height": 2,
         "depth": 1.2248210906982422,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5248,17 +3862,17 @@
             ]
         ],
         "width": 3.9776382446289062,
-        "height": 2.0,
+        "height": 2,
         "depth": 1.358154296875,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5366,17 +3980,17 @@
             ]
         ],
         "width": 3.1269588470458984,
-        "height": 2.0,
+        "height": 2,
         "depth": 1.1144142150878906,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5420,17 +4034,17 @@
             ]
         ],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5474,17 +4088,17 @@
             ]
         ],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5560,17 +4174,17 @@
             ]
         ],
         "width": 4.981365203857422,
-        "height": 2.0,
+        "height": 2,
         "depth": 1.2972183227539062,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5614,17 +4228,17 @@
             ]
         ],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5668,17 +4282,17 @@
             ]
         ],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5722,17 +4336,17 @@
             ]
         ],
         "width": 2.5,
-        "height": 2.0,
-        "depth": 1.0,
+        "height": 2,
+        "depth": 1,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5808,17 +4422,17 @@
             ]
         ],
         "width": 4.981365203857422,
-        "height": 2.0,
+        "height": 2,
         "depth": 1.2972183227539062,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "LadderBottomSensor",
         "value0": 0,
@@ -5828,18 +4442,18 @@
     },
     "Cube.132": {
         "vertices": [],
-        "width": 20.0,
-        "height": 2.0,
-        "depth": 16.0,
+        "width": 20,
+        "height": 2,
+        "depth": 16,
         "position": [
             18.15362548828125,
-            3.0,
+            3,
             26.219200134277344
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "CameraSensor",
         "value0": 0,
@@ -5849,18 +4463,18 @@
     },
     "Cube.138": {
         "vertices": [],
-        "width": 20.0,
-        "height": 2.0,
+        "width": 20,
+        "height": 2,
         "depth": 9.5,
         "position": [
             -17.8183536529541,
-            3.0,
+            3,
             20.705413818359375
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "CameraSensor",
         "value0": 0,
@@ -5870,18 +4484,18 @@
     },
     "Cube.140": {
         "vertices": [],
-        "width": 22.0,
-        "height": 2.0,
-        "depth": 14.0,
+        "width": 22,
+        "height": 2,
+        "depth": 14,
         "position": [
             -16.8183536529541,
-            3.0,
+            3,
             32.93245315551758
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "CameraSensor",
         "value0": 0,
@@ -5891,18 +4505,18 @@
     },
     "Cube.157": {
         "vertices": [],
-        "width": 1.0,
-        "height": 2.0,
-        "depth": 1.0,
+        "width": 1,
+        "height": 2,
+        "depth": 1,
         "position": [
             -2.821004867553711,
-            -1.0,
+            -1,
             16.362335205078125
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "CameraSensor",
         "value0": 0,
@@ -5912,18 +4526,18 @@
     },
     "Cube.008": {
         "vertices": [],
-        "width": 1.0,
-        "height": 2.0,
-        "depth": 1.0,
+        "width": 1,
+        "height": 2,
+        "depth": 1,
         "position": [
             1.15362548828125,
-            -1.0,
+            -1,
             24.836078643798828
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "CameraSensor",
         "value0": 0,
@@ -5933,18 +4547,18 @@
     },
     "TrashCan": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 4.0,
+        "width": 4,
+        "height": 2,
+        "depth": 4,
         "position": [
             -21.75276756286621,
-            -2.3836862794723856e-07,
-            3.0
+            -2.3836862794723856e-7,
+            3
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "TrashCan",
         "value0": 0,
@@ -5954,18 +4568,18 @@
     },
     "PlayerStart": {
         "vertices": [],
-        "width": 2.0,
-        "height": 2.0,
-        "depth": 4.0,
+        "width": 2,
+        "height": 2,
+        "depth": 4,
         "position": [
             -13.368040084838867,
-            -5.491444312610838e-07,
+            -5.491444312610838e-7,
             5.313028335571289
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "PlayerStart",
         "value0": 0,
@@ -5975,18 +4589,18 @@
     },
     "Teleporter": {
         "vertices": [],
-        "width": 4.0,
-        "height": 2.0,
-        "depth": 4.0,
+        "width": 4,
+        "height": 2,
+        "depth": 4,
         "position": [
             6.2142791748046875,
-            -4.1317991872347193e-07,
+            -4.1317991872347193e-7,
             4.301077842712402
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "Teleporter",
         "value0": 0,
@@ -5996,18 +4610,18 @@
     },
     "CameraStart": {
         "vertices": [],
-        "width": 2.0,
-        "height": 2.0,
-        "depth": 4.0,
+        "width": 2,
+        "height": 2,
+        "depth": 4,
         "position": [
-            0.0,
-            100.0,
-            25.0
+            0,
+            100,
+            25
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "CameraStart",
         "value0": 0,
@@ -6017,18 +4631,18 @@
     },
     "WinFlag": {
         "vertices": [],
-        "width": 2.0,
-        "height": 2.0,
-        "depth": 5.0,
+        "width": 2,
+        "height": 2,
+        "depth": 5,
         "position": [
             -3.500638961791992,
-            -6.8608560468419455e-06,
+            -0.0000068608560468419455,
             51.41337585449219
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "WinFlag",
         "value0": 0,
@@ -6038,18 +4652,18 @@
     },
     "ladder-broken": {
         "vertices": [],
-        "width": 2.0,
+        "width": 2,
         "height": 0.40000003576278687,
-        "depth": 4.0,
+        "depth": 4,
         "position": [
             -49.91311264038086,
-            -2.9450218335114187e-06,
+            -0.0000029450218335114187,
             21.919078826904297
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6059,18 +4673,18 @@
     },
     "ladder-long": {
         "vertices": [],
-        "width": 2.0,
+        "width": 2,
         "height": 0.40000003576278687,
-        "depth": 8.0,
+        "depth": 8,
         "position": [
             -38.009490966796875,
-            -3.5516745811037254e-06,
+            -0.0000035516745811037254,
             26.43424415588379
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6080,18 +4694,18 @@
     },
     "platform": {
         "vertices": [],
-        "width": 1.0,
-        "height": 1.0,
+        "width": 1,
+        "height": 1,
         "depth": 0.19500000774860382,
         "position": [
             -38.21332550048828,
-            0.0,
+            0,
             22.81820297241211
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6101,18 +4715,18 @@
     },
     "platform-overhang": {
         "vertices": [],
-        "width": 4.0,
+        "width": 4,
         "height": 1.8309510946273804,
         "depth": 1.7300000190734863,
         "position": [
             -61.48835372924805,
-            -1.1250645002292003e-06,
+            -0.0000011250645002292003,
             8.373579978942871
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6124,16 +4738,16 @@
         "vertices": [],
         "width": 4.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             26.135929107666016,
-            0.0,
+            0,
             0.7603020668029785
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6145,16 +4759,16 @@
         "vertices": [],
         "width": 4.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             22.13054847717285,
-            0.0,
+            0,
             0.5467928647994995
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6166,16 +4780,16 @@
         "vertices": [],
         "width": 4.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             18.15789222717285,
-            0.0,
+            0,
             0.24788019061088562
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6187,16 +4801,16 @@
         "vertices": [],
         "width": 4.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             10.137749671936035,
-            0.0,
+            0,
             -0.23354339599609375
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6208,16 +4822,16 @@
         "vertices": [],
         "width": 4.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             2.1452064514160156,
-            0.0,
+            0,
             -0.7518377304077148
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6229,16 +4843,16 @@
         "vertices": [],
         "width": 4.400000095367432,
         "height": 5.080681324005127,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             6.137972831726074,
-            5.196029064791219e-07,
+            5.196029064791219e-7,
             -0.4826374650001526
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6250,16 +4864,16 @@
         "vertices": [],
         "width": 4.400000095367432,
         "height": 5.080681324005127,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             14.13418960571289,
-            0.0,
+            0,
             0.01555013656616211
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6271,16 +4885,16 @@
         "vertices": [],
         "width": 8.328499794006348,
         "height": 8.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -24.29576873779297,
-            6.74089449148596e-07,
-            -1.0
+            6.74089449148596e-7,
+            -1
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6292,16 +4906,16 @@
         "vertices": [],
         "width": 8.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -16.315486907958984,
-            0.0,
-            -1.0
+            0,
+            -1
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6313,16 +4927,16 @@
         "vertices": [],
         "width": 3.128499984741211,
         "height": 3.128499984741211,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -0.9223182797431946,
-            6.573231985385064e-07,
-            -1.0
+            6.573231985385064e-7,
+            -1
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6334,16 +4948,16 @@
         "vertices": [],
         "width": 3.128499984741211,
         "height": 3.128499984741211,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -11.17455768585205,
-            6.573231985385064e-07,
-            -1.0
+            6.573231985385064e-7,
+            -1
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6353,18 +4967,18 @@
     },
     "ladder": {
         "vertices": [],
-        "width": 2.0,
+        "width": 2,
         "height": 0.40000003576278687,
-        "depth": 4.0,
+        "depth": 4,
         "position": [
             -6.779147624969482,
             0.25,
             0.9999998807907104
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6374,18 +4988,18 @@
     },
     "ladder-long.001": {
         "vertices": [],
-        "width": 2.0,
+        "width": 2,
         "height": 0.4000000059604645,
-        "depth": 8.0,
+        "depth": 8,
         "position": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6395,17 +5009,17 @@
     },
     "platform-fortified": {
         "vertices": [],
-        "width": 4.0,
-        "height": 4.0,
+        "width": 4,
+        "height": 4,
         "depth": 0.8200000524520874,
         "position": [
             -8.067460060119629,
-            3.961112611250428e-07,
+            3.961112611250428e-7,
             0.17999982833862305
         ],
         "rotation": [
-            0.0,
-            -0.0,
+            0,
+            0,
             -1.570796251296997
         ],
         "type": "GraphicsObject",
@@ -6416,17 +5030,17 @@
     },
     "platform-fortified.001": {
         "vertices": [],
-        "width": 4.0,
-        "height": 4.0,
+        "width": 4,
+        "height": 4,
         "depth": 0.8200000524520874,
         "position": [
             -4.067460060119629,
-            4.2629022800610983e-07,
+            4.2629022800610983e-7,
             0.17999982833862305
         ],
         "rotation": [
-            0.0,
-            -0.0,
+            0,
+            0,
             -1.570796251296997
         ],
         "type": "GraphicsObject",
@@ -6439,16 +5053,16 @@
         "vertices": [],
         "width": 4.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -13.844263076782227,
-            -3.8605153918069846e-07,
+            -3.8605153918069846e-7,
             8.246647834777832
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6460,16 +5074,16 @@
         "vertices": [],
         "width": 4.400000095367432,
         "height": 5.080681324005127,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             22.177366256713867,
-            -1.0037340416602092e-06,
+            -0.0000010037340416602092,
             5.985424995422363
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6481,16 +5095,16 @@
         "vertices": [],
         "width": 4.400000095367432,
         "height": 5.080681324005127,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -9.833234786987305,
-            -1.0037340416602092e-06,
+            -0.0000010037340416602092,
             8.006608009338379
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6502,16 +5116,16 @@
         "vertices": [],
         "width": 8.328499794006348,
         "height": 8.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             4.159172534942627,
-            -7.831331458874047e-07,
+            -7.831331458874047e-7,
             6.975847244262695
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6523,16 +5137,16 @@
         "vertices": [],
         "width": 8.328499794006348,
         "height": 8.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             0.18052387237548828,
-            3.0,
+            3,
             7.230008125305176
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6544,16 +5158,16 @@
         "vertices": [],
         "width": 8.328499794006348,
         "height": 8.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -19.82863426208496,
             3.164249897003174,
             8.500807762145996
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6565,16 +5179,16 @@
         "vertices": [],
         "width": 8.328499794006348,
         "height": 8.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -22.37251091003418,
-            -7.831331458874047e-07,
+            -7.831331458874047e-7,
             8.769087791442871
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6586,16 +5200,16 @@
         "vertices": [],
         "width": 8.328499794006348,
         "height": 4.328499794006348,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -3.897705078125,
-            9.29478218836266e-08,
+            9.29478218836266e-8,
             7.503391742706299
         ],
         "rotation": [
-            0.0,
-            0.0,
-            3.725290298461914e-09
+            0,
+            0,
+            3.725290298461914e-9
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6607,16 +5221,16 @@
         "vertices": [],
         "width": 3.910625457763672,
         "height": 3.9106249809265137,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             9.905645370483398,
-            -2.0846782717853785e-06,
+            -0.0000020846782717853785,
             6.749927520751953
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,
@@ -6631,12 +5245,12 @@
         "depth": 2.280435085296631,
         "position": [
             18.45732307434082,
-            -1.575887495164352e-06,
+            -0.000001575887495164352,
             6.828110218048096
         ],
         "rotation": [
             -0.30543261766433716,
-            -0.0,
+            0,
             1.5707963705062866
         ],
         "type": "GraphicsObject",
@@ -6652,12 +5266,12 @@
         "depth": 2.2804348468780518,
         "position": [
             14.147042274475098,
-            4.37846949807863e-08,
+            4.37846949807863e-8,
             7.107083797454834
         ],
         "rotation": [
             -0.2967059910297394,
-            -0.0,
+            0,
             1.5707963705062866
         ],
         "type": "GraphicsObject",
@@ -6670,16 +5284,16 @@
         "vertices": [],
         "width": 4.400000095367432,
         "height": 5.080681324005127,
-        "depth": 2.0,
+        "depth": 2,
         "position": [
             -25.86709976196289,
-            -1.0037340416602092e-06,
+            -0.0000010037340416602092,
             8.995007514953613
         ],
         "rotation": [
-            0.0,
-            0.0,
-            0.0
+            0,
+            0,
+            0
         ],
         "type": "GraphicsObject",
         "value0": 0,

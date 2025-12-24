@@ -1,7 +1,13 @@
 import * as RAPIER from "@dimforge/rapier2d-compat";
 import GameObjectType from "../../utils/types/gameObjectType";
 import GameSensor from "../gameComponents/gameSensor";
+import GameObject from "../gameComponents/gameObject";
+import Player from "../player/player";
 
+/**
+ * Teleporter - Teleports objects to a destination when they enter
+ * Now uses the event-driven sensor callback system!
+ */
 export default class Teleporter extends GameSensor {
   private positionData: RAPIER.Vector2;
 
@@ -36,13 +42,14 @@ export default class Teleporter extends GameSensor {
     this.positionData = new RAPIER.Vector2(x, y);
   }
 
-  public update() {
-    const foundCollider = this.anyIntersectionCheck();
-
-    if (!foundCollider) {
-      return;
+  /**
+   * SENSOR CALLBACK - Called when something enters the teleporter
+   * Automatically teleports the object to the destination
+   */
+  public onSensorEnter(other: GameObject): void {
+    if (other instanceof Player) {
+      console.log("🌀 Player entered teleporter - teleporting!");
+      other.teleportToPosition(this.positionData.x, this.positionData.y);
     }
-
-    foundCollider.parent()?.setTranslation(this.positionData, true);
   }
 }

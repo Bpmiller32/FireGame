@@ -127,35 +127,30 @@ export default class World {
       crazyEnemy.update(this.trashCans[0]);
     });
 
-    // Teleporters
-    this.teleporters.forEach((teleporter) => {
-      teleporter.update();
-    });
+    // Teleporters - now automatic via sensor callbacks! No update needed
 
     // WinFlag
     this.winFlags.forEach((winFlag) => {
       winFlag.update();
     });
 
-    // Platforms
+    // Platforms - update one-way platform collision state
     GameUtils.updatePlatforms(this.platforms, this.player);
 
-    // Camera sensors
-    GameUtils.updateCameraSensors(this.camera, this.cameraSensors);
+    // Camera sensors - now automatic via sensor callbacks! No manual update needed
 
-    // Ladder top detection
+    // Ladder detection - TODO: Convert to sensor callbacks when Player is refactored
+    // For now, keeping manual detection since Player still uses the old system
     this.player.isTouching.ladderTop = GameUtils.isAnySensorTriggered(
       this.ladderTopSensors
     );
 
-    // Ladder core detection
     this.player.isTouching.ladderCore =
       GameUtils.isAnySensorTriggeredObjectFullyInside(
         this.ladderCoreSensors,
         this.player
       );
 
-    // Ladder bottom detection
     this.player.isTouching.ladderBottom = GameUtils.isAnySensorTriggered(
       this.ladderBottomSensors
     );
