@@ -1,107 +1,122 @@
 /* -------------------------------------------------------------------------- */
-/*                  Convenience functions and utils for game                  */
+/*                      GAME UTILITIES - BACKWARD COMPATIBLE                  */
+/* -------------------------------------------------------------------------- */
+/*
+ * Backward-compatible GameUtils class that delegates to the new helper system.
+ * 
+ * NEW CODE SHOULD USE:
+ * - helpers/mathHelpers.ts - Math utilities (moveTowards, lerp, random, etc.)
+ * - helpers/physicsHelpers.ts - Physics utilities (getUserData, isColliderName, etc.)
+ * - gameUtils functions - Game-specific logic (removeDestroyedObjects, updatePlatforms, etc.)
+ * 
+ * This class exists for backward compatibility with existing code.
+ * Gradually migrate to direct imports from helpers/ and gameUtils functions.
+ */
 /* -------------------------------------------------------------------------- */
 
-import RAPIER, { Collider, RigidBody } from "@dimforge/rapier2d-compat";
-import UserData from "./types/userData";
+import RAPIER from "@dimforge/rapier2d-compat";
 import GameObject from "../world/gameComponents/gameObject";
 import GameSensor from "../world/gameComponents/gameSensor";
 import Platform from "../world/gameEntities/platform";
 import Player from "../world/player/player";
 
+// Import all helper functions
+import * as MathHelpers from "./helpers/mathHelpers";
+import * as PhysicsHelpers from "./helpers/physicsHelpers";
+
+/**
+ * GameUtils class - Backward compatible static utility methods
+ * 
+ * @deprecated Prefer importing specific functions from helpers/ or gameUtils
+ * 
+ * @example
+ * ```typescript
+ * // OLD WAY (still works):
+ * import GameUtils from './gameUtils';
+ * const newValue = GameUtils.moveTowardsPoint(current, target, delta);
+ * 
+ * // NEW WAY (preferred):
+ * import { moveTowards } from './helpers/mathHelpers';
+ * const newValue = moveTowards(current, target, delta);
+ * ```
+ */
 export default class GameUtils {
-  // Moves a value current towards target. Current: the current value, target: the value to move towards, maxDelta: the maximum change applied to the current value
-  public static moveTowardsPoint(
-    current: number,
-    target: number,
-    maxDelta: number
-  ) {
-    if (Math.abs(target - current) <= maxDelta) {
-      return target;
-    }
+  /* -------------------------------------------------------------------------- */
+  /*                           MATH HELPERS DELEGATION                          */
+  /* -------------------------------------------------------------------------- */
 
-    return current + Math.sign(target - current) * maxDelta;
-  }
+  /**
+   * @deprecated Use `moveTowards` from helpers/mathHelpers instead
+   */
+  public static moveTowardsPoint = MathHelpers.moveTowards;
 
-  // Get userData from physicsBody
-  static getDataFromPhysicsBody(physicsBody?: RigidBody) {
-    if (physicsBody) {
-      return physicsBody.userData as UserData;
-    }
+  /**
+   * @deprecated Use `radiansToDegrees` from helpers/mathHelpers instead
+   */
+  public static radiansToDegrees = MathHelpers.radiansToDegrees;
 
-    return {
-      name: "",
-      gameEntityType: undefined,
+  /**
+   * @deprecated Use `percentChance` from helpers/mathHelpers instead
+   */
+  public static calculatePercentChance = MathHelpers.percentChance;
 
-      value0: 0,
-      value1: 0,
-      value2: 0,
-      value3: 0,
-    };
-  }
+  /**
+   * @deprecated Use `randomRange` from helpers/mathHelpers instead
+   */
+  public static getRandomNumber = MathHelpers.randomRange;
 
-  // Get userData from collider
-  static getDataFromCollider(collider?: Collider) {
-    if (collider) {
-      return collider.parent()?.userData as UserData;
-    }
+  /* -------------------------------------------------------------------------- */
+  /*                         PHYSICS HELPERS DELEGATION                         */
+  /* -------------------------------------------------------------------------- */
 
-    return {
-      name: "",
-      gameEntityType: undefined,
+  /**
+   * @deprecated Use `getUserData` from helpers/physicsHelpers instead
+   */
+  public static getDataFromPhysicsBody = PhysicsHelpers.getUserData;
 
-      value0: 0,
-      value1: 0,
-      value2: 0,
-      value3: 0,
-    };
-  }
+  /**
+   * @deprecated Use `getUserDataFromCollider` from helpers/physicsHelpers instead
+   */
+  public static getDataFromCollider = PhysicsHelpers.getUserDataFromCollider;
 
-  // Helper function, checks just the name from the given collider
-  static isColliderName(collider: Collider, name: string) {
-    if ((collider.parent()?.userData as UserData).name == name) {
-      return true;
-    }
+  /**
+   * @deprecated Use `isColliderName` from helpers/physicsHelpers instead
+   */
+  public static isColliderName = PhysicsHelpers.isColliderName;
 
-    return false;
-  }
+  /**
+   * @deprecated Use `isOneWayPlatformActive` from helpers/physicsHelpers instead
+   */
+  public static isOneWayPlatformAndActive = PhysicsHelpers.isOneWayPlatformActive;
 
-  // Helper function, checks if collider is a OneWayPlatform and if so is it active
-  static isOneWayPlatformAndActive(collider: Collider, name: string) {
-    if (
-      GameUtils.isColliderName(collider, name) &&
-      (collider.parent()?.userData as UserData).value3 > 0
-    ) {
-      return true;
-    }
+  /**
+   * @deprecated Use `calculateCollisionMask` from helpers/physicsHelpers instead
+   */
+  public static calculateCollisionMask = PhysicsHelpers.calculateCollisionMask;
 
-    return false;
-  }
+  /* -------------------------------------------------------------------------- */
+  /*                         GAME-SPECIFIC FUNCTIONS                            */
+  /* -------------------------------------------------------------------------- */
 
-  // Calculates what the collision mask on a collider must be without having the collider itself
-  static calculateCollisionMask(group: number, mask: number) {
-    const groupString = group.toString(2).padStart(16, "0");
-    const maskString = mask.toString(2).padStart(16, "0");
-
-    const combinedString = maskString + groupString;
-
-    return parseInt(combinedString, 2);
-  }
-
-  // Remove destroyed objects, clear the existing enemy array and refill it with active objects
+  /**
+   * Remove destroyed objects from an array
+   * 
+   * @param existingArray - Array of GameObjects to filter
+   * @returns New array containing only active objects
+   */
   public static removeDestroyedObjects<T extends GameObject>(
     existingArray: T[]
-  ) {
-    const activeObjects = existingArray.filter(
-      (object) => !object.isBeingDestroyed
-    );
-
-    existingArray.length = 0;
-
-    return activeObjects;
+  ): T[] {
+    return existingArray.filter((object) => !object.isBeingDestroyed);
   }
 
-  // Needed for Enemy, non-sesnors. Checks not only if the targetObject is intersecting with sensor, but is fully inside it
+  /**
+   * Check if a GameObject is fully inside a sensor
+   * 
+   * @param collider - The sensor collider
+   * @param gameObject - The GameObject to check
+   * @returns true if GameObject is fully inside
+   */
   public static isObjectFullyInsideSensor<
     T extends RAPIER.Collider,
     U extends GameObject
@@ -118,25 +133,18 @@ export default class GameUtils {
       collider.translation().x +
       (collider.shape as RAPIER.Cuboid).halfExtents.x;
 
-    if (objectMinX > colliderMinX && objectMaxX < colliderMaxX) {
-      return true;
-    } else {
-      return false;
-    }
+    return objectMinX > colliderMinX && objectMaxX < colliderMaxX;
   }
 
   /**
-   * TEMPORARY: Check if player is intersecting with any sensor (for ladder detection)
-   * This uses manual intersection checking until Player is refactored to use callbacks
-   *
-   * @param gameSensors - Array of sensors to check
-   * @returns true if player is intersecting with any sensor
+   * TEMPORARY: Check if player is intersecting with any sensor
+   * 
+   * @deprecated Will be removed once Player uses callbacks
    */
   public static isAnySensorTriggered<T extends GameSensor>(
     gameSensors: T[]
   ): boolean {
     for (const sensor of gameSensors) {
-      // Manual intersection check - only needed for Player until it's refactored
       if (!sensor.physicsBody?.collider(0) || !sensor.physics?.world) {
         continue;
       }
@@ -158,12 +166,9 @@ export default class GameUtils {
   }
 
   /**
-   * TEMPORARY: Check if GameObject is fully inside any sensor (for ladder detection)
-   * This uses manual intersection checking until Player is refactored to use callbacks
-   *
-   * @param gameSensors - Array of sensors to check
-   * @param gameObject - The GameObject to check if fully inside
-   * @returns true if GameObject is fully inside any sensor
+   * TEMPORARY: Check if GameObject is fully inside any sensor
+   * 
+   * @deprecated Will be removed once Player uses callbacks
    */
   public static isAnySensorTriggeredObjectFullyInside<
     T extends GameObject,
@@ -182,7 +187,6 @@ export default class GameUtils {
         }
       );
 
-      // Check if intersecting AND fully inside
       if (isIntersecting && sensor.isFullyInside(gameObject)) {
         return true;
       }
@@ -191,9 +195,13 @@ export default class GameUtils {
     return false;
   }
 
-  // Convienence function to update OneWayPlatforms
-  public static updatePlatforms(platforms: Platform[], player: Player) {
-    // Check once to improve performance
+  /**
+   * Update all platforms with player state
+   * 
+   * @param platforms - Array of platforms to update
+   * @param player - The player instance
+   */
+  public static updatePlatforms(platforms: Platform[], player: Player): void {
     const isClimbing = player.state === "climbing";
 
     platforms.forEach((platform) => {
@@ -203,17 +211,5 @@ export default class GameUtils {
         platform.setOneWayPlatformActive(1);
       }
     });
-  }
-
-  public static radiansToDegrees(radians: number): number {
-    return radians * (180 / Math.PI);
-  }
-
-  public static calculatePercentChance(probability: number) {
-    return Math.random() < probability;
-  }
-
-  public static getRandomNumber(min: number, max: number): number {
-    return Math.random() * (max - min) + min;
   }
 }

@@ -6,7 +6,6 @@ import * as THREE from "three";
 import Experience from "./experience";
 import RAPIER from "@dimforge/rapier2d-compat";
 import Debug from "./utils/debug";
-import { debugPhysics, debugPhysicsUpdate } from "./utils/debug/debugPhysics";
 import Emitter from "./utils/eventEmitter";
 import GameObject from "./world/gameComponents/gameObject";
 
@@ -64,7 +63,7 @@ export default class Physics {
     // Debug
     if (this.experience.debug.isActive) {
       this.debug = this.experience.debug;
-      debugPhysics(this, this.debug);
+      this.debug.initPhysicsDebug(this);
     }
   }
 
@@ -241,7 +240,7 @@ export default class Physics {
 
     // Run debug physics logic if needed
     if (this.debug) {
-      debugPhysicsUpdate(this);
+      this.debug.updatePhysicsDebug(this);
     }
   }
 

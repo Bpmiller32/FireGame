@@ -8,7 +8,6 @@ import Sizes from "./utils/sizes";
 import SpriteAnimations from "./world/player/state/spriteAnimations";
 import Debug from "./utils/debug";
 import Player from "./world/player/player";
-import { debugCamera, debugCameraUpdate } from "./utils/debug/debugCamera";
 import Input from "./utils/input";
 import Time from "./utils/time";
 import Emitter from "./utils/eventEmitter";
@@ -65,7 +64,7 @@ export default class Camera {
       this.initializeOrthographicInstance();
       this.input = this.experience.input;
       this.debug = this.experience.debug;
-      debugCamera(this, this.debug);
+      this.debug.initCameraDebug(this);
     }
 
     // Events
@@ -191,7 +190,7 @@ export default class Camera {
 
     // Run debug camera logic if needed
     if (this.debug) {
-      debugCameraUpdate(this);
+      this.debug.updateCameraDebug(this);
 
       if (!this.manualControl) {
         this.perspectiveCamera.rotation.y = 0;

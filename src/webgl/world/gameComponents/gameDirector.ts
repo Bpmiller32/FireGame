@@ -1,6 +1,6 @@
 /**
  * GameDirector - Central controller for all game state and world management
- * 
+ *
  * Responsibilities:
  * - Load and unload levels (JSON and GLB formats)
  * - Manage all game entities (player, enemies, platforms, etc.)
@@ -26,12 +26,15 @@ import Time from "../../utils/time";
 import ResourceLoader from "../../utils/resourceLoader";
 import Emitter from "../../utils/eventEmitter";
 import GameUtils from "../../utils/gameUtils";
-import GLBLevelParser from "../../utils/glbLevelParser";
 import LevelData from "../../utils/types/levelData";
 import TestLevel from "../levels/testLevel.json";
 import BlenderExport from "../levels/blenderExport.json";
 import setCelesteAttributes from "../player/attributes/setCelesteAttributes";
 import setDkAttributes from "../player/attributes/setDkAttributes";
+
+// Import GLB files as URLs (Vite will handle the path)
+// Put your GLB files in src/webgl/world/levels/ and import them like this:
+// import TestLevelNewUrl from "../levels/TestLevelNew.glb?url";
 
 export default class GameDirector {
   // Core systems
@@ -88,7 +91,15 @@ export default class GameDirector {
   private setupEventHandlers() {
     // Game initialization
     Emitter.on("resourcesReady", async () => {
-      await this.loadLevelData(BlenderExport);
+      // FOR TESTING: Load your custom GLB level from public/ folder
+      // Uncomment the line below to test your GLB file:
+      await this.loadGLBLevel("/levels/TestLevelNew.glb");
+
+      // OR: Import from src/ and use the imported URL
+      // await this.loadGLBLevel(TestLevelNewUrl);
+
+      // Default: Load BlenderExport JSON level
+      // await this.loadLevelData(BlenderExport);
       Emitter.emit("gameStart");
     });
 
@@ -150,12 +161,17 @@ export default class GameDirector {
     GameUtils.updatePlatforms(this.platforms, this.player);
 
     // Update ladder detection (manual for now, will convert to callbacks later)
-    this.player.isTouching.ladderTop = GameUtils.isAnySensorTriggered(this.ladderTopSensors);
-    this.player.isTouching.ladderCore = GameUtils.isAnySensorTriggeredObjectFullyInside(
-      this.ladderCoreSensors,
-      this.player
+    this.player.isTouching.ladderTop = GameUtils.isAnySensorTriggered(
+      this.ladderTopSensors
     );
-    this.player.isTouching.ladderBottom = GameUtils.isAnySensorTriggered(this.ladderBottomSensors);
+    this.player.isTouching.ladderCore =
+      GameUtils.isAnySensorTriggeredObjectFullyInside(
+        this.ladderCoreSensors,
+        this.player
+      );
+    this.player.isTouching.ladderBottom = GameUtils.isAnySensorTriggered(
+      this.ladderBottomSensors
+    );
   }
 
   /* -------------------------------------------------------------------------- */
@@ -163,11 +179,14 @@ export default class GameDirector {
   /* -------------------------------------------------------------------------- */
 
   /**
-   * Load a level from a GLB file (Shapr3D export)
+   * Load a level from a GLB file (Shapr3D/Blockbench export)
+   * @param glbPath - Can be:
+   *   - A URL path from public folder: "/levels/MyLevel.glb"
+   *   - An imported URL from src: import MyLevelUrl from "../levels/MyLevel.glb?url"
    */
   public async loadGLBLevel(glbPath: string) {
-    const parser = new GLBLevelParser();
-    const parsedLevelData = await parser.parse(glbPath);
+    // Use the unified ResourceLoader to parse the GLB level
+    const parsedLevelData = await this.resources.parseLevel(glbPath);
     await this.loadLevelData(parsedLevelData);
   }
 
@@ -195,7 +214,9 @@ export default class GameDirector {
 
     // Load graphics for BlenderExport level
     if (this.levelData === BlenderExport) {
-      await this.graphicsObject.createObjectGraphics(this.resources.items.dkGraphicsData);
+      await this.graphicsObject.createObjectGraphics(
+        this.resources.items.dkGraphicsData
+      );
     }
   }
 
@@ -299,7 +320,8 @@ export default class GameDirector {
     const types = ["Platform", "EdgeOneWayPlatform", "LineOneWayPlatform"];
     types.forEach((type) =>
       this.importLevelObjects(type, (data) => {
-        const isOneWay = type === "EdgeOneWayPlatform" || type === "LineOneWayPlatform";
+        const isOneWay =
+          type === "EdgeOneWayPlatform" || type === "LineOneWayPlatform";
         const platform = new Platform(
           { width: data.width, height: data.depth, depth: data.height },
           { x: data.position[0], y: data.position[2] },
@@ -331,8 +353,10 @@ export default class GameDirector {
         sensor.setObjectName(type);
 
         if (type === "LadderTopSensor") this.ladderTopSensors.push(sensor);
-        else if (type === "LadderCoreSensor") this.ladderCoreSensors.push(sensor);
-        else if (type === "LadderBottomSensor") this.ladderBottomSensors.push(sensor);
+        else if (type === "LadderCoreSensor")
+          this.ladderCoreSensors.push(sensor);
+        else if (type === "LadderBottomSensor")
+          this.ladderBottomSensors.push(sensor);
       });
     });
   }
@@ -382,7 +406,9 @@ export default class GameDirector {
 
     // Clear enemies
     this.enemies.forEach((enemy) => Emitter.emit("gameObjectRemoved", enemy));
-    this.crazyEnemies.forEach((crazyEnemy) => Emitter.emit("gameObjectRemoved", crazyEnemy));
+    this.crazyEnemies.forEach((crazyEnemy) =>
+      Emitter.emit("gameObjectRemoved", crazyEnemy)
+    );
 
     // Reset trash cans
     this.trashCans.forEach((trashCan) => (trashCan.isOnFire = false));
@@ -407,7 +433,8 @@ export default class GameDirector {
     this.unloadLevelData();
 
     // Determine next level
-    const nextLevel = this.levelData === BlenderExport ? TestLevel : BlenderExport;
+    const nextLevel =
+      this.levelData === BlenderExport ? TestLevel : BlenderExport;
 
     // Configure for level type
     if (nextLevel === TestLevel) {
@@ -418,7 +445,9 @@ export default class GameDirector {
       this.camera.setCameraFollow(false);
       setDkAttributes(this.player);
       await this.loadLevelData(nextLevel);
-      await this.graphicsObject.createObjectGraphics(this.resources.items.dkGraphicsData);
+      await this.graphicsObject.createObjectGraphics(
+        this.resources.items.dkGraphicsData
+      );
     }
   }
 
@@ -461,7 +490,10 @@ export default class GameDirector {
     this.timeSinceLastSpawn += this.time.delta;
 
     // Initial delay before first spawn
-    if (this.currentSpawnInterval === 0 && this.timeSinceLastSpawn >= this.initialDelay) {
+    if (
+      this.currentSpawnInterval === 0 &&
+      this.timeSinceLastSpawn >= this.initialDelay
+    ) {
       await this.spawnCrazyEnemy();
       this.timeSinceLastSpawn = 0;
       this.currentSpawnInterval = Math.random() * (4 - 3) + 3; // 3-4 seconds
@@ -469,7 +501,10 @@ export default class GameDirector {
     }
 
     // Subsequent spawns
-    if (this.currentSpawnInterval > 0 && this.timeSinceLastSpawn >= this.currentSpawnInterval) {
+    if (
+      this.currentSpawnInterval > 0 &&
+      this.timeSinceLastSpawn >= this.currentSpawnInterval
+    ) {
       this.enemyCount++;
 
       // Every 8th spawn is a crazy enemy

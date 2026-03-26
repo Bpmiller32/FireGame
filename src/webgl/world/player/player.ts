@@ -13,7 +13,6 @@ import handlePlayerFalling from "./state/handlePlayerFalling";
 import handlePlayerRunning from "./state/handlePlayerRunning";
 import handlePlayerJumping from "./state/handlePlayerJumping";
 import GameObject from "../gameComponents/gameObject";
-import debugPlayer from "../../utils/debug/debugPlayer";
 import ContactPoints from "../../utils/types/contactPoints";
 import GameObjectType from "../../utils/types/gameObjectType";
 import Emitter from "../../utils/eventEmitter";
@@ -120,7 +119,7 @@ export default class Player extends GameObject {
     // Debug
     if (this.experience.debug.isActive) {
       this.debug = this.experience.debug;
-      debugPlayer(this, this.debug);
+      this.debug.initPlayerDebug(this);
     }
   }
 

@@ -31,29 +31,33 @@ MyLevel/
 Add custom properties to objects for game-specific behavior:
 
 ### Platforms & OneWayPlatforms
+
 ```json
 {
-  "floorLevel": 0,        // Which floor this platform belongs to (0, 1, 2, etc.)
-  "isEdge": false,        // Is this an edge platform? (affects coyote time)
-  "enablePoint": 12.5     // Y position where one-way collision activates
+  "floorLevel": 0, // Which floor this platform belongs to (0, 1, 2, etc.)
+  "isEdge": false, // Is this an edge platform? (affects coyote time)
+  "enablePoint": 12.5 // Y position where one-way collision activates
 }
 ```
 
 ### Ladders
+
 ```json
 {
-  "direction": 0          // -1 = left, 1 = right, 0 = both directions
+  "direction": 0 // -1 = left, 1 = right, 0 = both directions
 }
 ```
 
 ### Camera Sensors
+
 ```json
 {
-  "target": [35, 25, 0]   // [X, Y, Z] position to move camera to
+  "target": [35, 25, 0] // [X, Y, Z] position to move camera to
 }
 ```
 
 ### Teleporters
+
 ```json
 {
   "destination": [10, 55] // [X, Y] position to teleport player
@@ -63,14 +67,17 @@ Add custom properties to objects for game-specific behavior:
 ## Workflow
 
 1. **Design in Shapr3D**
+
    - Use the folder structure above
    - Name objects clearly (e.g., `floor1_platform01`, `ladder_left`)
 
 2. **Export as GLB**
+
    - File → Export → GLB format
    - Save to `src/webgl/world/levels/myLevel.glb`
 
 3. **Add Metadata** (optional)
+
    - Open GLB in https://gltf.report/ or use VS Code GLTF Tools extension
    - Click objects and add `extras` properties
    - Save modified GLB
@@ -78,12 +85,13 @@ Add custom properties to objects for game-specific behavior:
 4. **Load in Game**
    ```typescript
    // In gameDirector or where you load levels
-   await gameDirector.loadGLBLevel('levels/myLevel.glb');
+   await gameDirector.loadGLBLevel("levels/myLevel.glb");
    ```
 
 ## Defaults
 
 If metadata is missing, these defaults apply:
+
 - `floorLevel`: 0
 - `isEdge`: false
 - `direction`: 0 (bidirectional ladder)
@@ -126,7 +134,7 @@ myFirstLevel.glb
 gameDirector.loadLevelData(BlenderExport);
 
 // New way (GLB from Shapr3D)
-await gameDirector.loadGLBLevel('levels/myLevel.glb');
+await gameDirector.loadGLBLevel("levels/myLevel.glb");
 
 // Both work with the same engine!
 ```
