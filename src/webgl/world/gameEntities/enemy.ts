@@ -179,7 +179,7 @@ export default class Enemy extends GameObject {
     );
   }
 
-  private calculateSpecialRoll(player: Player, trashCan: TrashCan) {
+  private calculateSpecialRoll(player: Player, trashCan: TrashCan | undefined) {
     // Check if wanting to roll down a ladder or do a crazy roll
     if (this.isInsideLadder) {
       if (!this.didRunSpecialRollCheckOnce) {
@@ -208,8 +208,8 @@ export default class Enemy extends GameObject {
           this.performSpecialRoll = GameUtils.calculatePercentChance(0.1);
         }
 
-        // Override: if the trashCan is not yet on fire, always special roll
-        if (!trashCan.isOnFire) {
+        // Override: if the trashCan is not yet on fire (or absent), always special roll
+        if (!trashCan?.isOnFire) {
           this.performSpecialRoll = true;
         }
       }
@@ -255,7 +255,7 @@ export default class Enemy extends GameObject {
     }
   }
 
-  public update(player: Player, trashCan: TrashCan) {
+  public update(player: Player, trashCan: TrashCan | undefined) {
     // Exit early if object is destroyed
     if (this.isBeingDestroyed) {
       return;

@@ -153,7 +153,7 @@ export default class CrazyEnemy extends GameObject {
     }
   }
 
-  public update(trashCan: TrashCan) {
+  public update(_trashCan: TrashCan | undefined) {
     // Exit early if object is destroyed
     if (this.isBeingDestroyed) {
       return;

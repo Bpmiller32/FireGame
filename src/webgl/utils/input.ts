@@ -34,6 +34,9 @@ export default class Input {
   private keys: Key[];
   private keyPressStates: Map<string, boolean>;
 
+  private _onKeyDown: (event: KeyboardEvent) => void;
+  private _onKeyUp: (event: KeyboardEvent) => void;
+
   constructor() {
     this.isLeftKeyPressed = false;
     this.isRightKeyPressed = false;
@@ -196,21 +199,12 @@ export default class Input {
     // KeyPressStates to track if key has already run
     this.keyPressStates = new Map();
 
-    // Event listeners
-    window.addEventListener(
-      "keydown",
-      (event: KeyboardEvent) => {
-        this.onKeyDown(event.code);
-      },
-      false
-    );
-    window.addEventListener(
-      "keyup",
-      (event: KeyboardEvent) => {
-        this.onKeyUp(event.code);
-      },
-      false
-    );
+    // Store bound references so they can be removed in destroy()
+    this._onKeyDown = (event: KeyboardEvent) => this.onKeyDown(event.code);
+    this._onKeyUp = (event: KeyboardEvent) => this.onKeyUp(event.code);
+
+    window.addEventListener("keydown", this._onKeyDown, false);
+    window.addEventListener("keyup", this._onKeyUp, false);
   }
 
   // Handle firing a potential function but only once
@@ -306,8 +300,7 @@ export default class Input {
   }
 
   public destroy() {
-    // Clear event listeners
-    window.removeEventListener("keydown", () => {});
-    window.removeEventListener("keyup", () => {});
+    window.removeEventListener("keydown", this._onKeyDown);
+    window.removeEventListener("keyup", this._onKeyUp);
   }
 }

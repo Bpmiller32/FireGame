@@ -501,16 +501,32 @@ export default class ResourceLoader {
       if (item instanceof THREE.Texture) {
         // Free GPU texture memory
         item.dispose();
-      } else if (item instanceof THREE.Mesh) {
-        // Free geometry memory
-        item.geometry?.dispose();
-
-        // Free material(s) memory
-        if (Array.isArray(item.material)) {
-          item.material.forEach((mat) => mat.dispose());
-        } else {
-          item.material?.dispose();
-        }
+      } else if (item instanceof THREE.Object3D) {
+        // Three.js Object3D (Group, Mesh, etc.) — traverse and dispose all children
+        item.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry?.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat: THREE.Material) => mat.dispose());
+            } else {
+              child.material?.dispose();
+            }
+          }
+        });
+      } else if (item && typeof item === "object" && "scene" in item) {
+        // GLTF object — stored via gltfLoader which returns { scene, animations, ... }
+        // The items type doesn't capture this but the loader stores GLTF objects directly
+        const gltf = item as { scene: THREE.Object3D };
+        gltf.scene.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry?.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat: THREE.Material) => mat.dispose());
+            } else {
+              child.material?.dispose();
+            }
+          }
+        });
       }
     }
   }

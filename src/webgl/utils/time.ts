@@ -17,7 +17,7 @@ export default class Time {
     this.clock = new THREE.Clock();
     this.start = this.clock.startTime;
     this.elapsed = this.clock.getElapsedTime();
-    this.delta = 16; // 16 because at 60 fps delta for 1 frame is ~16. Avoid using 0 for bugs
+    this.delta = 1 / 60; // Seconds per frame at 60fps. Do NOT use 0 — physics uses this as a timestep
     this.previous = 0;
 
     // Instead of calling tick() immediately, wait 1 frame for delta time subtraction

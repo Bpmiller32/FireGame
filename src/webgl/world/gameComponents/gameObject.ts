@@ -408,39 +408,19 @@ export default class GameObject {
   }
 
   public setObjectValue0(newValue?: number) {
-    if (!newValue) {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).value0 = 0;
-      return;
-    }
-
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value0 = newValue;
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value0 = newValue ?? 0;
   }
 
   public setObjectValue1(newValue?: number) {
-    if (!newValue) {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).value1 = 0;
-      return;
-    }
-
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value1 = newValue;
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value1 = newValue ?? 0;
   }
 
   public setObjectValue2(newValue?: number) {
-    if (!newValue) {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).value2 = 0;
-      return;
-    }
-
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value2 = newValue;
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value2 = newValue ?? 0;
   }
 
   public setObjectValue3(newValue?: number) {
-    if (!newValue) {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = 0;
-      return;
-    }
-
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = newValue;
+    GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = newValue ?? 0;
   }
 
   public changeColliderSize(newSize: { width: number; height: number }) {
@@ -494,6 +474,9 @@ export default class GameObject {
   }
 
   public destroy() {
+    // Set immediately — guards concurrent collision callbacks from firing on a partially-destroyed object
+    this.isBeingDestroyed = true;
+
     // Remove the main mesh from the scene if it exists
     if (this.mesh) {
       this.disposeMeshHelper(this.mesh);
@@ -522,7 +505,5 @@ export default class GameObject {
       this.physicsBody = undefined;
     }
 
-    // Flag that object is being destroyed to avoid out of sync RAPIER calls -> errors
-    this.isBeingDestroyed = true;
   }
 }

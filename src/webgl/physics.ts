@@ -212,19 +212,6 @@ export default class Physics {
     });
   }
 
-  /**
-   * Process sensor/trigger events (sensor zone intersections)
-   * Called automatically during physics update
-   * Note: In Rapier, sensors are detected through collision events by checking the sensor flag
-   */
-  private handleIntersectionEvents() {
-    this.activeSensorCount = 0;
-
-    // In Rapier, sensor intersections are handled in the collision events
-    // We check if either collider is a sensor and route to the appropriate callbacks
-    // This method is kept for consistency but the actual logic is in handleCollisionEvents
-  }
-
   public update() {
     if (this.isPaused) {
       return;
@@ -235,8 +222,8 @@ export default class Physics {
     this.world.step(this.eventQueue);
 
     // Process collision and sensor events
+    // Sensors are routed through collision events by checking the sensor flag
     this.handleCollisionEvents();
-    this.handleIntersectionEvents();
 
     // Run debug physics logic if needed
     if (this.debug) {

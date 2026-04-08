@@ -9,24 +9,26 @@ export default class Sizes {
   public height: number;
   public pixelRatio: number;
 
+  private _onResize: () => void;
+
   constructor() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.pixelRatio = Math.min(window.devicePixelRatio, 2);
 
-    // Resize event
-    window.addEventListener("resize", () => {
+    this._onResize = () => {
       this.width = window.innerWidth;
       this.height = window.innerHeight;
       this.pixelRatio = Math.min(window.devicePixelRatio, 2);
 
       Emitter.emit("resize");
-    });
+    };
+
+    window.addEventListener("resize", this._onResize);
   }
 
   public destroy() {
-    // Clear event listeners
     Emitter.off("resize");
-    window.addEventListener("resize", () => {});
+    window.removeEventListener("resize", this._onResize);
   }
 }

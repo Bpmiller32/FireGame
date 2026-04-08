@@ -130,10 +130,11 @@ export default class GameDirector {
     });
 
     // Periodic cleanup of destroyed entities
-    setInterval(() => {
+    const cleanupIntervalId = setInterval(() => {
       this.enemies = GameUtils.removeDestroyedObjects(this.enemies);
       this.crazyEnemies = GameUtils.removeDestroyedObjects(this.crazyEnemies);
     }, 5000);
+    this.intervalIds.push(cleanupIntervalId);
   }
 
   /**
