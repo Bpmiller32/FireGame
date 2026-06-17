@@ -28,6 +28,5 @@ export {
   getUserData,
   getUserDataFromCollider,
   isColliderName,
-  isOneWayPlatformActive,
-  calculateCollisionMask
+  isOneWayPlatformActive
 } from './physicsHelpers';

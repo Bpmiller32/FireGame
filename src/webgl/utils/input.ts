@@ -4,6 +4,7 @@
 
 import Emitter from "./eventEmitter";
 import Key from "./types/key";
+import InputState from "./types/inputState";
 
 export default class Input {
   private isLeftKeyPressed: boolean;
@@ -297,6 +298,24 @@ export default class Input {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Capture the current input intent into a snapshot struct (mutated in place,
+   * so existing references — e.g. dat.gui bindings — stay valid). Lets each
+   * entity hold its own per-frame InputState instead of reading the live
+   * device directly: the seam that later allows network/replay/AI input.
+   */
+  public captureInto(state: InputState): void {
+    state.isLeft = this.isLeft();
+    state.isRight = this.isRight();
+    state.isLeftRightCombo = this.isLeftRightCombo();
+    state.isNeitherLeftRight = this.isNeitherLeftRight();
+    state.isJump = this.isJump();
+    state.isUp = this.isUp();
+    state.isDown = this.isDown();
+    state.isUpDownCombo = this.isUpDownCombo();
+    state.isNeitherUpDown = this.isNeitherUpDown();
   }
 
   public destroy() {

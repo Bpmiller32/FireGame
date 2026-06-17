@@ -12,15 +12,15 @@ const handlePlayerClimbing = (player: Player) => {
   // Helper variables for touching ladder top and bottom
   const atLadderBottom =
     player.isTouching.ladderBottom &&
-    (player.input.isDown() ||
-      player.input.isNeitherUpDown() ||
-      player.input.isUpDownCombo());
+    (player.input.isDown ||
+      player.input.isNeitherUpDown ||
+      player.input.isUpDownCombo);
 
   const atLadderTop =
     player.isTouching.ladderTop &&
-    (player.input.isUp() ||
-      player.input.isNeitherUpDown() ||
-      player.input.isUpDownCombo());
+    (player.input.isUp ||
+      player.input.isNeitherUpDown ||
+      player.input.isUpDownCombo);
 
   // Transition to idle state
   if (!player.isTouching.ladderCore || atLadderBottom || atLadderTop) {
@@ -38,9 +38,9 @@ const handlePlayerClimbing = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
-  if (player.input.isUp()) {
+  if (player.input.isUp) {
     player.direction = PlayerDirection.UP;
-  } else if (player.input.isDown()) {
+  } else if (player.input.isDown) {
     player.direction = PlayerDirection.DOWN;
   } else {
     player.direction = PlayerDirection.NEUTRAL;

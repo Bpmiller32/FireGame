@@ -1,3 +1,4 @@
+import RAPIER from "@dimforge/rapier2d-compat";
 import GameObject from "../gameComponents/gameObject";
 import GameObjectType from "../../utils/types/gameObjectType";
 import CollisionGroups from "../../utils/types/collisionGroups";
@@ -44,14 +45,15 @@ export default class WinFlag extends GameObject {
       0,
       { x: xDirection, y: yDirection },
       this.physicsBody!.collider(0).shape,
-      1000,
-      false,
+      0,      // targetDistance — distance at which shapes are considered touching
+      1000,   // maxToi
+      false,  // stopAtPenetration
       undefined,
       undefined,
       undefined,
       undefined,
       // Don't collide with sensors or OneWayPlatforms while under them
-      (collider) =>
+      (collider: RAPIER.Collider) =>
         !(
           collider.isSensor() ||
           GameUtils.getDataFromCollider(collider).value3 > 0
@@ -74,7 +76,7 @@ export default class WinFlag extends GameObject {
     const leftCast = shapeCasts.left;
     if (
       leftCast &&
-      leftCast.toi <= this.colliderOffset &&
+      leftCast.time_of_impact <= this.colliderOffset &&
       GameUtils.getDataFromCollider(leftCast.collider).name == "Player"
     ) {
       this.isBeingTouched = true;
@@ -85,7 +87,7 @@ export default class WinFlag extends GameObject {
     const rightCast = shapeCasts.right;
     if (
       rightCast &&
-      rightCast.toi <= this.colliderOffset &&
+      rightCast.time_of_impact <= this.colliderOffset &&
       GameUtils.getDataFromCollider(rightCast.collider).name == "Player"
     ) {
       this.isBeingTouched = true;
@@ -96,7 +98,7 @@ export default class WinFlag extends GameObject {
     const upCast = shapeCasts.up;
     if (
       upCast &&
-      upCast.toi <= this.colliderOffset &&
+      upCast.time_of_impact <= this.colliderOffset &&
       GameUtils.getDataFromCollider(upCast.collider).name == "Player"
     ) {
       this.isBeingTouched = true;

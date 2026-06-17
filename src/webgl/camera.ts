@@ -41,6 +41,8 @@ export default class Camera {
   public frustumSize!: number;
   public zoomFactor!: number;
 
+  private _onManualCameraControl!: () => void;
+
   constructor(initialPosition: THREE.Vector3) {
     this.experience = Experience.getInstance();
     this.sizes = this.experience.sizes;
@@ -67,10 +69,9 @@ export default class Camera {
       this.debug.initCameraDebug(this);
     }
 
-    // Events
-    Emitter.on("manualCameraControl", () => {
-      this.manualControl = !this.manualControl;
-    });
+    // Events — store ref for cleanup in destroy()
+    this._onManualCameraControl = () => { this.manualControl = !this.manualControl; };
+    Emitter.on("manualCameraControl", this._onManualCameraControl);
   }
 
   private initalizePerspectiveInstance() {
@@ -257,7 +258,7 @@ export default class Camera {
   }
 
   public destroy() {
-    // Remove camera instance from the scene
+    Emitter.off("manualCameraControl", this._onManualCameraControl);
     this.scene.remove(this.instance);
   }
 }

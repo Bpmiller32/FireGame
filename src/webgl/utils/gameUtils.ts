@@ -89,11 +89,6 @@ export default class GameUtils {
    */
   public static isOneWayPlatformAndActive = PhysicsHelpers.isOneWayPlatformActive;
 
-  /**
-   * @deprecated Use `calculateCollisionMask` from helpers/physicsHelpers instead
-   */
-  public static calculateCollisionMask = PhysicsHelpers.calculateCollisionMask;
-
   /* -------------------------------------------------------------------------- */
   /*                         GAME-SPECIFIC FUNCTIONS                            */
   /* -------------------------------------------------------------------------- */

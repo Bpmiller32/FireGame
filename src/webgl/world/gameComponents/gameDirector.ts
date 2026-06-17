@@ -71,7 +71,8 @@ export default class GameDirector {
   private initialDelay = 0;
   private currentSpawnInterval = 0;
   private enemyCount = 0;
-  private intervalIds: number[] = [];
+  private spawnIntervalIds: number[] = [];
+  private cleanupIntervalId: number = 0;
 
   constructor() {
     // Initialize core systems
@@ -129,12 +130,12 @@ export default class GameDirector {
       removedGameObject.destroy();
     });
 
-    // Periodic cleanup of destroyed entities
-    const cleanupIntervalId = setInterval(() => {
+    // Periodic cleanup of destroyed entities — separate from spawn timers
+    // so it keeps running after gameOver
+    this.cleanupIntervalId = setInterval(() => {
       this.enemies = GameUtils.removeDestroyedObjects(this.enemies);
       this.crazyEnemies = GameUtils.removeDestroyedObjects(this.crazyEnemies);
-    }, 5000);
-    this.intervalIds.push(cleanupIntervalId);
+    }, 5000) as unknown as number;
   }
 
   /**
@@ -161,17 +162,11 @@ export default class GameDirector {
     // Update platform collision states
     GameUtils.updatePlatforms(this.platforms, this.player);
 
-    // Update ladder detection (manual for now, will convert to callbacks later)
-    this.player.isTouching.ladderTop = GameUtils.isAnySensorTriggered(
-      this.ladderTopSensors
-    );
-    this.player.isTouching.ladderCore =
-      GameUtils.isAnySensorTriggeredObjectFullyInside(
-        this.ladderCoreSensors,
-        this.player
-      );
-    this.player.isTouching.ladderBottom = GameUtils.isAnySensorTriggered(
-      this.ladderBottomSensors
+    // Update ladder detection (manual for now, will convert to sensor callbacks later)
+    this.player.updateLadderState(
+      GameUtils.isAnySensorTriggered(this.ladderTopSensors),
+      GameUtils.isAnySensorTriggeredObjectFullyInside(this.ladderCoreSensors, this.player),
+      GameUtils.isAnySensorTriggered(this.ladderBottomSensors)
     );
   }
 
@@ -422,8 +417,8 @@ export default class GameDirector {
     this.enemyCount = 0;
 
     this.stopAllSpawnTimers();
-    this.spawningInterval = setInterval(() => this.spawnEnemiesWithLogic(), 16);
-    this.intervalIds.push(this.spawningInterval);
+    this.spawningInterval = setInterval(() => this.spawnEnemiesWithLogic(), 16) as unknown as number;
+    this.spawnIntervalIds.push(this.spawningInterval);
   }
 
   /**
@@ -456,8 +451,8 @@ export default class GameDirector {
    * Stop all spawn timers
    */
   private stopAllSpawnTimers() {
-    this.intervalIds.forEach((id) => clearInterval(id));
-    this.intervalIds = [];
+    this.spawnIntervalIds.forEach((id) => clearInterval(id));
+    this.spawnIntervalIds = [];
   }
 
   /* -------------------------------------------------------------------------- */
@@ -533,6 +528,7 @@ export default class GameDirector {
     Emitter.off("gameObjectRemoved");
 
     this.stopAllSpawnTimers();
+    clearInterval(this.cleanupIntervalId);
     this.unloadLevelData();
   }
 }

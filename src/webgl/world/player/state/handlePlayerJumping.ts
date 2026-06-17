@@ -28,7 +28,7 @@ const handlePlayerJumping = (player: Player) => {
 
   // Min jump time exceeded and not holding jump
   if (
-    !player.input.isJump() &&
+    !player.input.isJump &&
     player.time.elapsed > player.timeJumpWasEntered + player.minJumpTime
   ) {
     player.endedJumpEarly = true;
@@ -50,19 +50,19 @@ const handlePlayerJumping = (player: Player) => {
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
   // Left
-  if (player.input.isLeft()) {
+  if (player.input.isLeft) {
     player.direction = PlayerDirection.LEFT;
     player.spriteAnimator.changeState(SpriteAnimations.JUMP_LEFT);
   }
   // Right
-  else if (player.input.isRight()) {
+  else if (player.input.isRight) {
     player.direction = PlayerDirection.RIGHT;
     player.spriteAnimator.changeState(SpriteAnimations.JUMP_RIGHT);
   }
   // Both and neither
   else if (
-    player.input.isNeitherLeftRight() ||
-    player.input.isLeftRightCombo()
+    player.input.isNeitherLeftRight ||
+    player.input.isLeftRightCombo
   ) {
     player.direction = PlayerDirection.NEUTRAL;
 

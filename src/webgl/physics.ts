@@ -28,9 +28,14 @@ export default class Physics {
   private gameObjectRegistry!: Map<number, GameObject>;
 
   public renderObjectCount!: number;
-  public phyiscsObjectCount!: number;
+  public physicsObjectCount!: number;
   public activeCollisionCount!: number;
   public activeSensorCount!: number;
+
+  // Stored event handler references for cleanup
+  private _onGameStart!: () => void;
+  private _onGameOver!: () => void;
+  private _onGameReset!: () => void;
 
   // Replacement constructor to accomodate async
   public async configure() {
@@ -49,16 +54,13 @@ export default class Physics {
     this.activeCollisionCount = 0;
     this.activeSensorCount = 0;
 
-    // Events
-    Emitter.on("gameStart", () => {
-      this.isPaused = false;
-    });
-    Emitter.on("gameOver", () => {
-      this.isPaused = true;
-    });
-    Emitter.on("gameReset", () => {
-      this.isPaused = false;
-    });
+    // Events — store refs for cleanup in destroy()
+    this._onGameStart = () => { this.isPaused = false; };
+    this._onGameOver = () => { this.isPaused = true; };
+    this._onGameReset = () => { this.isPaused = false; };
+    Emitter.on("gameStart", this._onGameStart);
+    Emitter.on("gameOver", this._onGameOver);
+    Emitter.on("gameReset", this._onGameReset);
 
     // Debug
     if (this.experience.debug.isActive) {
@@ -232,15 +234,17 @@ export default class Physics {
   }
 
   public destroy() {
+    // Remove event listeners
+    Emitter.off("gameStart", this._onGameStart);
+    Emitter.off("gameOver", this._onGameOver);
+    Emitter.off("gameReset", this._onGameReset);
+
     // Dispose of the Rapier world
     this.world.free();
 
     // Dispose of the debug mesh if it exists
     if (this.mesh) {
-      // Remove the mesh from the scene
       this.scene.remove(this.mesh);
-
-      // Dispose of the geometry and material
       this.mesh.geometry.dispose();
       this.mesh.material.dispose();
     }

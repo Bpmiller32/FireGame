@@ -11,7 +11,7 @@ const handlePlayerFalling = (player: Player) => {
   // Transition to idle or running state
   if (player.isTouching.ground) {
     if (
-      (player.input.isNeitherLeftRight() || player.input.isLeftRightCombo()) &&
+      (player.input.isNeitherLeftRight || player.input.isLeftRightCombo) &&
       Math.abs(player.nextTranslation.x) < player.maxGroundSpeed * 0.01
     ) {
       player.state = PlayerStates.IDLE;
@@ -29,7 +29,7 @@ const handlePlayerFalling = (player: Player) => {
 
   // Allow transition into jumping state when otherwise should be falling - coyote time
   if (
-    player.input.isJump() &&
+    player.input.isJump &&
     player.coyoteAvailable &&
     player.time.elapsed < player.timeFallWasEntered + player.coyoteTime
   ) {
@@ -62,7 +62,7 @@ const handlePlayerFalling = (player: Player) => {
     // }
 
     // Give buffer jump
-    if (!player.input.isJump()) {
+    if (!player.input.isJump) {
       player.bufferJumpAvailable = true;
     }
   }
@@ -70,7 +70,7 @@ const handlePlayerFalling = (player: Player) => {
   // Count buffer jumps
   if (
     player.bufferJumpAvailable &&
-    player.input.isJump() &&
+    player.input.isJump &&
     !player.wasBufferJumpUsed
   ) {
     player.wasBufferJumpUsed = true;
@@ -86,19 +86,19 @@ const handlePlayerFalling = (player: Player) => {
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
   // Left
-  if (player.input.isLeft()) {
+  if (player.input.isLeft) {
     player.direction = PlayerDirection.LEFT;
     player.spriteAnimator.changeState(SpriteAnimations.FALL_LEFT);
   }
   // Right
-  else if (player.input.isRight()) {
+  else if (player.input.isRight) {
     player.direction = PlayerDirection.RIGHT;
     player.spriteAnimator.changeState(SpriteAnimations.FALL_RIGHT);
   }
   // Both and neither
   else if (
-    player.input.isNeitherLeftRight() ||
-    player.input.isLeftRightCombo()
+    player.input.isNeitherLeftRight ||
+    player.input.isLeftRightCombo
   ) {
     player.direction = PlayerDirection.NEUTRAL;
 

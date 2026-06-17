@@ -11,41 +11,42 @@
 
 /**
  * Keyboard key definition
- * 
+ *
  * Represents a single keyboard key that the game tracks.
  * Used internally by the Input class to manage keyboard state.
- * 
+ *
  * @example
  * ```typescript
  * // Create a key object
  * const jumpKey: Key = {
- *   keyCode: ' ',  // Spacebar
+ *   keyCode: 'Space',
  *   isPressed: (pressed: boolean) => {
  *     this.isJumpPressed = pressed;
  *   }
  * };
- * 
+ *
  * // In Input class
  * private keys: Key[] = [
- *   { keyCode: 'w', isPressed: (p) => this.isWKeyPressed = p },
- *   { keyCode: 'a', isPressed: (p) => this.isAKeyPressed = p },
- *   { keyCode: 's', isPressed: (p) => this.isSKeyPressed = p },
- *   { keyCode: 'd', isPressed: (p) => this.isDKeyPressed = p },
- *   { keyCode: ' ', isPressed: (p) => this.isSpacePressed = p }
+ *   { keyCode: 'KeyW', isPressed: (p) => this.isWKeyPressed = p },
+ *   { keyCode: 'KeyA', isPressed: (p) => this.isAKeyPressed = p },
+ *   { keyCode: 'KeyS', isPressed: (p) => this.isSKeyPressed = p },
+ *   { keyCode: 'KeyD', isPressed: (p) => this.isDKeyPressed = p },
+ *   { keyCode: 'Space', isPressed: (p) => this.isSpacePressed = p }
  * ];
  * ```
  */
 export default interface Key {
   /**
    * The keyboard key code to track
-   * 
-   * Uses KeyboardEvent.key values:
-   * - Letter keys: 'a', 'b', 'c', etc.
-   * - Number keys: '0', '1', '2', etc.
-   * - Special keys: ' ' (space), 'Shift', 'Control', 'Alt', 'Enter', 'Escape'
+   *
+   * Uses KeyboardEvent.code values (physical key position, layout-independent):
+   * - Letter keys: 'KeyA', 'KeyB', 'KeyC', etc.
+   * - Number keys: 'Digit0', 'Digit1', 'Digit2', etc.
+   * - Special keys: 'Space', 'ShiftLeft', 'ControlLeft', 'AltLeft', 'Enter', 'Escape'
    * - Arrow keys: 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'
-   * 
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
+   * - Function keys: 'F1', 'F2', 'F3', etc.
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code
    */
   keyCode: string;
   
@@ -82,38 +83,48 @@ export function createKey(keyCode: string, callback: (pressed: boolean) => void)
 }
 
 /**
- * Common key codes for easy reference
+ * Common key codes for easy reference (KeyboardEvent.code values)
  * Use these constants to avoid typos in key codes
  */
 export const CommonKeys = {
   // Letters
-  W: 'w',
-  A: 'a',
-  S: 's',
-  D: 'd',
-  Q: 'q',
-  E: 'e',
-  
+  W: 'KeyW',
+  A: 'KeyA',
+  S: 'KeyS',
+  D: 'KeyD',
+  Q: 'KeyQ',
+  E: 'KeyE',
+
   // Numbers
-  KEY_1: '1',
-  KEY_2: '2',
-  KEY_3: '3',
-  KEY_4: '4',
-  KEY_5: '5',
-  
+  KEY_1: 'Digit1',
+  KEY_2: 'Digit2',
+  KEY_3: 'Digit3',
+  KEY_4: 'Digit4',
+  KEY_5: 'Digit5',
+
   // Special
-  SPACE: ' ',
-  SHIFT: 'Shift',
-  CONTROL: 'Control',
-  ALT: 'Alt',
+  SPACE: 'Space',
+  SHIFT_LEFT: 'ShiftLeft',
+  SHIFT_RIGHT: 'ShiftRight',
+  CONTROL_LEFT: 'ControlLeft',
+  CONTROL_RIGHT: 'ControlRight',
+  ALT_LEFT: 'AltLeft',
+  ALT_RIGHT: 'AltRight',
   ENTER: 'Enter',
   ESCAPE: 'Escape',
   TAB: 'Tab',
-  TILDE: '`',
-  
+  TILDE: 'Backquote',
+
   // Arrows
   ARROW_UP: 'ArrowUp',
   ARROW_DOWN: 'ArrowDown',
   ARROW_LEFT: 'ArrowLeft',
   ARROW_RIGHT: 'ArrowRight',
+
+  // Function keys
+  F1: 'F1',
+  F2: 'F2',
+  F3: 'F3',
+  F4: 'F4',
+  F5: 'F5',
 } as const;

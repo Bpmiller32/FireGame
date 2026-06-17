@@ -33,6 +33,10 @@ export default class Experience {
   public physics!: Physics;
   public gameDirector!: GameDirector;
 
+  // Stored event handler references for cleanup
+  private _onResize!: () => void;
+  private _onTick!: () => void;
+
   // Singleton check/constructor
   public static getInstance(): Experience {
     if (!Experience.instance) {
@@ -66,14 +70,15 @@ export default class Experience {
     await this.physics.configure();
     this.gameDirector = new GameDirector();
 
-    // Sizes resize event
-    Emitter.on("resize", () => {
+    // Sizes resize event — store ref for cleanup
+    this._onResize = () => {
       this.camera.resize();
       this.renderer.resize();
-    });
+    };
+    Emitter.on("resize", this._onResize);
 
-    // Time tick event
-    Emitter.on("tick", () => {
+    // Time tick event — store ref for cleanup
+    this._onTick = () => {
       if (this.debug.isActive) {
         this.debug.stats?.begin();
       }
@@ -85,11 +90,16 @@ export default class Experience {
       if (this.debug.isActive) {
         this.debug.stats?.end();
       }
-    });
+    };
+    Emitter.on("tick", this._onTick);
   }
 
   public destroy() {
-    // Clear event listeners
+    // Remove our own event listeners first
+    Emitter.off("resize", this._onResize);
+    Emitter.off("tick", this._onTick);
+
+    // Clear subsystem event listeners
     this.sizes.destroy();
     this.time.destroy();
     this.input.destroy();

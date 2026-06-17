@@ -17,6 +17,7 @@ type EventMap = {
   resize: void;
   // resourceLoader
   resourcesReady: void;
+  resourceLoadFailed: string;
 
   // Game events
   gameObjectRemoved: GameObject;

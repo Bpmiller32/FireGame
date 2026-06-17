@@ -7,7 +7,7 @@
  */
 /* -------------------------------------------------------------------------- */
 
-import RAPIER, { Collider, RigidBody } from "@dimforge/rapier2d-compat";
+import { Collider, RigidBody } from "@dimforge/rapier2d-compat";
 import UserData from "../types/userData";
 
 /**
@@ -63,12 +63,7 @@ export function getUserData(physicsBody?: RigidBody): UserData {
  * ```
  */
 export function getUserDataFromCollider(collider?: Collider): UserData {
-  if (collider) {
-    return collider.parent()?.userData as UserData;
-  }
-
-  // Return empty default data
-  return {
+  const defaultData: UserData = {
     name: "",
     gameEntityType: "",
     value0: 0,
@@ -76,6 +71,13 @@ export function getUserDataFromCollider(collider?: Collider): UserData {
     value2: 0,
     value3: 0,
   };
+
+  if (!collider) return defaultData;
+
+  const parent = collider.parent();
+  if (!parent) return defaultData;
+
+  return parent.userData as UserData;
 }
 
 /**
@@ -129,40 +131,4 @@ export function isOneWayPlatformActive(
 ): boolean {
   const userData = collider.parent()?.userData as UserData;
   return userData.name === name && userData.value3 > 0;
-}
-
-/**
- * Calculate combined collision group/mask value
- * 
- * Rapier stores collision groups and masks in a single 32-bit integer:
- * - Lower 16 bits: collision group (what this object IS)
- * - Upper 16 bits: collision mask (what this object COLLIDES WITH)
- * 
- * @param group - Collision group bit mask
- * @param mask - Collision mask bit mask
- * @returns Combined 32-bit collision groups value
- * 
- * @example
- * ```typescript
- * import CollisionGroups from '../types/collisionGroups';
- * 
- * // Player collides with platforms and enemies
- * const combined = calculateCollisionMask(
- *   CollisionGroups.PLAYER_BOUNDING_BOX,
- *   CollisionGroups.PLATFORM | CollisionGroups.ENEMY
- * );
- * 
- * collider.setCollisionGroups(combined);
- * ```
- */
-export function calculateCollisionMask(group: number, mask: number): number {
-  // Convert to 16-bit binary strings
-  const groupString = group.toString(2).padStart(16, "0");
-  const maskString = mask.toString(2).padStart(16, "0");
-
-  // Combine: mask (upper 16 bits) + group (lower 16 bits)
-  const combinedString = maskString + groupString;
-
-  // Convert back to integer
-  return parseInt(combinedString, 2);
 }

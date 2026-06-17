@@ -5,9 +5,10 @@ import Input from "../../utils/input";
 import Debug from "../../utils/debug";
 import ResourceLoader from "../../utils/resourceLoader";
 import PlayerDirection from "../../utils/types/playerDirection";
+import InputState from "../../utils/types/inputState";
 import SpriteAnimator from "../../utils/spriteAnimator";
 import SpriteAnimations from "./state/spriteAnimations";
-import PlayerStates from "../../utils/types/playerStates";
+import PlayerStates, { PlayerState } from "../../utils/types/playerStates";
 import handlePlayerIdle from "./state/handlePlayerIdle";
 import handlePlayerFalling from "./state/handlePlayerFalling";
 import handlePlayerRunning from "./state/handlePlayerRunning";
@@ -24,7 +25,8 @@ import CollisionGroups from "../../utils/types/collisionGroups";
 export default class Player extends GameObject {
   // Experience
   public time!: Time;
-  public input!: Input;
+  public input!: InputState;
+  private _inputDevice!: Input;
   public debug?: Debug;
   public resources!: ResourceLoader;
 
@@ -33,8 +35,8 @@ export default class Player extends GameObject {
   public currentPosition!: RAPIER.Vector2;
   public nextTranslation!: RAPIER.Vector2;
 
-  public state!: string;
-  public stateHandlers!: Record<string, Function>;
+  public state!: PlayerState;
+  public stateHandlers!: Record<PlayerState, (player: Player) => void>;
 
   public characterController!: RAPIER.KinematicCharacterController;
   public colliderOffset!: number;
@@ -126,8 +128,22 @@ export default class Player extends GameObject {
   private initalizePlayerAttributes() {
     // Experience fields
     this.time = this.experience.time;
-    this.input = this.experience.input;
+    this._inputDevice = this.experience.input;
     this.resources = this.experience.resources;
+
+    // Per-entity input snapshot, refreshed from the device each frame (D10:
+    // input-as-data — a network/replay/AI source could fill this instead).
+    this.input = {
+      isLeft: false,
+      isRight: false,
+      isLeftRightCombo: false,
+      isNeitherLeftRight: true,
+      isJump: false,
+      isUp: false,
+      isDown: false,
+      isUpDownCombo: false,
+      isNeitherUpDown: true,
+    };
 
     // Set inital state and direction
     this.state = PlayerStates.IDLE;
@@ -285,6 +301,16 @@ export default class Player extends GameObject {
     // Only using ShapeCasting for collisions, saves on previously used CharacterController's numComputedCollision
     this.resetCollisions();
     this.getShapeCastCollisions();
+  }
+
+  /**
+   * Update ladder contact state from external sensor detection
+   * Called by GameDirector until ladder sensors use proper callbacks
+   */
+  public updateLadderState(top: boolean, core: boolean, bottom: boolean) {
+    this.isTouching.ladderTop = top;
+    this.isTouching.ladderCore = core;
+    this.isTouching.ladderBottom = bottom;
   }
 
   private resetCollisions() {
@@ -453,6 +479,9 @@ export default class Player extends GameObject {
     if (this.isBeingDestroyed) {
       return;
     }
+
+    // Refresh this entity's input snapshot before the state handlers read it.
+    this._inputDevice.captureInto(this.input);
 
     this.syncGraphicsToPhysics();
     this.updatePlayerState();

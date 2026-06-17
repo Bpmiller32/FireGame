@@ -12,6 +12,7 @@ export default class Time {
   public delta: number;
 
   private previous: number;
+  private _animationFrameId: number = 0;
 
   constructor() {
     this.clock = new THREE.Clock();
@@ -21,7 +22,7 @@ export default class Time {
     this.previous = 0;
 
     // Instead of calling tick() immediately, wait 1 frame for delta time subtraction
-    window.requestAnimationFrame(() => {
+    this._animationFrameId = window.requestAnimationFrame(() => {
       this.tick();
     });
   }
@@ -35,13 +36,13 @@ export default class Time {
     Emitter.emit("tick");
 
     // Recursively keep calling tick
-    window.requestAnimationFrame(() => {
+    this._animationFrameId = window.requestAnimationFrame(() => {
       this.tick();
     });
   }
 
   public destroy() {
-    // Clear event listeners
-    Emitter.off("tick");
+    // Stop the animation frame loop
+    window.cancelAnimationFrame(this._animationFrameId);
   }
 }

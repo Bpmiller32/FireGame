@@ -26,7 +26,7 @@ const handlePlayerRunning = (player: Player) => {
   const isMovingSlowly =
     Math.abs(player.nextTranslation.x) <= player.maxGroundSpeed * 0.01;
   const isIdleInput =
-    player.input.isNeitherLeftRight() || player.input.isLeftRightCombo();
+    player.input.isNeitherLeftRight || player.input.isLeftRightCombo;
 
   if (isMovingSlowly && isIdleInput) {
     player.nextTranslation.x = 0;
@@ -35,7 +35,7 @@ const handlePlayerRunning = (player: Player) => {
   }
 
   // Transition to jumping state
-  if (player.input.isJump() && player.bufferJumpAvailable) {
+  if (player.input.isJump && player.bufferJumpAvailable) {
     // TODO: remove?
     // // Make the collider smaller in air for better feel
     // player.changeColliderSize({ width: 1.75, height: 2.5 });
@@ -50,9 +50,9 @@ const handlePlayerRunning = (player: Player) => {
   // Transition to climbing state
   if (
     player.isTouching.ladderCore &&
-    (player.input.isUp() || player.input.isDown()) &&
-    !(player.isTouching.ladderTop && player.input.isUp()) &&
-    !(player.isTouching.ladderBottom && player.input.isDown())
+    (player.input.isUp || player.input.isDown) &&
+    !(player.isTouching.ladderTop && player.input.isUp) &&
+    !(player.isTouching.ladderBottom && player.input.isDown)
   ) {
     player.nextTranslation.x = 0;
     player.nextTranslation.y = 0;
@@ -67,7 +67,7 @@ const handlePlayerRunning = (player: Player) => {
   // In a grounded state, give coyote and reset early jump gravity
   player.coyoteAvailable = true;
   player.endedJumpEarly = false;
-  if (!player.input.isJump()) {
+  if (!player.input.isJump) {
     player.bufferJumpAvailable = true;
   }
 
@@ -75,12 +75,12 @@ const handlePlayerRunning = (player: Player) => {
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
   // Left
-  if (player.input.isLeft()) {
+  if (player.input.isLeft) {
     player.direction = PlayerDirection.LEFT;
     player.spriteAnimator.changeState(SpriteAnimations.RUN_LEFT);
   }
   // Right
-  else if (player.input.isRight()) {
+  else if (player.input.isRight) {
     player.direction = PlayerDirection.RIGHT;
     player.spriteAnimator.changeState(SpriteAnimations.RUN_RIGHT);
   }

@@ -496,12 +496,11 @@ export default class GameObject {
     this.geometry?.dispose();
     this.material?.dispose();
 
-    // Remove physics body and collider from the physics world
+    // Unregister from collision event system, then remove physics body
+    // removeRigidBody also removes all attached colliders, so no manual collider removal needed
     if (this.physicsBody) {
-      this.physics.world.removeCollider(this.physicsBody.collider(0), true);
+      this.physics.unregisterGameObject(this);
       this.physics.world.removeRigidBody(this.physicsBody);
-
-      // Part of fix to defer destruction
       this.physicsBody = undefined;
     }
 

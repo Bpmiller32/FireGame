@@ -118,6 +118,16 @@ export default class ResourceLoader {
     // Callback when resource fails to load
     const onError = (error: any) => {
       console.error(`❌ Failed to load ${source.name}:`, error);
+
+      // Count the failed load so a single 404 can't hang the loader forever,
+      // and tell anyone listening which resource failed.
+      this.loaded++;
+      Emitter.emit("resourceLoadFailed", source.name);
+
+      // If this was the last outstanding resource, let the game start anyway.
+      if (this.loaded === this.toLoad) {
+        Emitter.emit("resourcesReady");
+      }
     };
 
     // Load based on type
@@ -251,8 +261,9 @@ export default class ResourceLoader {
     // Determine what type of game object this is
     const type = this.getObjectType(path);
     
-    // Skip graphics-only objects (no physics/gameplay)
-    if (type === "GraphicsObject") {
+    // Skip graphics-only objects (no physics/gameplay) and unknown-typed
+    // meshes (see getObjectType fallback) — neither becomes a game object.
+    if (type === "GraphicsObject" || type === "Unknown") {
       return null;
     }
 
@@ -359,10 +370,12 @@ export default class ResourceLoader {
     if (lowerPath.includes("graphics/")) return "GraphicsObject";
 
     // ===== FALLBACK: Unknown Type =====
-    // If we can't determine the type, show a helpful error message
+    // If we can't determine the type, warn and skip it. Returning "Platform"
+    // here used to spawn an invisible solid wall the player would hit for no
+    // visible reason — skipping (like GraphicsObject) is far less surprising.
     console.warn(`⚠️ Unknown object type for: "${path}"`);
     console.warn(`💡 Tip: Name objects clearly like: "platform-1", "wall-left", "player-start"`);
-    return "Platform"; // Safe default fallback
+    return "Unknown"; // Skipped in parseMeshObject (see GraphicsObject)
   }
 
   /**

@@ -10,7 +10,7 @@ const handlePlayerIdle = (player: Player) => {
   // Check for edge case where verical direction is positive before entering idle
   if (
     player.nextTranslation.y >= 0 &&
-    (player.input.isLeft() || player.input.isRight())
+    (player.input.isLeft || player.input.isRight)
   ) {
     player.nextTranslation.y = -player.maxFallSpeed;
     return;
@@ -24,13 +24,13 @@ const handlePlayerIdle = (player: Player) => {
   }
 
   // Transition to running state
-  if (player.input.isLeft() || player.input.isRight()) {
+  if (player.input.isLeft || player.input.isRight) {
     player.state = PlayerStates.RUNNING;
     return;
   }
 
   // Transition to jumping state
-  if (player.input.isJump() && player.bufferJumpAvailable) {
+  if (player.input.isJump && player.bufferJumpAvailable) {
     // TODO: remove?
     // // Make the collider smaller in air for better feel
     // player.changeColliderSize({ width: 1.75, height: 2.5 });
@@ -43,9 +43,9 @@ const handlePlayerIdle = (player: Player) => {
   // Transition to climbing state
   if (
     player.isTouching.ladderCore &&
-    (player.input.isUp() || player.input.isDown()) &&
-    !(player.isTouching.ladderTop && player.input.isUp()) &&
-    !(player.isTouching.ladderBottom && player.input.isDown())
+    (player.input.isUp || player.input.isDown) &&
+    !(player.isTouching.ladderTop && player.input.isUp) &&
+    !(player.isTouching.ladderBottom && player.input.isDown)
   ) {
     player.nextTranslation.x = 0;
     player.nextTranslation.y = 0;
@@ -60,7 +60,7 @@ const handlePlayerIdle = (player: Player) => {
   // In a grounded state, give coyote and reset early jump gravity
   player.coyoteAvailable = true;
   player.endedJumpEarly = false;
-  if (!player.input.isJump()) {
+  if (!player.input.isJump) {
     player.bufferJumpAvailable = true;
   }
 
