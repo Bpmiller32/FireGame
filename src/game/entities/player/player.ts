@@ -22,6 +22,7 @@ import setDkAttributes from "../../attributes/setDkAttributes";
 import GameUtils from "../../gameUtils";
 import handlePlayerClimbing from "./states/handlePlayerClimbing";
 import CollisionGroups from "../../types/gameCollisionGroups";
+import EntityType from "../../types/entityType";
 
 export default class Player extends GameObject {
   // Experience
@@ -80,6 +81,8 @@ export default class Player extends GameObject {
   public maxJumpTime!: number;
   public coyoteTime!: number;
 
+  public animationScalingFactor!: number;
+
   private hasTriggeredGameOver!: boolean;
 
   public constructor(
@@ -93,7 +96,7 @@ export default class Player extends GameObject {
     this.setCharacterController();
 
     this.createObjectPhysics(
-      "Player",
+      EntityType.PLAYER,
       GameObjectType.CUBE,
       size,
       position,
@@ -273,7 +276,7 @@ export default class Player extends GameObject {
       (collider: RAPIER.Collider) =>
         !(
           collider.isSensor() ||
-          GameUtils.isOneWayPlatformAndActive(collider, "OneWayPlatform")
+          GameUtils.isOneWayPlatformAndActive(collider, EntityType.ONE_WAY_PLATFORM)
         )
     );
 
@@ -291,7 +294,7 @@ export default class Player extends GameObject {
     const numCollisions = this.characterController.numComputedCollisions();
     for (let i = 0; i < numCollisions; i++) {
       const collision = this.characterController.computedCollision(i);
-      if (collision && collision.collider && GameUtils.isColliderName(collision.collider, "Enemy") && !this.hasTriggeredGameOver) {
+      if (collision && collision.collider && GameUtils.isColliderName(collision.collider, EntityType.ENEMY) && !this.hasTriggeredGameOver) {
         this.hasTriggeredGameOver = true;
         Emitter.emit("gameOver");
         break;
@@ -343,10 +346,10 @@ export default class Player extends GameObject {
     if (
       downCast &&
       downCast.time_of_impact <= this.colliderOffsetThreshold &&
-      GameUtils.isColliderName(downCast.collider, "Wall") == false &&
+      GameUtils.isColliderName(downCast.collider, EntityType.WALL) == false &&
       GameUtils.isOneWayPlatformAndActive(
         downCast.collider,
-        "OneWayPlatform"
+        EntityType.ONE_WAY_PLATFORM
       ) == false
     ) {
       // Establish that ground is being touched
@@ -381,7 +384,7 @@ export default class Player extends GameObject {
     if (
       leftCast &&
       leftCast.time_of_impact <= this.colliderOffsetThreshold &&
-      GameUtils.isColliderName(leftCast.collider, "OneWayPlatform") == false
+      GameUtils.isColliderName(leftCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
       this.isTouching.leftSide = true;
     }
@@ -391,7 +394,7 @@ export default class Player extends GameObject {
     if (
       rightCast &&
       rightCast.time_of_impact <= this.colliderOffsetThreshold &&
-      GameUtils.isColliderName(rightCast.collider, "OneWayPlatform") == false
+      GameUtils.isColliderName(rightCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
       this.isTouching.rightSide = true;
     }
@@ -401,7 +404,7 @@ export default class Player extends GameObject {
     if (
       upCast &&
       upCast.time_of_impact <= this.colliderOffsetThreshold &&
-      GameUtils.isColliderName(upCast.collider, "OneWayPlatform") == false
+      GameUtils.isColliderName(upCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
       this.isTouching.ceiling = true;
     }
@@ -440,12 +443,12 @@ export default class Player extends GameObject {
         }
         
         // Ignore active one-way platforms
-        if (GameUtils.isOneWayPlatformAndActive(collider, "OneWayPlatform")) {
+        if (GameUtils.isOneWayPlatformAndActive(collider, EntityType.ONE_WAY_PLATFORM)) {
           return false;
         }
 
         // Ignore enemies! They shouldn't be treated as solid ground
-        if (GameUtils.isColliderName(collider, "Enemy")) {
+        if (GameUtils.isColliderName(collider, EntityType.ENEMY)) {
           return false;
         }
         
@@ -468,7 +471,7 @@ export default class Player extends GameObject {
     this.physics.world.intersectionPairsWith(
       this.physicsBody!.collider(1),
       (otherCollider) => {
-        if (GameUtils.isColliderName(otherCollider, "Enemy") && !this.hasTriggeredGameOver) {
+        if (GameUtils.isColliderName(otherCollider, EntityType.ENEMY) && !this.hasTriggeredGameOver) {
           this.hasTriggeredGameOver = true;
           Emitter.emit("gameOver");
         }

@@ -13,12 +13,6 @@ export default class Physics {
   private debug?: Debug;
   public scene!: THREE.Scene;
 
-  public mesh?: THREE.LineSegments<
-    THREE.BufferGeometry<THREE.NormalBufferAttributes>,
-    THREE.LineBasicMaterial,
-    THREE.Object3DEventMap
-  >;
-
   public world!: RAPIER.World;
   public eventQueue!: RAPIER.EventQueue;
   public isPaused!: boolean;
@@ -26,8 +20,6 @@ export default class Physics {
   // GameObject registration system - maps collider handles to GameObjects
   private gameObjectRegistry!: Map<number, GameObject>;
 
-  public renderObjectCount!: number;
-  public physicsObjectCount!: number;
   public activeCollisionCount!: number;
   public activeSensorCount!: number;
 
@@ -231,11 +223,9 @@ export default class Physics {
     // Dispose of the Rapier world
     this.world.free();
 
-    // Dispose of the debug mesh if it exists
-    if (this.mesh) {
-      this.scene.remove(this.mesh);
-      this.mesh.geometry.dispose();
-      this.mesh.material.dispose();
+    // Tear down the debug wireframe (PhysicsDebug owns its own mesh)
+    if (this.debug) {
+      this.debug.destroyPhysicsDebug();
     }
   }
 }

@@ -1,16 +1,13 @@
 import Player from "../entities/player/player";
+import applyBaseFeel from "./baseFeel";
 
 const setDkAttributes = (player: Player) => {
-  /* -------------------------------------------------------------------------- */
-  /*                          Speeds and accelerations                          */
-  /* -------------------------------------------------------------------------- */
-  // The top vertical movement speed while climbing
-  player.maxClimbSpeed = 4;
-  // The player's capacity to gain vertical speed when climbing
-  player.climbAcceleration = 30;
-  // The pace at which the player comes to a stop when climbing
-  player.climbDeceleration = 8;
+  // Shared base feel first, then the DK-specific overrides below.
+  applyBaseFeel(player);
 
+  /* -------------------------------------------------------------------------- */
+  /*                       DK overrides (differ from base feel)                 */
+  /* -------------------------------------------------------------------------- */
   // The top horizontal movement speed
   player.maxGroundSpeed = 11.8;
   // The player's capacity to gain horizontal speed
@@ -25,30 +22,14 @@ const setDkAttributes = (player: Player) => {
   // Multiplier on fallAcceleration if player ended their jump early
   player.jumpEndedEarlyGravityModifier = 9001;
 
-  /* -------------------------------------------------------------------------- */
-  /*                                    Jump                                    */
-  /* -------------------------------------------------------------------------- */
+  // Jump strength
   player.jumpPower = 12;
-  player.jumpAcceleration = 9001;
 
-  player.coyoteAvailable = false;
-  player.coyoteCount = 0;
-
-  player.bufferJumpAvailable = false;
+  // Distance at which a buffered jump is registered before landing
   player.bufferJumpRange = 1.5;
-  player.groundWithinBufferRange = false;
-  player.wasBufferJumpUsed = false;
-  player.bufferJumpCount = 0;
 
-  /* -------------------------------------------------------------------------- */
-  /*                            Jump and fall timers                            */
-  /* -------------------------------------------------------------------------- */
-  player.timeJumpWasEntered = 0;
-  player.timeFallWasEntered = 0;
-
+  // Minimum time a jump lasts even on a tap
   player.minJumpTime = 0.25;
-  player.maxJumpTime = 0.25;
-  player.coyoteTime = 0.033; // 2 frames
 };
 
 export default setDkAttributes;

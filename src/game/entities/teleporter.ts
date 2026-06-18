@@ -3,6 +3,7 @@ import GameObjectType from "../../engine/types/gameObjectType";
 import GameSensor from "../../engine/entities/gameSensor";
 import GameObject from "../../engine/entities/gameObject";
 import Player from "./player/player";
+import EntityType from "../types/entityType";
 
 /**
  * Teleporter - Teleports objects to a destination when they enter
@@ -19,7 +20,7 @@ export default class Teleporter extends GameSensor {
     super();
 
     this.createObjectPhysics(
-      "Teleporter",
+      EntityType.TELEPORTER,
       GameObjectType.SPHERE,
       { width: size.width, height: size.height },
       position,

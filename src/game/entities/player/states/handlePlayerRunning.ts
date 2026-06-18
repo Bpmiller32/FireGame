@@ -2,7 +2,7 @@ import Player from "../player";
 import PlayerStates from "../../../../engine/types/playerStates";
 import SpriteAnimations from "../spriteAnimations";
 import PlayerDirection from "../../../../engine/types/playerDirection";
-import GameUtils from "../../../gameUtils";
+import applyHorizontalMovement from "../applyHorizontalMovement";
 
 const handlePlayerRunning = (player: Player) => {
   /* -------------------------------------------------------------------------- */
@@ -108,7 +108,7 @@ const handlePlayerRunning = (player: Player) => {
   // Denominator determines the scaling factor relative to player speed, faster/slower move horizontally - faster/slower animation updates
   // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
   player.spriteAnimator.changeAnimationTiming(
-    1 / (Math.abs(player.nextTranslation.x) / 1.6)
+    1 / (Math.abs(player.nextTranslation.x) / player.animationScalingFactor)
   );
 
   /* -------------------------------------------------------------------------- */
@@ -125,37 +125,12 @@ const handlePlayerRunning = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                           Movement Logic (X Axis)                          */
   /* -------------------------------------------------------------------------- */
-  let targetSpeed = 0;
-  let acceleration = 0;
-
-  // Decellerate x movement while running
-  if (player.direction === PlayerDirection.NEUTRAL) {
-    targetSpeed = 0;
-    acceleration = player.groundDeceleration;
-  }
-  // Accellerate x movement while running
-  else {
-    targetSpeed = player.direction * player.maxGroundSpeed;
-    acceleration = player.groundAcceleration;
-  }
-
-  // Set desired velocity
-  player.nextTranslation.x = GameUtils.moveTowardsPoint(
-    player.nextTranslation.x,
-    targetSpeed,
-    acceleration * player.time.delta
-  );
-
-  // Hitting a wall
-  if (
-    (player.isTouching.leftSide && player.direction == PlayerDirection.LEFT) ||
-    (player.isTouching.rightSide && player.direction == PlayerDirection.RIGHT)
-  ) {
-    player.nextTranslation.x = 0;
-
+  // Shared accel/decel + wall-stop; returns true on a wall hit, which running
+  // uses to keep its wall animation playing.
+  if (applyHorizontalMovement(player)) {
     // Play running animation even though hitting a wall (should be in animation section above but I didn't want 2 identical checks)
     player.spriteAnimator.changeAnimationTiming(
-      1 / (player.maxGroundSpeed / 1.6)
+      1 / (player.maxGroundSpeed / player.animationScalingFactor)
     );
   }
 };

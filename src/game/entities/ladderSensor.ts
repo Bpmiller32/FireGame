@@ -3,6 +3,7 @@ import GameObjectType from "../../engine/types/gameObjectType";
 import GameSensor from "../../engine/entities/gameSensor";
 import GameObject from "../../engine/entities/gameObject";
 import Player from "./player/player";
+import EntityType from "../types/entityType";
 
 /**
  * LadderSensor - Detects when the player is touching a ladder
@@ -31,7 +32,7 @@ export default class LadderSensor extends GameSensor {
     }
 
     this.createObjectPhysics(
-      "LadderSensor",
+      EntityType.LADDER_SENSOR,
       objectType,
       { width: size.width, height: size.height },
       position,

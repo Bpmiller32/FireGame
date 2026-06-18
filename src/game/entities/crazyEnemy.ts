@@ -6,6 +6,7 @@ import Time from "../../engine/core/time";
 import GameObject from "../../engine/entities/gameObject";
 import GameObjectType from "../../engine/types/gameObjectType";
 import Player from "./player/player";
+import EntityType from "../types/entityType";
 
 export default class CrazyEnemy extends GameObject {
   private time!: Time;
@@ -29,7 +30,7 @@ export default class CrazyEnemy extends GameObject {
     super();
 
     this.createObjectPhysics(
-      "Enemy",
+      EntityType.ENEMY,
       GameObjectType.SPHERE,
       { width: size, height: size },
       position,

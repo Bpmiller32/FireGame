@@ -3,6 +3,7 @@ import PlayerStates from "../../../../engine/types/playerStates";
 import SpriteAnimations from "../spriteAnimations";
 import PlayerDirection from "../../../../engine/types/playerDirection";
 import GameUtils from "../../../gameUtils";
+import applyHorizontalMovement from "../applyHorizontalMovement";
 
 const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
@@ -143,34 +144,7 @@ const handlePlayerFalling = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                           Movement Logic (X axis)                          */
   /* -------------------------------------------------------------------------- */
-  let targetSpeed = 0;
-  let acceleration = 0;
-
-  // Decellerate x movement while falling
-  if (player.direction === PlayerDirection.NEUTRAL) {
-    targetSpeed = 0;
-    acceleration = player.groundDeceleration;
-  }
-  // Accellerate x movement while falling
-  else {
-    targetSpeed = player.direction * player.maxGroundSpeed;
-    acceleration = player.groundAcceleration;
-  }
-
-  // Set desired velocity
-  player.nextTranslation.x = GameUtils.moveTowardsPoint(
-    player.nextTranslation.x,
-    targetSpeed,
-    acceleration * player.time.delta
-  );
-
-  // Stop movement on wall collision
-  if (
-    (player.isTouching.leftSide && player.direction === PlayerDirection.LEFT) ||
-    (player.isTouching.rightSide && player.direction === PlayerDirection.RIGHT)
-  ) {
-    player.nextTranslation.x = 0;
-  }
+  applyHorizontalMovement(player);
 };
 
 export default handlePlayerFalling;

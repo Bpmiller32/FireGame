@@ -9,6 +9,7 @@ import Player from "./player/player";
 import PlayerStates from "../../engine/types/playerStates";
 import TrashCan from "./trashCan";
 import UserData from "../../engine/types/userData";
+import EntityType from "../types/entityType";
 // import ResourceLoader from "../../engine/resources/resourceLoader";
 
 export default class Enemy extends GameObject {
@@ -35,7 +36,7 @@ export default class Enemy extends GameObject {
     super();
 
     this.createObjectPhysics(
-      "Enemy",
+      EntityType.ENEMY,
       GameObjectType.SPHERE,
       { width: size, height: size },
       position,
@@ -65,26 +66,26 @@ export default class Enemy extends GameObject {
 
     // Player collision - trigger game over
     const userData = other.physicsBody?.userData as UserData;
-    if (userData && userData.name === "Player") {
+    if (userData && userData.name === EntityType.PLAYER) {
       Emitter.emit("gameOver");
       return;
     }
 
     // TrashCan collision - destroy enemy and light can on fire
-    if (GameUtils.isColliderName(otherCollider, "TrashCan")) {
+    if (GameUtils.isColliderName(otherCollider, EntityType.TRASH_CAN)) {
       Emitter.emit("gameObjectRemoved", this);
       (other as TrashCan).isOnFire = true;
       return;
     }
 
     // Wall collision - reverse direction
-    if (GameUtils.isColliderName(otherCollider, "Wall")) {
+    if (GameUtils.isColliderName(otherCollider, EntityType.WALL)) {
       this.direction = this.direction * -1;
       return;
     }
 
     // OneWayPlatform collision - check if enemy is above platform
-    if (GameUtils.isColliderName(otherCollider, "OneWayPlatform")) {
+    if (GameUtils.isColliderName(otherCollider, EntityType.ONE_WAY_PLATFORM)) {
       if (this.physicsBody!.translation().y > otherCollider.translation().y) {
         this.isCollidingWithPlatforms = true;
         this.currentFloor = GameUtils.getDataFromCollider(otherCollider).value0;
@@ -93,7 +94,7 @@ export default class Enemy extends GameObject {
     }
 
     // Platform collision - set grounded state
-    if (GameUtils.isColliderName(otherCollider, "Platform")) {
+    if (GameUtils.isColliderName(otherCollider, EntityType.PLATFORM)) {
       this.isCollidingWithPlatforms = true;
       return;
     }
@@ -111,8 +112,8 @@ export default class Enemy extends GameObject {
 
     // Leaving a platform - update collision state and turn around
     if (
-      GameUtils.isColliderName(otherCollider, "OneWayPlatform") ||
-      GameUtils.isColliderName(otherCollider, "Platform")
+      GameUtils.isColliderName(otherCollider, EntityType.ONE_WAY_PLATFORM) ||
+      GameUtils.isColliderName(otherCollider, EntityType.PLATFORM)
     ) {
       // Mark as not colliding with platforms
       this.isCollidingWithPlatforms = false;
@@ -158,7 +159,7 @@ export default class Enemy extends GameObject {
       (otherCollider) => {
         // Check for touching ladder core, also fully inside the ladder core
         if (
-          GameUtils.isColliderName(otherCollider, "LadderCoreSensor") &&
+          GameUtils.isColliderName(otherCollider, EntityType.LADDER_CORE_SENSOR) &&
           GameUtils.getDataFromCollider(otherCollider).value0 !== 0 &&
           GameUtils.isObjectFullyInsideSensor(otherCollider, this)
         ) {
@@ -169,7 +170,7 @@ export default class Enemy extends GameObject {
 
         // Check for touching ladder bottom - reset to horizontal rolling
         // Only trigger if cooldown has expired to prevent oscillation
-        if (GameUtils.isColliderName(otherCollider, "LadderBottomSensor") && this.ladderBottomCooldown <= 0) {
+        if (GameUtils.isColliderName(otherCollider, EntityType.LADDER_BOTTOM_SENSOR) && this.ladderBottomCooldown <= 0) {
           this.performSpecialRoll = false;
           this.isCollidingWithPlatforms = true;
           // Set cooldown to 1 second to prevent immediate re-triggering

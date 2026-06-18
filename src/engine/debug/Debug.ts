@@ -114,6 +114,10 @@ export default class Debug {
     this._physics.update(physics);
   }
 
+  public destroyPhysicsDebug() {
+    this._physics.destroy();
+  }
+
   // ── Logging ───────────────────────────────────────────────────────────────
 
   public logCollisionEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit") {

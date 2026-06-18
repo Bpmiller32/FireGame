@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import Experience from "../engine/core/experience.ts";
-import Emitter from "../engine/events/eventBus.ts";
-import GameDirector from "./gameDirector.ts";
-import InputBindings from "./config/inputBindings.ts";
-import CollisionLogger from "./debug/CollisionLogger.ts";
+import Experience from "./engine/core/experience.ts";
+import Emitter from "./engine/events/eventBus.ts";
+import GameDirector from "./game/gameDirector.ts";
+import InputBindings from "./game/config/inputBindings.ts";
+import CollisionLogger from "./game/debug/CollisionLogger.ts";
 
 const webglRef = ref<HTMLCanvasElement | null>(null);
 const statusRef = ref<HTMLElement | null>(null);

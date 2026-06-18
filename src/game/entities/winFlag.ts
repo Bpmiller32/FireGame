@@ -4,6 +4,7 @@ import GameObjectType from "../../engine/types/gameObjectType";
 import CollisionGroups from "../types/gameCollisionGroups";
 import GameUtils from "../gameUtils";
 import Emitter from "../../engine/events/eventBus";
+import EntityType from "../types/entityType";
 
 export default class WinFlag extends GameObject {
   public colliderOffset: number;
@@ -17,7 +18,7 @@ export default class WinFlag extends GameObject {
     super();
 
     this.createObjectPhysics(
-      "WinFlag",
+      EntityType.WIN_FLAG,
       GameObjectType.CUBE,
       size,
       position,
@@ -77,7 +78,7 @@ export default class WinFlag extends GameObject {
     if (
       leftCast &&
       leftCast.time_of_impact <= this.colliderOffset &&
-      GameUtils.getDataFromCollider(leftCast.collider).name == "Player"
+      GameUtils.getDataFromCollider(leftCast.collider).name == EntityType.PLAYER
     ) {
       this.isBeingTouched = true;
       return;
@@ -88,7 +89,7 @@ export default class WinFlag extends GameObject {
     if (
       rightCast &&
       rightCast.time_of_impact <= this.colliderOffset &&
-      GameUtils.getDataFromCollider(rightCast.collider).name == "Player"
+      GameUtils.getDataFromCollider(rightCast.collider).name == EntityType.PLAYER
     ) {
       this.isBeingTouched = true;
       return;
@@ -99,7 +100,7 @@ export default class WinFlag extends GameObject {
     if (
       upCast &&
       upCast.time_of_impact <= this.colliderOffset &&
-      GameUtils.getDataFromCollider(upCast.collider).name == "Player"
+      GameUtils.getDataFromCollider(upCast.collider).name == EntityType.PLAYER
     ) {
       this.isBeingTouched = true;
       return;

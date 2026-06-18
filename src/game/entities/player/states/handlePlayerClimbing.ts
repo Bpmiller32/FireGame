@@ -3,8 +3,6 @@ import PlayerStates from "../../../../engine/types/playerStates";
 import PlayerDirection from "../../../../engine/types/playerDirection";
 import GameUtils from "../../../gameUtils";
 
-const ANIMATION_SCALING_FACTOR = 1.6;
-
 const handlePlayerClimbing = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   /*                                Change state                                */
@@ -51,7 +49,7 @@ const handlePlayerClimbing = (player: Player) => {
   // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
   if (Math.abs(player.nextTranslation.x) > 0) {
     player.spriteAnimator.changeAnimationTiming(
-      1 / (Math.abs(player.nextTranslation.x) / ANIMATION_SCALING_FACTOR)
+      1 / (Math.abs(player.nextTranslation.x) / player.animationScalingFactor)
     );
   }
 

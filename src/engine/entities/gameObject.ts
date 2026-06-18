@@ -57,19 +57,10 @@ export default class GameObject {
   /**
    * Called when this GameObject stops colliding with another solid GameObject
    * Override this method in subclasses to define collision exit behavior
-   * 
+   *
    * @param other - The GameObject this object stopped colliding with
    */
   public onCollisionExit?(other: GameObject): void;
-
-  /**
-   * Called every frame while this GameObject is colliding with another solid GameObject
-   * Override this method in subclasses to define continuous collision behavior
-   * Note: This is not yet implemented - add if needed
-   * 
-   * @param other - The GameObject this object is colliding with
-   */
-  public onCollisionStay?(other: GameObject): void;
 
   // ============================================================================
   // SENSOR CALLBACKS - Override these in subclasses to handle sensor triggers
@@ -96,19 +87,10 @@ export default class GameObject {
   /**
    * Called when this GameObject (as a sensor) detects another GameObject exiting
    * Override this method in subclasses to define sensor exit behavior
-   * 
+   *
    * @param other - The GameObject that exited this sensor
    */
   public onSensorExit?(other: GameObject): void;
-
-  /**
-   * Called every frame while another GameObject is inside this sensor
-   * Override this method in subclasses to define continuous sensor behavior
-   * Note: This is not yet implemented - add if needed
-   * 
-   * @param other - The GameObject that is inside this sensor
-   */
-  public onSensorStay?(other: GameObject): void;
 
   constructor() {
     this.initializeAttributes();
@@ -193,14 +175,15 @@ export default class GameObject {
     // Determine which events to enable based on callbacks defined
     let eventsToEnable = 0;
 
-    // Enable collision events if any collision callbacks are defined
-    if (this.onCollisionEnter || this.onCollisionExit || this.onCollisionStay) {
+    // Enable collision events if any collision callbacks are defined.
+    // Physics only dispatches enter/exit (no per-frame "stay") — see Physics.handleCollisionEvents.
+    if (this.onCollisionEnter || this.onCollisionExit) {
       eventsToEnable |= RAPIER.ActiveEvents.COLLISION_EVENTS;
     }
 
     // Enable intersection events if any sensor callbacks are defined
     // Note: In Rapier, sensors use collision events, not separate intersection events
-    if (this.onSensorEnter || this.onSensorExit || this.onSensorStay) {
+    if (this.onSensorEnter || this.onSensorExit) {
       eventsToEnable |= RAPIER.ActiveEvents.COLLISION_EVENTS;
     }
 

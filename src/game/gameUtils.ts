@@ -7,8 +7,8 @@
  * NEW CODE SHOULD USE:
  * - helpers/mathHelpers.ts - Math utilities (moveTowards, lerp, random, etc.)
  * - helpers/physicsHelpers.ts - Physics utilities (getUserData, isColliderName, etc.)
- * - gameUtils functions - Game-specific logic (removeDestroyedObjects, updatePlatforms, etc.)
- * 
+ * - gameUtils functions - Game-specific logic (removeDestroyedObjects, etc.)
+ *
  * This class exists for backward compatibility with existing code.
  * Gradually migrate to direct imports from helpers/ and gameUtils functions.
  */
@@ -17,8 +17,6 @@
 import RAPIER from "@dimforge/rapier2d-compat";
 import GameObject from "../engine/entities/gameObject";
 import GameSensor from "../engine/entities/gameSensor";
-import Platform from "./entities/platform";
-import Player from "./entities/player/player";
 
 // Import all helper functions
 import * as MathHelpers from "../engine/helpers/mathHelpers";
@@ -188,23 +186,5 @@ export default class GameUtils {
     }
 
     return false;
-  }
-
-  /**
-   * Update all platforms with player state
-   * 
-   * @param platforms - Array of platforms to update
-   * @param player - The player instance
-   */
-  public static updatePlatforms(platforms: Platform[], player: Player): void {
-    const isClimbing = player.state === "climbing";
-
-    platforms.forEach((platform) => {
-      platform.update(player);
-
-      if (isClimbing) {
-        platform.setOneWayPlatformActive(1);
-      }
-    });
   }
 }

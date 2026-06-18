@@ -5,6 +5,7 @@ import GameSensor from "../../engine/entities/gameSensor";
 import Camera from "../../engine/camera/camera";
 import GameObject from "../../engine/entities/gameObject";
 import Player from "./player/player";
+import EntityType from "../types/entityType";
 
 /**
  * CameraSensor - Changes camera position when player enters
@@ -28,7 +29,7 @@ export default class CameraSensor extends GameSensor {
     this.camera = camera;
 
     this.createObjectPhysics(
-      "CameraSensor",
+      EntityType.CAMERA_SENSOR,
       GameObjectType.CUBE,
       { width: size.width, height: size.height },
       position,

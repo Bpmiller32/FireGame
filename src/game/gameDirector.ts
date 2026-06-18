@@ -27,6 +27,7 @@ import ResourceLoader from "../engine/resources/resourceLoader";
 import Emitter from "../engine/events/eventBus";
 import GameUtils from "./gameUtils";
 import LevelData from "./types/levelData";
+import EntityType from "./types/entityType";
 import TestLevel from "./levels/testLevel.json";
 import BlenderExport from "./levels/blenderExport.json";
 import setCelesteAttributes from "./attributes/setCelesteAttributes";
@@ -162,8 +163,8 @@ export default class GameDirector {
     // Update win flags
     this.winFlags.forEach((winFlag) => winFlag.update());
 
-    // Update platform collision states
-    GameUtils.updatePlatforms(this.platforms, this.player);
+    // Update platform collision states (each platform owns its one-way toggle)
+    this.platforms.forEach((platform) => platform.update(this.player));
 
     // Update ladder detection (manual for now, will convert to sensor callbacks later)
     this.player.updateLadderState(
@@ -264,7 +265,7 @@ export default class GameDirector {
 
   private setPlayerStart() {
     for (const data of Object.values(this.levelData)) {
-      if (data.type !== "PlayerStart") continue;
+      if (data.type !== EntityType.PLAYER_START) continue;
 
       const [x, , z] = data.position;
 
@@ -281,7 +282,7 @@ export default class GameDirector {
 
   private setCameraStart() {
     for (const data of Object.values(this.levelData)) {
-      if (data.type !== "CameraStart") continue;
+      if (data.type !== EntityType.CAMERA_START) continue;
       const [x, y, z] = data.position;
       this.camera.teleportToPosition(x, z, y);
       return;
@@ -289,7 +290,7 @@ export default class GameDirector {
   }
 
   private importCameraSensors() {
-    this.importLevelObjects("CameraSensor", (data) => {
+    this.importLevelObjects(EntityType.CAMERA_SENSOR, (data) => {
       const sensor = new CameraSensor(
         { width: data.width, height: data.depth },
         { x: data.position[0], y: data.position[2] },
@@ -304,23 +305,28 @@ export default class GameDirector {
   }
 
   private importWalls() {
-    this.importLevelObjects("Wall", (data) => {
+    this.importLevelObjects(EntityType.WALL, (data) => {
       const wall = new Platform(
         { width: data.width, height: data.depth, depth: data.height },
         { x: data.position[0], y: data.position[2] },
         -data.rotation[1]
       );
-      wall.setObjectName("Wall");
+      wall.setObjectName(EntityType.WALL);
       this.walls.push(wall);
     });
   }
 
   private importPlatforms() {
-    const types = ["Platform", "EdgeOneWayPlatform", "LineOneWayPlatform"];
+    const types = [
+      EntityType.PLATFORM,
+      EntityType.EDGE_ONE_WAY_PLATFORM,
+      EntityType.LINE_ONE_WAY_PLATFORM,
+    ];
     types.forEach((type) =>
       this.importLevelObjects(type, (data) => {
         const isOneWay =
-          type === "EdgeOneWayPlatform" || type === "LineOneWayPlatform";
+          type === EntityType.EDGE_ONE_WAY_PLATFORM ||
+          type === EntityType.LINE_ONE_WAY_PLATFORM;
         const platform = new Platform(
           { width: data.width, height: data.depth, depth: data.height },
           { x: data.position[0], y: data.position[2] },
@@ -339,7 +345,11 @@ export default class GameDirector {
   }
 
   private importLadderSensors() {
-    const types = ["LadderTopSensor", "LadderCoreSensor", "LadderBottomSensor"];
+    const types = [
+      EntityType.LADDER_TOP_SENSOR,
+      EntityType.LADDER_CORE_SENSOR,
+      EntityType.LADDER_BOTTOM_SENSOR,
+    ];
     types.forEach((type) => {
       this.importLevelObjects(type, (data) => {
         const sensor = new LadderSensor(
@@ -351,17 +361,18 @@ export default class GameDirector {
         sensor.setLadderValue(data.value0);
         sensor.setObjectName(type);
 
-        if (type === "LadderTopSensor") this.ladderTopSensors.push(sensor);
-        else if (type === "LadderCoreSensor")
+        if (type === EntityType.LADDER_TOP_SENSOR)
+          this.ladderTopSensors.push(sensor);
+        else if (type === EntityType.LADDER_CORE_SENSOR)
           this.ladderCoreSensors.push(sensor);
-        else if (type === "LadderBottomSensor")
+        else if (type === EntityType.LADDER_BOTTOM_SENSOR)
           this.ladderBottomSensors.push(sensor);
       });
     });
   }
 
   private importTrashCans() {
-    this.importLevelObjects("TrashCan", (data) => {
+    this.importLevelObjects(EntityType.TRASH_CAN, (data) => {
       const trashCan = new TrashCan(
         { width: data.width, height: data.depth, depth: data.height },
         { x: data.position[0], y: data.position[2] },
@@ -372,7 +383,7 @@ export default class GameDirector {
   }
 
   private importWinFlags() {
-    this.importLevelObjects("WinFlag", (data) => {
+    this.importLevelObjects(EntityType.WIN_FLAG, (data) => {
       const winFlag = new WinFlag(
         { width: data.width, height: data.depth, depth: data.height },
         { x: data.position[0], y: data.position[2] },

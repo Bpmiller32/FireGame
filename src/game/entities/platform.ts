@@ -3,6 +3,7 @@ import GameObject from "../../engine/entities/gameObject";
 import GameObjectType from "../../engine/types/gameObjectType";
 import CollisionGroups from "../types/gameCollisionGroups";
 import Player from "./player/player";
+import EntityType from "../types/entityType";
 
 export default class Platform extends GameObject {
   private isOneWayPlatform: boolean;
@@ -34,10 +35,10 @@ export default class Platform extends GameObject {
     let objectName: string;
 
     if (isOneWayPlatform) {
-      objectName = "OneWayPlatform";
+      objectName = EntityType.ONE_WAY_PLATFORM;
       this.setOneWayPlatformActive(1);
     } else {
-      objectName = "Platform";
+      objectName = EntityType.PLATFORM;
       this.setOneWayPlatformActive(0);
     }
 
@@ -89,6 +90,12 @@ export default class Platform extends GameObject {
       GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = 0;
     } else {
       GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = 1;
+    }
+
+    // While the player is climbing, force this platform to pass-through so the
+    // player can move up/down a ladder without landing on one-way platforms.
+    if (player.state === "climbing") {
+      this.setOneWayPlatformActive(1);
     }
   }
 }
