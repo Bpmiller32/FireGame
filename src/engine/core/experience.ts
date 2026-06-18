@@ -1,0 +1,120 @@
+/* -------------------------------------------------------------------------- */
+/*     Overall handler that mounts a webgl render to a dom canvas element     */
+/* -------------------------------------------------------------------------- */
+
+import * as THREE from "three";
+import Emitter from "../events/eventBus";
+import Sizes from "./sizes";
+import Time from "./time";
+import ResourceLoader from "../resources/resourceLoader";
+import Camera from "../camera/camera";
+import Renderer from "../rendering/renderer";
+import Debug from "../debug";
+import Input from "../input/input";
+import Physics from "../physics/physics";
+
+export default class Experience {
+  // Class prop instance and "new" blocking constructor for Singleton
+  private static instance: Experience;
+  private constructor() {}
+
+  public debug!: Debug;
+  public sizes!: Sizes;
+  public time!: Time;
+  public input!: Input;
+  public resources!: ResourceLoader;
+
+  public targetElement!: HTMLCanvasElement | null;
+
+  public scene!: THREE.Scene;
+  public camera!: Camera;
+  public renderer!: Renderer;
+  public physics!: Physics;
+
+  // Late-bound game update hook. The game layer assigns this; the engine just
+  // calls it each frame between physics and renderer. Keeps the engine core
+  // from naming any game class.
+  public onGameUpdate: (() => void) | null = null;
+
+  // Stored event handler references for cleanup
+  private _onResize!: () => void;
+  private _onTick!: () => void;
+
+  // Singleton check/constructor
+  public static getInstance(): Experience {
+    if (!Experience.instance) {
+      Experience.instance = new Experience();
+    }
+    return Experience.instance;
+  }
+
+  // Replacement public constructor
+  public async configure(canvas: HTMLCanvasElement | null) {
+    this.debug = new Debug();
+    this.sizes = new Sizes();
+    this.time = new Time();
+    this.input = new Input();
+    this.resources = new ResourceLoader([
+      { name: "randy", type: "texture", path: "/assets/textures/randySpriteSheet.png" },
+      { name: "enemy", type: "gltfModel", path: "/assets/models/enemy.glb" },
+      {
+        name: "dkGraphicsData",
+        type: "gltfModel",
+        path: "/assets/models/dkGraphicsData.glb",
+      },
+    ]);
+
+    this.targetElement = canvas;
+
+    this.scene = new THREE.Scene();
+    this.camera = new Camera(new THREE.Vector3(0, 25, 100));
+    this.renderer = new Renderer();
+    this.physics = new Physics();
+    await this.physics.configure();
+
+    // Sizes resize event — store ref for cleanup
+    this._onResize = () => {
+      this.camera.resize();
+      this.renderer.resize();
+    };
+    Emitter.on("resize", this._onResize);
+
+    // Time tick event — store ref for cleanup
+    this._onTick = () => {
+      if (this.debug.isActive) {
+        this.debug.stats?.begin();
+      }
+
+      this.physics.update();
+      this.onGameUpdate?.();
+      this.renderer.update();
+
+      if (this.debug.isActive) {
+        this.debug.stats?.end();
+      }
+    };
+    Emitter.on("tick", this._onTick);
+  }
+
+  public destroy() {
+    // Remove our own event listeners first
+    Emitter.off("resize", this._onResize);
+    Emitter.off("tick", this._onTick);
+
+    // Clear subsystem event listeners
+    this.sizes.destroy();
+    this.time.destroy();
+    this.input.destroy();
+
+    // Camera then physics then renderer then resources
+    this.camera.destroy();
+    this.physics.destroy();
+    this.renderer.destroy();
+    this.resources.destroy();
+
+    // Debug menu
+    if (this.debug && this.debug.isActive) {
+      this.debug.destroy();
+    }
+  }
+}
