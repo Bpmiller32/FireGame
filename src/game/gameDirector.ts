@@ -28,6 +28,7 @@ import Emitter from "../engine/events/eventBus";
 import GameUtils from "./gameUtils";
 import LevelData from "./types/levelData";
 import EntityType from "./types/entityType";
+import ENTITY_FACTORIES, { FactoryContext } from "./config/entityFactories";
 import TestLevel from "./levels/testLevel.json";
 import BlenderExport from "./levels/blenderExport.json";
 import setCelesteAttributes from "./attributes/setCelesteAttributes";
@@ -36,6 +37,13 @@ import setDkAttributes from "./attributes/setDkAttributes";
 // Import GLB files as URLs (Vite will handle the path)
 // Put your GLB files in src/webgl/world/levels/ and import them like this:
 // import TestLevelNewUrl from "../levels/TestLevelNew.glb?url";
+
+// A level-data entity the uniform update loop may tick. update() is optional so
+// entities without one are simply skipped (optional chaining). The second arg is
+// the trash can the enemy reads; entities that don't need it ignore it.
+type UpdatableEntity = {
+  Update?(player: Player, trashCan?: TrashCan): void;
+};
 
 export default class GameDirector {
   // Core systems
@@ -46,22 +54,22 @@ export default class GameDirector {
   private resources: ResourceLoader;
 
   // Game entities
-  public player!: Player;
-  public enemies: Enemy[] = [];
-  public crazyEnemies: CrazyEnemy[] = [];
-  public platforms: Platform[] = [];
-  public walls: Platform[] = [];
-  public trashCans: TrashCan[] = [];
-  public winFlags: WinFlag[] = [];
-  public teleporters: Teleporter[] = [];
-  public cameraSensors: CameraSensor[] = [];
-  public ladderTopSensors: LadderSensor[] = [];
-  public ladderCoreSensors: LadderSensor[] = [];
-  public ladderBottomSensors: LadderSensor[] = [];
+  public Player!: Player;
+  public Enemies: Enemy[] = [];
+  public CrazyEnemies: CrazyEnemy[] = [];
+  public Platforms: Platform[] = [];
+  public Walls: Platform[] = [];
+  public TrashCans: TrashCan[] = [];
+  public WinFlags: WinFlag[] = [];
+  public Teleporters: Teleporter[] = [];
+  public CameraSensors: CameraSensor[] = [];
+  public LadderTopSensors: LadderSensor[] = [];
+  public LadderCoreSensors: LadderSensor[] = [];
+  public LadderBottomSensors: LadderSensor[] = [];
 
   // Level management
-  public levelData!: LevelData;
-  public graphicsObject: GameObject;
+  public LevelData!: LevelData;
+  public GraphicsObject: GameObject;
   private ambientLight?: THREE.AmbientLight;
   private playerHasBeenSpawned = false;
 
@@ -77,12 +85,12 @@ export default class GameDirector {
 
   constructor() {
     // Initialize core systems
-    this.experience = Experience.getInstance();
-    this.scene = this.experience.scene;
-    this.time = this.experience.time;
-    this.camera = this.experience.camera;
-    this.resources = this.experience.resources;
-    this.graphicsObject = new GameObject();
+    this.experience = Experience.GetInstance();
+    this.scene = this.experience.Scene;
+    this.time = this.experience.Time;
+    this.camera = this.experience.Camera;
+    this.resources = this.experience.Resources;
+    this.GraphicsObject = new GameObject();
 
     this.setupEventHandlers();
   }
@@ -95,7 +103,7 @@ export default class GameDirector {
     Emitter.on("resourcesReady", async () => {
       // FOR TESTING: Load your custom GLB level from public/ folder
       // Uncomment the line below to test your GLB file:
-      await this.loadGLBLevel("/levels/TestLevelNew.glb");
+      await this.LoadGLBLevel("/levels/TestLevelNew.glb");
 
       // OR: Import from src/ and use the imported URL
       // await this.loadGLBLevel(TestLevelNewUrl);
@@ -107,20 +115,20 @@ export default class GameDirector {
 
     // Game start
     Emitter.on("gameStart", () => {
-      this.experience.physics.setPaused(false);
+      this.experience.Physics.SetPaused(false);
       this.isSpawningEnemies = true;
     });
 
     // Game over
     Emitter.on("gameOver", () => {
-      this.experience.physics.setPaused(true);
+      this.experience.Physics.SetPaused(true);
       this.isSpawningEnemies = false;
       this.stopAllSpawnTimers();
     });
 
     // Game reset
     Emitter.on("gameReset", () => {
-      this.experience.physics.setPaused(false);
+      this.experience.Physics.SetPaused(false);
       this.resetGameState();
     });
 
@@ -131,46 +139,54 @@ export default class GameDirector {
 
     // Cleanup destroyed objects
     Emitter.on("gameObjectRemoved", (removedGameObject) => {
-      removedGameObject.destroy();
+      removedGameObject.Destroy();
     });
 
     // Periodic cleanup of destroyed entities — separate from spawn timers
     // so it keeps running after gameOver
     this.cleanupIntervalId = setInterval(() => {
-      this.enemies = GameUtils.removeDestroyedObjects(this.enemies);
-      this.crazyEnemies = GameUtils.removeDestroyedObjects(this.crazyEnemies);
+      this.Enemies = GameUtils.RemoveDestroyedObjects(this.Enemies);
+      this.CrazyEnemies = GameUtils.RemoveDestroyedObjects(this.CrazyEnemies);
     }, 5000) as unknown as number;
   }
 
   /**
    * Update all game entities (called every frame)
    */
-  public update() {
+  public Update() {
     // Guard: Player must be ready
-    if (!this.player?.physicsBody) return;
+    if (!this.Player?.PhysicsBody) return;
 
     // Update camera
-    this.camera.update(this.player);
+    this.camera.Update(this.Player);
 
     // Update player
-    this.player.update();
+    this.Player.Update();
 
-    // Update enemies
-    const firstTrashCan = this.trashCans[0];
-    this.enemies.forEach((enemy) => enemy.update(this.player, firstTrashCan));
-    this.crazyEnemies.forEach((crazyEnemy) => crazyEnemy.update(firstTrashCan));
+    // Update enemies (runtime-spawned, not level-data — kept on their own pass)
+    const firstTrashCan = this.TrashCans[0];
+    this.Enemies.forEach((enemy) => enemy.Update(this.Player, firstTrashCan));
+    this.CrazyEnemies.forEach((crazyEnemy) =>
+      crazyEnemy.Update(this.Player, firstTrashCan)
+    );
 
-    // Update win flags
-    this.winFlags.forEach((winFlag) => winFlag.update());
-
-    // Update platform collision states (each platform owns its one-way toggle)
-    this.platforms.forEach((platform) => platform.update(this.player));
+    // Update every level-data entity that has an update, in one uniform loop.
+    // Runs AFTER player.update() so the platform one-way toggle reads this
+    // frame's player state. Entities without an update are skipped. Win flags
+    // run before platforms, same relative order as before.
+    const updatableLevelEntities: UpdatableEntity[] = [
+      ...this.WinFlags,
+      ...this.Platforms,
+    ];
+    for (const e of updatableLevelEntities) {
+      e.Update?.(this.Player, firstTrashCan);
+    }
 
     // Update ladder detection (manual for now, will convert to sensor callbacks later)
-    this.player.updateLadderState(
-      GameUtils.isAnySensorTriggered(this.ladderTopSensors),
-      GameUtils.isAnySensorTriggeredObjectFullyInside(this.ladderCoreSensors, this.player),
-      GameUtils.isAnySensorTriggered(this.ladderBottomSensors)
+    this.Player.UpdateLadderState(
+      GameUtils.IsAnySensorTriggered(this.LadderTopSensors),
+      GameUtils.IsAnySensorTriggeredObjectFullyInside(this.LadderCoreSensors, this.Player),
+      GameUtils.IsAnySensorTriggered(this.LadderBottomSensors)
     );
   }
 
@@ -184,17 +200,17 @@ export default class GameDirector {
    *   - A URL path from public folder: "/levels/MyLevel.glb"
    *   - An imported URL from src: import MyLevelUrl from "../levels/MyLevel.glb?url"
    */
-  public async loadGLBLevel(glbPath: string) {
+  public async LoadGLBLevel(glbPath: string) {
     // Use the unified ResourceLoader to parse the GLB level
-    const parsedLevelData = await this.resources.parseLevel(glbPath);
-    await this.loadLevelData(parsedLevelData);
+    const parsedLevelData = await this.resources.ParseLevel(glbPath);
+    await this.LoadLevelData(parsedLevelData);
   }
 
   /**
    * Load a level from LevelData (JSON or parsed GLB)
    */
-  public async loadLevelData(levelData?: LevelData) {
-    this.levelData = levelData || BlenderExport;
+  public async LoadLevelData(levelData?: LevelData) {
+    this.LevelData = levelData || BlenderExport;
 
     // Setup ambient light for PBR materials
     if (!this.ambientLight) {
@@ -202,48 +218,75 @@ export default class GameDirector {
       this.scene.add(this.ambientLight);
     }
 
-    // Load level objects (order matters: player first for sensor targets)
+    // Load spawn points first (player first so sensors have a target)
     this.setPlayerStart();
     this.setCameraStart();
-    this.importCameraSensors();
-    this.importWalls();
-    this.importPlatforms();
-    this.importLadderSensors();
-    this.importTrashCans();
-    this.importWinFlags();
+
+    // Spawn every level-data-placed entity through the factory registry.
+    // Each factory pushes the entity it builds into the right derived array on
+    // the context (which aliases this director's typed query arrays). Rows whose
+    // type has no factory (PlayerStart/CameraStart handled above, GraphicsObject,
+    // Unknown) are simply skipped.
+    const ctx = this.getFactoryContext();
+    for (const data of Object.values(this.LevelData)) {
+      const factory = ENTITY_FACTORIES[data.type];
+      if (factory) factory(data, ctx, data.type);
+    }
 
     // Load graphics for BlenderExport level
-    if (this.levelData === BlenderExport) {
-      await this.graphicsObject.createObjectGraphics(
-        this.resources.items.dkGraphicsData
+    if (this.LevelData === BlenderExport) {
+      await this.GraphicsObject.CreateObjectGraphics(
+        this.resources.Items.dkGraphicsData
       );
     }
   }
 
   /**
+   * Build the factory context — a plain struct aliasing the typed query arrays
+   * the factories push into and the camera the camera-sensor factory needs.
+   * These are the SAME array instances the rest of the director queries
+   * (trashCans[0] for the enemy, the ladder sub-arrays for the climb checks),
+   * so factories populate them in place.
+   */
+  private getFactoryContext(): FactoryContext {
+    return {
+      camera: this.camera,
+      walls: this.Walls,
+      platforms: this.Platforms,
+      trashCans: this.TrashCans,
+      winFlags: this.WinFlags,
+      teleporters: this.Teleporters,
+      cameraSensors: this.CameraSensors,
+      ladderTopSensors: this.LadderTopSensors,
+      ladderCoreSensors: this.LadderCoreSensors,
+      ladderBottomSensors: this.LadderBottomSensors,
+    };
+  }
+
+  /**
    * Unload current level and cleanup all entities
    */
-  public unloadLevelData() {
+  public UnloadLevelData() {
     const destroyAll = (entities: any[]) => {
       entities.forEach((entity) => Emitter.emit("gameObjectRemoved", entity));
       entities.length = 0;
     };
 
     // Cleanup all entities
-    destroyAll(this.enemies);
-    destroyAll(this.crazyEnemies);
-    destroyAll(this.trashCans);
-    destroyAll(this.winFlags);
-    destroyAll(this.cameraSensors);
-    destroyAll(this.ladderTopSensors);
-    destroyAll(this.ladderCoreSensors);
-    destroyAll(this.ladderBottomSensors);
-    destroyAll(this.walls);
-    destroyAll(this.platforms);
-    destroyAll(this.teleporters);
+    destroyAll(this.Enemies);
+    destroyAll(this.CrazyEnemies);
+    destroyAll(this.TrashCans);
+    destroyAll(this.WinFlags);
+    destroyAll(this.CameraSensors);
+    destroyAll(this.LadderTopSensors);
+    destroyAll(this.LadderCoreSensors);
+    destroyAll(this.LadderBottomSensors);
+    destroyAll(this.Walls);
+    destroyAll(this.Platforms);
+    destroyAll(this.Teleporters);
 
     // Cleanup graphics and lighting
-    this.graphicsObject.destroy();
+    this.GraphicsObject.Destroy();
     if (this.ambientLight) {
       this.scene.remove(this.ambientLight);
       this.ambientLight = undefined;
@@ -251,146 +294,33 @@ export default class GameDirector {
   }
 
   /* -------------------------------------------------------------------------- */
-  /*                          LEVEL OBJECT IMPORTING                            */
+  /*                          LEVEL SPAWN POINTS                                */
   /* -------------------------------------------------------------------------- */
 
-  /**
-   * Generic helper to import level objects by type
-   */
-  private importLevelObjects(type: string, callback: (data: any) => void) {
-    Object.values(this.levelData).forEach((data) => {
-      if (data.type === type) callback(data);
-    });
-  }
-
   private setPlayerStart() {
-    for (const data of Object.values(this.levelData)) {
+    for (const data of Object.values(this.LevelData)) {
       if (data.type !== EntityType.PLAYER_START) continue;
 
       const [x, , z] = data.position;
 
       if (this.playerHasBeenSpawned) {
-        this.player.teleportToPosition(x, z);
+        this.Player.TeleportToPosition(x, z);
         return;
       }
 
-      this.player = new Player({ width: 1.75, height: 4 }, { x, y: z });
+      this.Player = new Player({ width: 1.75, height: 4 }, { x, y: z });
       this.playerHasBeenSpawned = true;
       return;
     }
   }
 
   private setCameraStart() {
-    for (const data of Object.values(this.levelData)) {
+    for (const data of Object.values(this.LevelData)) {
       if (data.type !== EntityType.CAMERA_START) continue;
       const [x, y, z] = data.position;
-      this.camera.teleportToPosition(x, z, y);
+      this.camera.TeleportToPosition(x, z, y);
       return;
     }
-  }
-
-  private importCameraSensors() {
-    this.importLevelObjects(EntityType.CAMERA_SENSOR, (data) => {
-      const sensor = new CameraSensor(
-        { width: data.width, height: data.depth },
-        { x: data.position[0], y: data.position[2] },
-        -data.rotation[1],
-        this.camera
-      );
-      sensor.setCameraPositionData(
-        new THREE.Vector3(data.value0, data.value1, data.value2)
-      );
-      this.cameraSensors.push(sensor);
-    });
-  }
-
-  private importWalls() {
-    this.importLevelObjects(EntityType.WALL, (data) => {
-      const wall = new Platform(
-        { width: data.width, height: data.depth, depth: data.height },
-        { x: data.position[0], y: data.position[2] },
-        -data.rotation[1]
-      );
-      wall.setObjectName(EntityType.WALL);
-      this.walls.push(wall);
-    });
-  }
-
-  private importPlatforms() {
-    const types = [
-      EntityType.PLATFORM,
-      EntityType.EDGE_ONE_WAY_PLATFORM,
-      EntityType.LINE_ONE_WAY_PLATFORM,
-    ];
-    types.forEach((type) =>
-      this.importLevelObjects(type, (data) => {
-        const isOneWay =
-          type === EntityType.EDGE_ONE_WAY_PLATFORM ||
-          type === EntityType.LINE_ONE_WAY_PLATFORM;
-        const platform = new Platform(
-          { width: data.width, height: data.depth, depth: data.height },
-          { x: data.position[0], y: data.position[2] },
-          -data.rotation[1],
-          isOneWay,
-          data.vertices
-        );
-
-        platform.setPlatformFloorLevel(data.value0);
-        platform.setEdgePlatform(data.value1);
-        platform.setOneWayEnablePoint(data.value2 || data.position[2]);
-
-        this.platforms.push(platform);
-      })
-    );
-  }
-
-  private importLadderSensors() {
-    const types = [
-      EntityType.LADDER_TOP_SENSOR,
-      EntityType.LADDER_CORE_SENSOR,
-      EntityType.LADDER_BOTTOM_SENSOR,
-    ];
-    types.forEach((type) => {
-      this.importLevelObjects(type, (data) => {
-        const sensor = new LadderSensor(
-          { width: data.width, height: data.depth },
-          { x: data.position[0], y: data.position[2] },
-          -data.rotation[1],
-          data.vertices
-        );
-        sensor.setLadderValue(data.value0);
-        sensor.setObjectName(type);
-
-        if (type === EntityType.LADDER_TOP_SENSOR)
-          this.ladderTopSensors.push(sensor);
-        else if (type === EntityType.LADDER_CORE_SENSOR)
-          this.ladderCoreSensors.push(sensor);
-        else if (type === EntityType.LADDER_BOTTOM_SENSOR)
-          this.ladderBottomSensors.push(sensor);
-      });
-    });
-  }
-
-  private importTrashCans() {
-    this.importLevelObjects(EntityType.TRASH_CAN, (data) => {
-      const trashCan = new TrashCan(
-        { width: data.width, height: data.depth, depth: data.height },
-        { x: data.position[0], y: data.position[2] },
-        -data.rotation[1]
-      );
-      this.trashCans.push(trashCan);
-    });
-  }
-
-  private importWinFlags() {
-    this.importLevelObjects(EntityType.WIN_FLAG, (data) => {
-      const winFlag = new WinFlag(
-        { width: data.width, height: data.depth, depth: data.height },
-        { x: data.position[0], y: data.position[2] },
-        -data.rotation[1]
-      );
-      this.winFlags.push(winFlag);
-    });
   }
 
   /* -------------------------------------------------------------------------- */
@@ -402,26 +332,26 @@ export default class GameDirector {
    */
   private resetGameState() {
     // Reset player position
-    this.player.teleportToPosition(
-      this.player.initialTranslation.x,
-      this.player.initialTranslation.y
+    this.Player.TeleportToPosition(
+      this.Player.InitialTranslation.x,
+      this.Player.InitialTranslation.y
     );
 
     // Reset camera position
-    this.camera.teleportToPosition(
-      this.camera.initialPosition.x,
-      this.camera.initialPosition.y,
-      this.camera.initialPosition.z
+    this.camera.TeleportToPosition(
+      this.camera.InitialPosition.x,
+      this.camera.InitialPosition.y,
+      this.camera.InitialPosition.z
     );
 
     // Clear enemies
-    this.enemies.forEach((enemy) => Emitter.emit("gameObjectRemoved", enemy));
-    this.crazyEnemies.forEach((crazyEnemy) =>
+    this.Enemies.forEach((enemy) => Emitter.emit("gameObjectRemoved", enemy));
+    this.CrazyEnemies.forEach((crazyEnemy) =>
       Emitter.emit("gameObjectRemoved", crazyEnemy)
     );
 
     // Reset trash cans
-    this.trashCans.forEach((trashCan) => (trashCan.isOnFire = false));
+    this.TrashCans.forEach((trashCan) => (trashCan.IsOnFire = false));
 
     // Reset spawner
     this.isSpawningEnemies = true;
@@ -431,7 +361,7 @@ export default class GameDirector {
     this.enemyCount = 0;
 
     this.stopAllSpawnTimers();
-    this.spawningInterval = setInterval(() => this.spawnEnemiesWithLogic(), 16) as unknown as number;
+    this.spawningInterval = setInterval(() => this.SpawnEnemiesWithLogic(), 16) as unknown as number;
     this.spawnIntervalIds.push(this.spawningInterval);
   }
 
@@ -440,23 +370,23 @@ export default class GameDirector {
    */
   private async switchToNextLevel() {
     this.stopAllSpawnTimers();
-    this.unloadLevelData();
+    this.UnloadLevelData();
 
     // Determine next level
     const nextLevel =
-      this.levelData === BlenderExport ? TestLevel : BlenderExport;
+      this.LevelData === BlenderExport ? TestLevel : BlenderExport;
 
     // Configure for level type
     if (nextLevel === TestLevel) {
-      this.camera.setCameraFollow(true);
-      setCelesteAttributes(this.player);
-      await this.loadLevelData(nextLevel);
+      this.camera.SetCameraFollow(true);
+      setCelesteAttributes(this.Player);
+      await this.LoadLevelData(nextLevel);
     } else {
-      this.camera.setCameraFollow(false);
-      setDkAttributes(this.player);
-      await this.loadLevelData(nextLevel);
-      await this.graphicsObject.createObjectGraphics(
-        this.resources.items.dkGraphicsData
+      this.camera.SetCameraFollow(false);
+      setDkAttributes(this.Player);
+      await this.LoadLevelData(nextLevel);
+      await this.GraphicsObject.CreateObjectGraphics(
+        this.resources.Items.dkGraphicsData
       );
     }
   }
@@ -476,35 +406,35 @@ export default class GameDirector {
   /**
    * Spawn a regular enemy
    */
-  public async spawnEnemy(position = { x: -13, y: 50 }) {
+  public async SpawnEnemy(position = { x: -13, y: 50 }) {
     const enemy = new Enemy(1, position);
-    await enemy.createObjectGraphics(this.resources.items.enemy);
-    this.enemies.push(enemy);
+    await enemy.CreateObjectGraphics(this.resources.Items.enemy);
+    this.Enemies.push(enemy);
   }
 
   /**
    * Spawn a crazy enemy (faster, more aggressive)
    */
-  public async spawnCrazyEnemy(position = { x: -13, y: 50 }) {
+  public async SpawnCrazyEnemy(position = { x: -13, y: 50 }) {
     const crazyEnemy = new CrazyEnemy(1, position);
-    await crazyEnemy.createObjectGraphics(this.resources.items.enemy);
-    this.crazyEnemies.push(crazyEnemy);
+    await crazyEnemy.CreateObjectGraphics(this.resources.Items.enemy);
+    this.CrazyEnemies.push(crazyEnemy);
   }
 
   /**
    * Enemy spawning logic with randomized intervals
    */
-  public async spawnEnemiesWithLogic() {
+  public async SpawnEnemiesWithLogic() {
     if (!this.isSpawningEnemies) return;
 
-    this.timeSinceLastSpawn += this.time.delta;
+    this.timeSinceLastSpawn += this.time.Delta;
 
     // Initial delay before first spawn
     if (
       this.currentSpawnInterval === 0 &&
       this.timeSinceLastSpawn >= this.initialDelay
     ) {
-      await this.spawnCrazyEnemy();
+      await this.SpawnCrazyEnemy();
       this.timeSinceLastSpawn = 0;
       this.currentSpawnInterval = Math.random() * (4 - 3) + 3; // 3-4 seconds
       return;
@@ -519,9 +449,9 @@ export default class GameDirector {
 
       // Every 8th spawn is a crazy enemy
       if (this.enemyCount % 8 === 0) {
-        await this.spawnCrazyEnemy();
+        await this.SpawnCrazyEnemy();
       } else {
-        await this.spawnEnemy();
+        await this.SpawnEnemy();
       }
 
       this.timeSinceLastSpawn = 0;
@@ -533,7 +463,7 @@ export default class GameDirector {
   /*                              CLEANUP                                       */
   /* -------------------------------------------------------------------------- */
 
-  public destroy() {
+  public Destroy() {
     Emitter.off("resourcesReady");
     Emitter.off("gameStart");
     Emitter.off("gameOver");
@@ -543,6 +473,6 @@ export default class GameDirector {
 
     this.stopAllSpawnTimers();
     clearInterval(this.cleanupIntervalId);
-    this.unloadLevelData();
+    this.UnloadLevelData();
   }
 }

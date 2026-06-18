@@ -54,7 +54,7 @@ export default class CrazyEnemy extends GameObject {
    * COLLISION CALLBACK - Called when crazy enemy collides with another GameObject
    * This replaces the old manual contactPairsWith checking
    */
-  public onCollisionEnter(other: GameObject): void {
+  public OnCollisionEnter(other: GameObject): void {
     // Collision with Player - Game Over!
     if (other instanceof Player) {
       console.log("💀 Crazy Enemy hit player - Game Over!");
@@ -67,13 +67,13 @@ export default class CrazyEnemy extends GameObject {
       console.log("🔥 Crazy Enemy fell into trash can!");
       Emitter.emit("gameObjectRemoved", this);
       // Light the trash can on fire
-      (other as TrashCan).isOnFire = true;
+      (other as TrashCan).IsOnFire = true;
       return;
     }
   }
 
   private initalizeAttributes() {
-    this.time = this.experience.time;
+    this.time = this.experience.Time;
 
     this.targetPositionIndex = 0;
 
@@ -95,9 +95,9 @@ export default class CrazyEnemy extends GameObject {
     // Calculate the direction vector
     this.directionVector = new RAPIER.Vector2(
       this.targetPositions[this.targetPositionIndex].x -
-        this.currentTranslation.x,
+        this.CurrentTranslation.x,
       this.targetPositions[this.targetPositionIndex].y -
-        this.currentTranslation.y
+        this.CurrentTranslation.y
     );
 
     // Calculate the distance to the target
@@ -119,7 +119,7 @@ export default class CrazyEnemy extends GameObject {
 
       // Gradually increase the current speed toward maxSpeed
       this.currentSpeed = Math.min(
-        this.currentSpeed + this.acceleration * this.time.delta,
+        this.currentSpeed + this.acceleration * this.time.Delta,
         this.maxSpeed
       );
 
@@ -130,15 +130,15 @@ export default class CrazyEnemy extends GameObject {
       );
 
       // Set the linear velocity of the rigidbody
-      this.physicsBody!.setLinvel(velocity, true);
+      this.PhysicsBody!.setLinvel(velocity, true);
 
       // Update the rotation angle based on current speed, multiply by delta time for smooth rotation
-      this.enemyRotation += this.currentSpeed * this.time.delta;
+      this.enemyRotation += this.currentSpeed * this.time.Delta;
       this.enemyRotation %= 2 * Math.PI;
-      this.physicsBody!.setRotation(this.enemyRotation, true);
+      this.PhysicsBody!.setRotation(this.enemyRotation, true);
     } else {
       // Stop the rigidbody by setting its velocity to zero
-      this.physicsBody!.setLinvel(new RAPIER.Vector2(0, 0), true);
+      this.PhysicsBody!.setLinvel(new RAPIER.Vector2(0, 0), true);
 
       // Reset the current speed for future movements
       this.currentSpeed = 0;
@@ -154,9 +154,14 @@ export default class CrazyEnemy extends GameObject {
     }
   }
 
-  public update(_trashCan: TrashCan | undefined) {
+  public Update(player: Player, trashCan?: TrashCan) {
+    // Uniform update contract (R1): CrazyEnemy ignores both args — it follows a
+    // fixed target path. Referenced here so the shared signature stays uniform.
+    void player;
+    void trashCan;
+
     // Exit early if object is destroyed
-    if (this.isBeingDestroyed) {
+    if (this.IsBeingDestroyed) {
       return;
     }
 

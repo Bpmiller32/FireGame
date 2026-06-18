@@ -28,23 +28,23 @@ export default class InputBindings {
     this.wasF3Pressed = false;
   }
 
-  public update() {
+  public Update() {
     // F1 -> gameReset
-    if (this.input.isF1Pressed && !this.wasF1Pressed) {
+    if (this.input.IsF1Pressed && !this.wasF1Pressed) {
       Emitter.emit("gameReset");
     }
-    this.wasF1Pressed = this.input.isF1Pressed;
+    this.wasF1Pressed = this.input.IsF1Pressed;
 
     // F2 -> switchLevel
-    if (this.input.isF2Pressed && !this.wasF2Pressed) {
+    if (this.input.IsF2Pressed && !this.wasF2Pressed) {
       Emitter.emit("switchLevel");
     }
-    this.wasF2Pressed = this.input.isF2Pressed;
+    this.wasF2Pressed = this.input.IsF2Pressed;
 
     // F3 -> manualCameraControl
-    if (this.input.isF3Pressed && !this.wasF3Pressed) {
+    if (this.input.IsF3Pressed && !this.wasF3Pressed) {
       Emitter.emit("manualCameraControl");
     }
-    this.wasF3Pressed = this.input.isF3Pressed;
+    this.wasF3Pressed = this.input.IsF3Pressed;
   }
 }

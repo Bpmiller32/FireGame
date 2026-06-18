@@ -15,6 +15,7 @@ import handlePlayerFalling from "./states/handlePlayerFalling";
 import handlePlayerRunning from "./states/handlePlayerRunning";
 import handlePlayerJumping from "./states/handlePlayerJumping";
 import GameObject from "../../../engine/entities/gameObject";
+import StateMachine from "../../../engine/entities/stateMachine";
 import ContactPoints from "../../../engine/types/contactPoints";
 import GameObjectType from "../../../engine/types/gameObjectType";
 import Emitter from "../../../engine/events/eventBus";
@@ -26,62 +27,62 @@ import EntityType from "../../types/entityType";
 
 export default class Player extends GameObject {
   // Experience
-  public time!: Time;
-  public input!: InputState;
-  private _inputDevice!: Input;
-  public debug?: Debug;
-  public resources!: ResourceLoader;
+  public Time!: Time;
+  public Input!: InputState;
+  private inputDevice!: Input;
+  public Debug?: Debug;
+  public Resources!: ResourceLoader;
 
   // Player state
-  public direction!: number;
-  public currentPosition!: RAPIER.Vector2;
-  public nextTranslation!: RAPIER.Vector2;
+  public Direction!: number;
+  public CurrentPosition!: RAPIER.Vector2;
+  public NextTranslation!: RAPIER.Vector2;
 
-  public state!: PlayerState;
-  public stateHandlers!: Record<PlayerState, (player: Player) => void>;
+  public State!: PlayerState;
+  private fsm!: StateMachine<Player, PlayerState>;
 
-  public characterController!: RAPIER.KinematicCharacterController;
-  public colliderOffset!: number;
-  public colliderOffsetThreshold!: number;
-  public hasColliderUpdated!: boolean;
-  public isTouching!: ContactPoints;
-  public currentFloor!: number;
+  public CharacterController!: RAPIER.KinematicCharacterController;
+  public ColliderOffset!: number;
+  public ColliderOffsetThreshold!: number;
+  public HasColliderUpdated!: boolean;
+  public IsTouching!: ContactPoints;
+  public CurrentFloor!: number;
 
-  public spriteAnimator!: SpriteAnimator;
+  public SpriteAnimator!: SpriteAnimator;
 
   // Player attributes
-  public maxClimbSpeed!: number;
-  public climbAcceleration!: number;
-  public climbDeceleration!: number;
+  public MaxClimbSpeed!: number;
+  public ClimbAcceleration!: number;
+  public ClimbDeceleration!: number;
 
-  public maxGroundSpeed!: number;
-  public groundAcceleration!: number;
-  public groundDeceleration!: number;
+  public MaxGroundSpeed!: number;
+  public GroundAcceleration!: number;
+  public GroundDeceleration!: number;
 
-  public maxFallSpeed!: number;
-  public fallAcceleration!: number;
-  public jumpEndedEarlyGravityModifier!: number;
-  public endedJumpEarly!: boolean;
+  public MaxFallSpeed!: number;
+  public FallAcceleration!: number;
+  public JumpEndedEarlyGravityModifier!: number;
+  public EndedJumpEarly!: boolean;
 
-  public jumpPower!: number;
-  public jumpAcceleration!: number;
+  public JumpPower!: number;
+  public JumpAcceleration!: number;
 
-  public coyoteAvailable!: boolean;
-  public coyoteCount!: number;
+  public CoyoteAvailable!: boolean;
+  public CoyoteCount!: number;
 
-  public bufferJumpRange!: number;
-  public groundWithinBufferRange!: boolean;
-  public bufferJumpAvailable!: boolean;
-  public wasBufferJumpUsed!: boolean;
-  public bufferJumpCount!: number;
+  public BufferJumpRange!: number;
+  public GroundWithinBufferRange!: boolean;
+  public BufferJumpAvailable!: boolean;
+  public WasBufferJumpUsed!: boolean;
+  public BufferJumpCount!: number;
 
-  public timeJumpWasEntered!: number;
-  public timeFallWasEntered!: number;
-  public minJumpTime!: number;
-  public maxJumpTime!: number;
-  public coyoteTime!: number;
+  public TimeJumpWasEntered!: number;
+  public TimeFallWasEntered!: number;
+  public MinJumpTime!: number;
+  public MaxJumpTime!: number;
+  public CoyoteTime!: number;
 
-  public animationScalingFactor!: number;
+  public AnimationScalingFactor!: number;
 
   private hasTriggeredGameOver!: boolean;
 
@@ -117,28 +118,28 @@ export default class Player extends GameObject {
     this.setCollisionMask(CollisionGroups.ENEMY, 1);
 
     // Enable collision events on both colliders for the event-driven collision system
-    if (this.physicsBody) {
-      this.physicsBody.collider(0).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-      this.physicsBody.collider(1).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    if (this.PhysicsBody) {
+      this.PhysicsBody.collider(0).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+      this.PhysicsBody.collider(1).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
     }
 
     // Debug — the game registers its player debug module with the engine
     // coordinator; the engine never imports PlayerDebug.
-    if (this.experience.debug.isActive) {
-      this.debug = this.experience.debug;
-      this.debug.registerModule(new PlayerDebug(this));
+    if (this.experience.Debug.IsActive) {
+      this.Debug = this.experience.Debug;
+      this.Debug.RegisterModule(new PlayerDebug(this));
     }
   }
 
   private initalizePlayerAttributes() {
     // Experience fields
-    this.time = this.experience.time;
-    this._inputDevice = this.experience.input;
-    this.resources = this.experience.resources;
+    this.Time = this.experience.Time;
+    this.inputDevice = this.experience.Input;
+    this.Resources = this.experience.Resources;
 
     // Per-entity input snapshot, refreshed from the device each frame (D10:
     // input-as-data — a network/replay/AI source could fill this instead).
-    this.input = {
+    this.Input = {
       isLeft: false,
       isRight: false,
       isLeftRightCombo: false,
@@ -151,35 +152,36 @@ export default class Player extends GameObject {
     };
 
     // Set inital state and direction
-    this.state = PlayerStates.IDLE;
-    this.direction = PlayerDirection.NEUTRAL;
+    this.State = PlayerStates.IDLE;
+    this.Direction = PlayerDirection.NEUTRAL;
 
     // Set movement, speed, jump, timer attributes special to game feel
     setDkAttributes(this);
 
-    // Init state handlers
-    this.stateHandlers = {
+    // The state machine dispatches to the handler for the player's current state
+    // each frame; the player owns `state`, and handlers reassign it to transition.
+    this.fsm = new StateMachine<Player, PlayerState>(this, {
       [PlayerStates.IDLE]: handlePlayerIdle,
       [PlayerStates.RUNNING]: handlePlayerRunning,
       [PlayerStates.FALLING]: handlePlayerFalling,
       [PlayerStates.JUMPING]: handlePlayerJumping,
       [PlayerStates.CLIMBING]: handlePlayerClimbing,
-    };
+    });
 
     // Set physics variables
-    this.colliderOffset = 0.01;
+    this.ColliderOffset = 0.01;
     // Increased threshold significantly for better slope detection and prevent micro-falling
     // This allows player to maintain ground contact when moving down slopes
-    this.colliderOffsetThreshold = this.colliderOffset + 0.015;
-    this.currentPosition = new RAPIER.Vector2(0, 0);
-    this.nextTranslation = new RAPIER.Vector2(0, 0);
+    this.ColliderOffsetThreshold = this.ColliderOffset + 0.015;
+    this.CurrentPosition = new RAPIER.Vector2(0, 0);
+    this.NextTranslation = new RAPIER.Vector2(0, 0);
 
-    this.hasColliderUpdated = false;
+    this.HasColliderUpdated = false;
 
-    this.currentFloor = 0;
+    this.CurrentFloor = 0;
     this.hasTriggeredGameOver = false;
 
-    this.isTouching = {
+    this.IsTouching = {
       ground: false,
       ceiling: false,
       leftSide: false,
@@ -195,9 +197,9 @@ export default class Player extends GameObject {
 
   private setSpriteAnimator() {
     // Set initial sprite loop
-    this.spriteAnimator = new SpriteAnimator(this.resources.items.randy as THREE.Texture, 4, 6);
-    this.spriteAnimator.state = SpriteAnimations.IDLE_RIGHT;
-    this.setMaterial(this.spriteAnimator.material, 4);
+    this.SpriteAnimator = new SpriteAnimator(this.Resources.Items.randy as THREE.Texture, 4, 6);
+    this.SpriteAnimator.State = SpriteAnimations.IDLE_RIGHT;
+    this.setMaterial(this.SpriteAnimator.Material, 4);
   }
 
   private createSpriteGraphics() {
@@ -214,7 +216,7 @@ export default class Player extends GameObject {
   private createHitBoxCollider() {
     // Create a smaller hit box collider for enemy detection (62.5% of full height)
     const collider = this.createCollider(
-      { width: this.initialSize.x, height: this.initialSize.y * 0.625 },
+      { width: this.InitialSize.x, height: this.InitialSize.y * 0.625 },
       GameObjectType.CUBE
     );
 
@@ -223,50 +225,47 @@ export default class Player extends GameObject {
     collider.setSensor(true);
 
     // Attach collider to player's physics body
-    this.physics.world.createCollider(collider, this.physicsBody);
+    this.Physics.World.createCollider(collider, this.PhysicsBody);
   }
 
   private setCharacterController() {
     // Independent character controller attached to physics world, attaching here since this one is exclusively used for Player
-    this.characterController = this.physics.world.createCharacterController(
-      this.colliderOffset
+    this.CharacterController = this.Physics.World.createCharacterController(
+      this.ColliderOffset
     );
     // Snap to the ground if the vertical distance to the ground is smaller than snap distance
     // Increased to 0.02 for better slope handling and prevent micro-falling
-    this.characterController.enableSnapToGround(0.02);
+    this.CharacterController.enableSnapToGround(0.02);
     // Autostep if the step height is smaller than 0.5, its width is larger than 0.2, and allow stepping on dynamic bodies.
-    this.characterController.enableAutostep(0.5, 0.2, true);
+    this.CharacterController.enableAutostep(0.5, 0.2, true);
     // Don't allow climbing slopes larger than 45 degrees.
-    this.characterController.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
+    this.CharacterController.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
     // Automatically slide down on slopes smaller than 30 degrees.
-    this.characterController.setMinSlopeSlideAngle((30 * Math.PI) / 180);
+    this.CharacterController.setMinSlopeSlideAngle((30 * Math.PI) / 180);
   }
 
   private updatePlayerState() {
-    const handler = this.stateHandlers[this.state];
-    if (handler) {
-      handler(this);
-    }
+    this.fsm.Update();
 
     // Update the sprite state
-    this.spriteAnimator.update(this.time.delta);
+    this.SpriteAnimator.Update(this.Time.Delta);
   }
 
   private updateTranslation() {
     // Update player position to a variable
-    const position = this.physicsBody!.translation();
-    this.currentPosition.x = position.x;
-    this.currentPosition.y = position.y;
+    const position = this.PhysicsBody!.translation();
+    this.CurrentPosition.x = position.x;
+    this.CurrentPosition.y = position.y;
 
     // Compute the desired translation scaled by the time delta
     const desiredTranslation = {
-      x: this.nextTranslation.x * this.time.delta,
-      y: this.nextTranslation.y * this.time.delta,
+      x: this.NextTranslation.x * this.Time.Delta,
+      y: this.NextTranslation.y * this.Time.Delta,
     };
 
     // Given a desired translation, compute the actual translation that we can apply to the collider based on the obstacles.
-    this.characterController.computeColliderMovement(
-      this.physicsBody!.collider(0),
+    this.CharacterController.computeColliderMovement(
+      this.PhysicsBody!.collider(0),
       desiredTranslation,
       // Tried CollisionGroups, filterGroups in this function and class. Tried EventQueue and drainCollisionEvents in Physics class, either don't work at all as documented or don't work in a useful way.... Resorting to only using predicate
       undefined,
@@ -276,25 +275,25 @@ export default class Player extends GameObject {
       (collider: RAPIER.Collider) =>
         !(
           collider.isSensor() ||
-          GameUtils.isOneWayPlatformAndActive(collider, EntityType.ONE_WAY_PLATFORM)
+          GameUtils.IsOneWayPlatformAndActive(collider, EntityType.ONE_WAY_PLATFORM)
         )
     );
 
     // Get the actual translation possible from the physics computation
-    const correctiveMovement = this.characterController.computedMovement();
+    const correctiveMovement = this.CharacterController.computedMovement();
 
     // Apply the actual translation to the next kinematic translation
-    this.physicsBody!.setNextKinematicTranslation({
-      x: this.currentTranslation.x + correctiveMovement.x,
-      y: this.currentTranslation.y + correctiveMovement.y,
+    this.PhysicsBody!.setNextKinematicTranslation({
+      x: this.CurrentTranslation.x + correctiveMovement.x,
+      y: this.CurrentTranslation.y + correctiveMovement.y,
     });
 
     // Check if character controller hit an enemy during movement
     // The character controller computes collisions internally, so we need to check its results
-    const numCollisions = this.characterController.numComputedCollisions();
+    const numCollisions = this.CharacterController.numComputedCollisions();
     for (let i = 0; i < numCollisions; i++) {
-      const collision = this.characterController.computedCollision(i);
-      if (collision && collision.collider && GameUtils.isColliderName(collision.collider, EntityType.ENEMY) && !this.hasTriggeredGameOver) {
+      const collision = this.CharacterController.computedCollision(i);
+      if (collision && collision.collider && GameUtils.IsColliderName(collision.collider, EntityType.ENEMY) && !this.hasTriggeredGameOver) {
         this.hasTriggeredGameOver = true;
         Emitter.emit("gameOver");
         break;
@@ -312,15 +311,15 @@ export default class Player extends GameObject {
    * Update ladder contact state from external sensor detection
    * Called by GameDirector until ladder sensors use proper callbacks
    */
-  public updateLadderState(top: boolean, core: boolean, bottom: boolean) {
-    this.isTouching.ladderTop = top;
-    this.isTouching.ladderCore = core;
-    this.isTouching.ladderBottom = bottom;
+  public UpdateLadderState(top: boolean, core: boolean, bottom: boolean) {
+    this.IsTouching.ladderTop = top;
+    this.IsTouching.ladderCore = core;
+    this.IsTouching.ladderBottom = bottom;
   }
 
   private resetCollisions() {
     // Use assign instead of replacing with a JS Object, fixes issue with dat.gui
-    Object.assign(this.isTouching, {
+    Object.assign(this.IsTouching, {
       ground: false,
       ceiling: false,
       leftSide: false,
@@ -345,94 +344,94 @@ export default class Player extends GameObject {
     const downCast = shapeCasts.down;
     if (
       downCast &&
-      downCast.time_of_impact <= this.colliderOffsetThreshold &&
-      GameUtils.isColliderName(downCast.collider, EntityType.WALL) == false &&
-      GameUtils.isOneWayPlatformAndActive(
+      downCast.time_of_impact <= this.ColliderOffsetThreshold &&
+      GameUtils.IsColliderName(downCast.collider, EntityType.WALL) == false &&
+      GameUtils.IsOneWayPlatformAndActive(
         downCast.collider,
         EntityType.ONE_WAY_PLATFORM
       ) == false
     ) {
       // Establish that ground is being touched
-      this.isTouching.ground = true;
+      this.IsTouching.ground = true;
 
       // Handle specific platform types
-      this.currentFloor = GameUtils.getDataFromCollider(
+      this.CurrentFloor = GameUtils.GetDataFromCollider(
         downCast.collider
       ).value0;
 
-      if (GameUtils.getDataFromCollider(downCast.collider).value1 > 0) {
-        this.isTouching.edgePlatform = true;
+      if (GameUtils.GetDataFromCollider(downCast.collider).value1 > 0) {
+        this.IsTouching.edgePlatform = true;
       } else {
-        this.isTouching.edgePlatform = false;
+        this.IsTouching.edgePlatform = false;
       }
     }
 
     // Detect ground within buffer jump range
     if (
-      !this.isTouching.ground &&
+      !this.IsTouching.ground &&
       downCast &&
-      downCast.time_of_impact <= this.bufferJumpRange &&
-      this.nextTranslation.y <= 0
+      downCast.time_of_impact <= this.BufferJumpRange &&
+      this.NextTranslation.y <= 0
     ) {
-      this.groundWithinBufferRange = true;
+      this.GroundWithinBufferRange = true;
     } else {
-      this.groundWithinBufferRange = false;
+      this.GroundWithinBufferRange = false;
     }
 
     // Detect left wall collisions, ignore OneWayPlatforms
     const leftCast = shapeCasts.left;
     if (
       leftCast &&
-      leftCast.time_of_impact <= this.colliderOffsetThreshold &&
-      GameUtils.isColliderName(leftCast.collider, EntityType.ONE_WAY_PLATFORM) == false
+      leftCast.time_of_impact <= this.ColliderOffsetThreshold &&
+      GameUtils.IsColliderName(leftCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
-      this.isTouching.leftSide = true;
+      this.IsTouching.leftSide = true;
     }
 
     // Detect right wall collisions, ignore OneWayPlatforms
     const rightCast = shapeCasts.right;
     if (
       rightCast &&
-      rightCast.time_of_impact <= this.colliderOffsetThreshold &&
-      GameUtils.isColliderName(rightCast.collider, EntityType.ONE_WAY_PLATFORM) == false
+      rightCast.time_of_impact <= this.ColliderOffsetThreshold &&
+      GameUtils.IsColliderName(rightCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
-      this.isTouching.rightSide = true;
+      this.IsTouching.rightSide = true;
     }
 
     // Detect ceiling collisions, ignore OneWayPlatforms
     const upCast = shapeCasts.up;
     if (
       upCast &&
-      upCast.time_of_impact <= this.colliderOffsetThreshold &&
-      GameUtils.isColliderName(upCast.collider, EntityType.ONE_WAY_PLATFORM) == false
+      upCast.time_of_impact <= this.ColliderOffsetThreshold &&
+      GameUtils.IsColliderName(upCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
-      this.isTouching.ceiling = true;
+      this.IsTouching.ceiling = true;
     }
   }
 
   private shapeCast(xDirection: number, yDirection: number) {
     // Without offset here, the x shapeCast collides with the shape's inner wall for some reason
     const offsetX =
-      this.currentTranslation.x + this.colliderOffset * xDirection;
+      this.CurrentTranslation.x + this.ColliderOffset * xDirection;
     const offsetY =
-      this.currentTranslation.y + this.colliderOffset * yDirection;
+      this.CurrentTranslation.y + this.ColliderOffset * yDirection;
 
     // Rapier 0.14.x API - castShape with predicate to exclude:
     // 1. Player's own colliders
     // 2. Sensors (camera sensors, ladder sensors, etc.)
     // 3. Active one-way platforms
-    const hit = this.physics.world.castShape(
+    const hit = this.Physics.World.castShape(
       { x: offsetX, y: offsetY },
       0,
       { x: xDirection, y: yDirection },
-      this.physicsBody!.collider(0).shape,
+      this.PhysicsBody!.collider(0).shape,
       0.0,
       1000,
       true,
       undefined,  // filterFlags
       undefined,  // filterGroups
-      this.physicsBody!.collider(0),  // Exclude collider 0
-      this.physicsBody,  // Exclude entire player rigid body (both colliders!)
+      this.PhysicsBody!.collider(0),  // Exclude collider 0
+      this.PhysicsBody,  // Exclude entire player rigid body (both colliders!)
       // CRITICAL: Predicate function to filter collisions
       // This is called for EVERY potential hit, allowing shapeCast to penetrate through
       // sensors and find solid ground beneath them
@@ -443,12 +442,12 @@ export default class Player extends GameObject {
         }
         
         // Ignore active one-way platforms
-        if (GameUtils.isOneWayPlatformAndActive(collider, EntityType.ONE_WAY_PLATFORM)) {
+        if (GameUtils.IsOneWayPlatformAndActive(collider, EntityType.ONE_WAY_PLATFORM)) {
           return false;
         }
 
         // Ignore enemies! They shouldn't be treated as solid ground
-        if (GameUtils.isColliderName(collider, EntityType.ENEMY)) {
+        if (GameUtils.IsColliderName(collider, EntityType.ENEMY)) {
           return false;
         }
         
@@ -468,10 +467,10 @@ export default class Player extends GameObject {
     if (this.hasTriggeredGameOver) return;
 
     // Check sensor intersections with enemies
-    this.physics.world.intersectionPairsWith(
-      this.physicsBody!.collider(1),
+    this.Physics.World.intersectionPairsWith(
+      this.PhysicsBody!.collider(1),
       (otherCollider) => {
-        if (GameUtils.isColliderName(otherCollider, EntityType.ENEMY) && !this.hasTriggeredGameOver) {
+        if (GameUtils.IsColliderName(otherCollider, EntityType.ENEMY) && !this.hasTriggeredGameOver) {
           this.hasTriggeredGameOver = true;
           Emitter.emit("gameOver");
         }
@@ -479,14 +478,14 @@ export default class Player extends GameObject {
     );
   }
 
-  public update() {
+  public Update() {
     // Exit early if object is destroyed
-    if (this.isBeingDestroyed) {
+    if (this.IsBeingDestroyed) {
       return;
     }
 
     // Refresh this entity's input snapshot before the state handlers read it.
-    this._inputDevice.captureInto(this.input);
+    this.inputDevice.CaptureInto(this.Input);
 
     this.syncGraphicsToPhysics();
     this.updatePlayerState();
@@ -495,17 +494,17 @@ export default class Player extends GameObject {
     this.checkEnemyCollisions();  // Check for enemies in sensor zone
   }
 
-  public destroy() {
+  public Destroy() {
     // Emit an event to signal the player's removal
     Emitter.emit("gameObjectRemoved", this);
 
     // Remove character controller from the physics world
-    this.physics.world.removeCharacterController(this.characterController);
+    this.Physics.World.removeCharacterController(this.CharacterController);
 
     // Dispose of the sprite animator
-    this.spriteAnimator.destroy();
+    this.SpriteAnimator.Destroy();
 
     // Destroy base class resources
-    super.destroy();
+    super.Destroy();
   }
 }

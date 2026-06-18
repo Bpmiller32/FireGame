@@ -36,10 +36,10 @@ export default class Platform extends GameObject {
 
     if (isOneWayPlatform) {
       objectName = EntityType.ONE_WAY_PLATFORM;
-      this.setOneWayPlatformActive(1);
+      this.SetOneWayPlatformActive(1);
     } else {
       objectName = EntityType.PLATFORM;
-      this.setOneWayPlatformActive(0);
+      this.SetOneWayPlatformActive(0);
     }
 
     // Create the physics object based on the shape
@@ -47,7 +47,7 @@ export default class Platform extends GameObject {
 
     // Handle one-way platform-specific properties
     this.isOneWayPlatform = isOneWayPlatform;
-    this.setObjectName(objectName);
+    this.SetObjectName(objectName);
     // this.createObjectGraphicsDebug(graphicsColor);
 
     // Set collision groups and masks
@@ -56,26 +56,26 @@ export default class Platform extends GameObject {
   }
 
   // GameObjectValue[0] is the floor level of the platform
-  public setPlatformFloorLevel(value: number) {
-    this.setObjectValue0(value);
+  public SetPlatformFloorLevel(value: number) {
+    this.SetObjectValue0(value);
   }
 
   // GameObjectValue[1] is whether or not the platform is an edge platform
-  public setEdgePlatform(value: number) {
-    this.setObjectValue1(value);
+  public SetEdgePlatform(value: number) {
+    this.SetObjectValue1(value);
   }
 
   // GameObjectValue[2] is the enable point Y coordinate for OneWay, needed for ComplexColliders
-  public setOneWayEnablePoint(value: number) {
+  public SetOneWayEnablePoint(value: number) {
     this.oneWayEnablePoint = value;
   }
 
   // GameObjectValue[3] is whether or not the platform is currently OneWay
-  public setOneWayPlatformActive(value: number) {
-    this.setObjectValue3(value);
+  public SetOneWayPlatformActive(value: number) {
+    this.SetObjectValue3(value);
   }
 
-  public update(player: Player) {
+  public Update(player: Player) {
     // Exit early if not a OneWayPlatform
     if (!this.isOneWayPlatform) {
       return;
@@ -84,18 +84,18 @@ export default class Platform extends GameObject {
     if (
       player &&
       this.isOneWayPlatform &&
-      player.currentTranslation.y - player.currentSize.y / 2 >
+      player.CurrentTranslation.y - player.CurrentSize.y / 2 >
         this.oneWayEnablePoint
     ) {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = 0;
+      GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value3 = 0;
     } else {
-      GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = 1;
+      GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value3 = 1;
     }
 
     // While the player is climbing, force this platform to pass-through so the
     // player can move up/down a ladder without landing on one-way platforms.
-    if (player.state === "climbing") {
-      this.setOneWayPlatformActive(1);
+    if (player.State === "climbing") {
+      this.SetOneWayPlatformActive(1);
     }
   }
 }

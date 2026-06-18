@@ -11,39 +11,39 @@ import GameObject from "../entities/gameObject";
 export default class Physics {
   private experience!: Experience;
   private debug?: Debug;
-  public scene!: THREE.Scene;
+  public Scene!: THREE.Scene;
 
-  public world!: RAPIER.World;
-  public eventQueue!: RAPIER.EventQueue;
-  public isPaused!: boolean;
+  public World!: RAPIER.World;
+  public EventQueue!: RAPIER.EventQueue;
+  public IsPaused!: boolean;
 
   // GameObject registration system - maps collider handles to GameObjects
   private gameObjectRegistry!: Map<number, GameObject>;
 
-  public activeCollisionCount!: number;
-  public activeSensorCount!: number;
+  public ActiveCollisionCount!: number;
+  public ActiveSensorCount!: number;
 
   // Replacement constructor to accomodate async
-  public async configure() {
-    this.experience = Experience.getInstance();
-    this.scene = this.experience.scene;
+  public async Configure() {
+    this.experience = Experience.GetInstance();
+    this.Scene = this.experience.Scene;
 
     await RAPIER.init();
-    this.world = new RAPIER.World({ x: 0.0, y: -9.81 });
-    this.eventQueue = new RAPIER.EventQueue(true);
-    this.isPaused = false;
+    this.World = new RAPIER.World({ x: 0.0, y: -9.81 });
+    this.EventQueue = new RAPIER.EventQueue(true);
+    this.IsPaused = false;
 
     // Initialize GameObject registry for collision event mapping
     this.gameObjectRegistry = new Map<number, GameObject>();
 
     // Initialize debug counters
-    this.activeCollisionCount = 0;
-    this.activeSensorCount = 0;
+    this.ActiveCollisionCount = 0;
+    this.ActiveSensorCount = 0;
 
     // Debug
-    if (this.experience.debug.isActive) {
-      this.debug = this.experience.debug;
-      this.debug.initPhysicsDebug(this);
+    if (this.experience.Debug.IsActive) {
+      this.debug = this.experience.Debug;
+      this.debug.InitPhysicsDebug(this);
     }
   }
 
@@ -51,16 +51,16 @@ export default class Physics {
    * Register a GameObject so it can receive collision/sensor callbacks
    * Call this when a GameObject's physics body is created
    */
-  public registerGameObject(gameObject: GameObject) {
-    if (!gameObject.physicsBody) {
+  public RegisterGameObject(gameObject: GameObject) {
+    if (!gameObject.PhysicsBody) {
       console.warn("Cannot register GameObject without a physics body");
       return;
     }
 
     // Register all colliders for this rigid body
-    const numColliders = gameObject.physicsBody.numColliders();
+    const numColliders = gameObject.PhysicsBody.numColliders();
     for (let i = 0; i < numColliders; i++) {
-      const collider = gameObject.physicsBody.collider(i);
+      const collider = gameObject.PhysicsBody.collider(i);
       this.gameObjectRegistry.set(collider.handle, gameObject);
     }
   }
@@ -69,15 +69,15 @@ export default class Physics {
    * Unregister a GameObject when it's destroyed
    * Call this during GameObject destruction
    */
-  public unregisterGameObject(gameObject: GameObject) {
-    if (!gameObject.physicsBody) {
+  public UnregisterGameObject(gameObject: GameObject) {
+    if (!gameObject.PhysicsBody) {
       return;
     }
 
     // Remove all colliders for this rigid body from registry
-    const numColliders = gameObject.physicsBody.numColliders();
+    const numColliders = gameObject.PhysicsBody.numColliders();
     for (let i = 0; i < numColliders; i++) {
-      const collider = gameObject.physicsBody.collider(i);
+      const collider = gameObject.PhysicsBody.collider(i);
       this.gameObjectRegistry.delete(collider.handle);
     }
   }
@@ -96,12 +96,12 @@ export default class Physics {
    * Called automatically during physics update
    */
   private handleCollisionEvents() {
-    this.activeCollisionCount = 0;
-    this.activeSensorCount = 0;
+    this.ActiveCollisionCount = 0;
+    this.ActiveSensorCount = 0;
 
-    this.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
-      const collider1 = this.world.getCollider(handle1);
-      const collider2 = this.world.getCollider(handle2);
+    this.EventQueue.drainCollisionEvents((handle1, handle2, started) => {
+      const collider1 = this.World.getCollider(handle1);
+      const collider2 = this.World.getCollider(handle2);
 
       // Skip if colliders don't exist
       if (!collider1 || !collider2) {
@@ -115,8 +115,8 @@ export default class Physics {
       if (
         !gameObject1 ||
         !gameObject2 ||
-        gameObject1.isBeingDestroyed ||
-        gameObject2.isBeingDestroyed
+        gameObject1.IsBeingDestroyed ||
+        gameObject2.IsBeingDestroyed
       ) {
         return;
       }
@@ -128,64 +128,64 @@ export default class Physics {
 
       if (isSensorEvent) {
         // This is a sensor intersection event
-        this.activeSensorCount++;
+        this.ActiveSensorCount++;
 
         if (started) {
           // Sensor intersection started - call onSensorEnter callbacks
-          if (isSensor1 && gameObject1.onSensorEnter) {
-            gameObject1.onSensorEnter(gameObject2);
+          if (isSensor1 && gameObject1.OnSensorEnter) {
+            gameObject1.OnSensorEnter(gameObject2);
           }
-          if (isSensor2 && gameObject2.onSensorEnter) {
-            gameObject2.onSensorEnter(gameObject1);
+          if (isSensor2 && gameObject2.OnSensorEnter) {
+            gameObject2.OnSensorEnter(gameObject1);
           }
 
           // Log sensor event if debug is enabled
-          if (this.debug && this.debug.logSensors) {
-            this.debug.logSensorEvent(gameObject1, gameObject2, "enter");
+          if (this.debug && this.debug.LogSensors) {
+            this.debug.LogSensorEvent(gameObject1, gameObject2, "enter");
           }
         } else {
           // Sensor intersection ended - call onSensorExit callbacks
-          if (isSensor1 && gameObject1.onSensorExit) {
-            gameObject1.onSensorExit(gameObject2);
+          if (isSensor1 && gameObject1.OnSensorExit) {
+            gameObject1.OnSensorExit(gameObject2);
           }
-          if (isSensor2 && gameObject2.onSensorExit) {
-            gameObject2.onSensorExit(gameObject1);
+          if (isSensor2 && gameObject2.OnSensorExit) {
+            gameObject2.OnSensorExit(gameObject1);
           }
 
           // Log sensor event if debug is enabled
-          if (this.debug && this.debug.logSensors) {
-            this.debug.logSensorEvent(gameObject1, gameObject2, "exit");
+          if (this.debug && this.debug.LogSensors) {
+            this.debug.LogSensorEvent(gameObject1, gameObject2, "exit");
           }
         }
       } else {
         // This is a solid collision event
-        this.activeCollisionCount++;
+        this.ActiveCollisionCount++;
 
         if (started) {
           // Collision started - call onCollisionEnter callbacks
-          if (gameObject1.onCollisionEnter) {
-            gameObject1.onCollisionEnter(gameObject2);
+          if (gameObject1.OnCollisionEnter) {
+            gameObject1.OnCollisionEnter(gameObject2);
           }
-          if (gameObject2.onCollisionEnter) {
-            gameObject2.onCollisionEnter(gameObject1);
+          if (gameObject2.OnCollisionEnter) {
+            gameObject2.OnCollisionEnter(gameObject1);
           }
 
           // Log collision event if debug is enabled
-          if (this.debug && this.debug.logCollisions) {
-            this.debug.logCollisionEvent(gameObject1, gameObject2, "enter");
+          if (this.debug && this.debug.LogCollisions) {
+            this.debug.LogCollisionEvent(gameObject1, gameObject2, "enter");
           }
         } else {
           // Collision ended - call onCollisionExit callbacks
-          if (gameObject1.onCollisionExit) {
-            gameObject1.onCollisionExit(gameObject2);
+          if (gameObject1.OnCollisionExit) {
+            gameObject1.OnCollisionExit(gameObject2);
           }
-          if (gameObject2.onCollisionExit) {
-            gameObject2.onCollisionExit(gameObject1);
+          if (gameObject2.OnCollisionExit) {
+            gameObject2.OnCollisionExit(gameObject1);
           }
 
           // Log collision event if debug is enabled
-          if (this.debug && this.debug.logCollisions) {
-            this.debug.logCollisionEvent(gameObject1, gameObject2, "exit");
+          if (this.debug && this.debug.LogCollisions) {
+            this.debug.LogCollisionEvent(gameObject1, gameObject2, "exit");
           }
         }
       }
@@ -196,18 +196,18 @@ export default class Physics {
    * Pause or resume the physics simulation. The game decides WHEN to call this
    * (e.g. on game over / reset); the engine just obeys — it names no game events.
    */
-  public setPaused(paused: boolean): void {
-    this.isPaused = paused;
+  public SetPaused(paused: boolean): void {
+    this.IsPaused = paused;
   }
 
-  public update() {
-    if (this.isPaused) {
+  public Update() {
+    if (this.IsPaused) {
       return;
     }
 
     // Set the physics simulation timestep, advance the simulation one step
-    this.world.timestep = Math.min(this.experience.time.delta, 0.1);
-    this.world.step(this.eventQueue);
+    this.World.timestep = Math.min(this.experience.Time.Delta, 0.1);
+    this.World.step(this.EventQueue);
 
     // Process collision and sensor events
     // Sensors are routed through collision events by checking the sensor flag
@@ -215,17 +215,17 @@ export default class Physics {
 
     // Run debug physics logic if needed
     if (this.debug) {
-      this.debug.updatePhysicsDebug(this);
+      this.debug.UpdatePhysicsDebug(this);
     }
   }
 
-  public destroy() {
+  public Destroy() {
     // Dispose of the Rapier world
-    this.world.free();
+    this.World.free();
 
     // Tear down the debug wireframe (PhysicsDebug owns its own mesh)
     if (this.debug) {
-      this.debug.destroyPhysicsDebug();
+      this.debug.DestroyPhysicsDebug();
     }
   }
 }

@@ -4,7 +4,7 @@ import CollisionGroups from "../types/gameCollisionGroups";
 import EntityType from "../types/entityType";
 
 export default class TrashCan extends GameObject {
-  public isOnFire: boolean;
+  public IsOnFire: boolean;
 
   constructor(
     size: { width: number; height: number; depth: number },
@@ -22,7 +22,7 @@ export default class TrashCan extends GameObject {
     );
 
     // this.createObjectGraphicsDebug("cyan");
-    this.isOnFire = false;
+    this.IsOnFire = false;
 
     this.setCollisionGroup(CollisionGroups.DEFAULT);
     this.setCollisionMask(CollisionGroups.DEFAULT);

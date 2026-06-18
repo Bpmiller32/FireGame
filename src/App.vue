@@ -12,22 +12,22 @@ const statusRef = ref<HTMLElement | null>(null);
 const isResetButtonVisible = ref<boolean | null>(null);
 
 onMounted(async () => {
-  const webglExperience = Experience.getInstance();
-  await webglExperience.configure(webglRef.value);
+  const webglExperience = Experience.GetInstance();
+  await webglExperience.Configure(webglRef.value);
 
   // The game owns its collision-log formatting; it registers the sink with the
   // engine Debug coordinator, which Physics routes collision/sensor events to.
-  webglExperience.debug.registerCollisionLogSink(new CollisionLogger());
+  webglExperience.Debug.RegisterCollisionLogSink(new CollisionLogger());
 
   // The game owns its director (constructed after the engine is configured so
   // the scene/camera exist) and its F-key bindings. The engine calls back into
   // these each frame via onGameUpdate, keeping the engine free of game names.
   const gameDirector = new GameDirector();
-  const inputBindings = new InputBindings(webglExperience.input);
+  const inputBindings = new InputBindings(webglExperience.Input);
 
-  webglExperience.onGameUpdate = () => {
-    inputBindings.update();
-    gameDirector.update();
+  webglExperience.OnGameUpdate = () => {
+    inputBindings.Update();
+    gameDirector.Update();
   };
 
   Emitter.on("gameWin", () => {

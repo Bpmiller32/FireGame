@@ -5,10 +5,11 @@ import CollisionGroups from "../types/gameCollisionGroups";
 import GameUtils from "../gameUtils";
 import Emitter from "../../engine/events/eventBus";
 import EntityType from "../types/entityType";
+import Player from "./player/player";
 
 export default class WinFlag extends GameObject {
-  public colliderOffset: number;
-  public isBeingTouched: boolean;
+  public ColliderOffset: number;
+  public IsBeingTouched: boolean;
 
   constructor(
     size: { width: number; height: number; depth: number },
@@ -27,8 +28,8 @@ export default class WinFlag extends GameObject {
 
     // this.createObjectGraphicsDebug("cyan");
 
-    this.colliderOffset = 0.01;
-    this.isBeingTouched = false;
+    this.ColliderOffset = 0.01;
+    this.IsBeingTouched = false;
 
     this.setCollisionGroup(CollisionGroups.DEFAULT);
     this.setCollisionMask(CollisionGroups.DEFAULT);
@@ -37,15 +38,15 @@ export default class WinFlag extends GameObject {
   private shapeCast(xDirection: number, yDirection: number) {
     // Without offset here, the x shapeCast collides with the shape's inner wall for some reason
     const offsetX =
-      this.currentTranslation.x + this.colliderOffset * xDirection;
+      this.CurrentTranslation.x + this.ColliderOffset * xDirection;
     const offsetY =
-      this.currentTranslation.y + this.colliderOffset * yDirection;
+      this.CurrentTranslation.y + this.ColliderOffset * yDirection;
 
-    const hit = this.physics.world.castShape(
+    const hit = this.Physics.World.castShape(
       { x: offsetX, y: offsetY },
       0,
       { x: xDirection, y: yDirection },
-      this.physicsBody!.collider(0).shape,
+      this.PhysicsBody!.collider(0).shape,
       0,      // targetDistance — distance at which shapes are considered touching
       1000,   // maxToi
       false,  // stopAtPenetration
@@ -57,7 +58,7 @@ export default class WinFlag extends GameObject {
       (collider: RAPIER.Collider) =>
         !(
           collider.isSensor() ||
-          GameUtils.getDataFromCollider(collider).value3 > 0
+          GameUtils.GetDataFromCollider(collider).value3 > 0
         )
     );
 
@@ -77,10 +78,10 @@ export default class WinFlag extends GameObject {
     const leftCast = shapeCasts.left;
     if (
       leftCast &&
-      leftCast.time_of_impact <= this.colliderOffset &&
-      GameUtils.getDataFromCollider(leftCast.collider).name == EntityType.PLAYER
+      leftCast.time_of_impact <= this.ColliderOffset &&
+      GameUtils.GetDataFromCollider(leftCast.collider).name == EntityType.PLAYER
     ) {
-      this.isBeingTouched = true;
+      this.IsBeingTouched = true;
       return;
     }
 
@@ -88,10 +89,10 @@ export default class WinFlag extends GameObject {
     const rightCast = shapeCasts.right;
     if (
       rightCast &&
-      rightCast.time_of_impact <= this.colliderOffset &&
-      GameUtils.getDataFromCollider(rightCast.collider).name == EntityType.PLAYER
+      rightCast.time_of_impact <= this.ColliderOffset &&
+      GameUtils.GetDataFromCollider(rightCast.collider).name == EntityType.PLAYER
     ) {
-      this.isBeingTouched = true;
+      this.IsBeingTouched = true;
       return;
     }
 
@@ -99,22 +100,26 @@ export default class WinFlag extends GameObject {
     const upCast = shapeCasts.up;
     if (
       upCast &&
-      upCast.time_of_impact <= this.colliderOffset &&
-      GameUtils.getDataFromCollider(upCast.collider).name == EntityType.PLAYER
+      upCast.time_of_impact <= this.ColliderOffset &&
+      GameUtils.GetDataFromCollider(upCast.collider).name == EntityType.PLAYER
     ) {
-      this.isBeingTouched = true;
+      this.IsBeingTouched = true;
       return;
     }
   }
 
-  public update() {
+  public Update(player?: Player) {
+    // Uniform update contract (R1): WinFlag ignores the player arg — it detects
+    // contact via its own shapecasts. Referenced here so the signature stays uniform.
+    void player;
+
     // Reset flag for being touched
-    this.isBeingTouched = false;
+    this.IsBeingTouched = false;
 
     // Check if being touched
     this.getShapeCastCollisions();
 
-    if (this.isBeingTouched) {
+    if (this.IsBeingTouched) {
       Emitter.emit("gameWin");
     }
   }

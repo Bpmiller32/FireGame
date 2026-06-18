@@ -9,7 +9,7 @@ import GameUtils from "../../game/gameUtils";
 export default class GameObject {
   protected experience!: Experience;
   protected scene!: THREE.Scene;
-  public physics!: Physics;  // Made public for GameUtils temporary sensor checking
+  public Physics!: Physics;  // Made public for GameUtils temporary sensor checking
 
   protected gameObjectType!: string;
 
@@ -22,15 +22,15 @@ export default class GameObject {
   protected spriteScale?: number;
   protected vertices?: number[];
 
-  public physicsBody?: RAPIER.RigidBody;
+  public PhysicsBody?: RAPIER.RigidBody;
 
-  public initialSize!: RAPIER.Vector2;
-  public currentSize!: RAPIER.Vector2;
-  public initialTranslation!: RAPIER.Vector2;
-  public currentTranslation!: RAPIER.Vector;
-  public currentRotation!: number;
+  public InitialSize!: RAPIER.Vector2;
+  public CurrentSize!: RAPIER.Vector2;
+  public InitialTranslation!: RAPIER.Vector2;
+  public CurrentTranslation!: RAPIER.Vector;
+  public CurrentRotation!: number;
 
-  public isBeingDestroyed!: boolean;
+  public IsBeingDestroyed!: boolean;
 
   // ============================================================================
   // COLLISION CALLBACKS - Override these in subclasses to handle collisions
@@ -52,7 +52,7 @@ export default class GameObject {
    * }
    * ```
    */
-  public onCollisionEnter?(other: GameObject): void;
+  public OnCollisionEnter?(other: GameObject): void;
 
   /**
    * Called when this GameObject stops colliding with another solid GameObject
@@ -60,7 +60,7 @@ export default class GameObject {
    *
    * @param other - The GameObject this object stopped colliding with
    */
-  public onCollisionExit?(other: GameObject): void;
+  public OnCollisionExit?(other: GameObject): void;
 
   // ============================================================================
   // SENSOR CALLBACKS - Override these in subclasses to handle sensor triggers
@@ -82,7 +82,7 @@ export default class GameObject {
    * }
    * ```
    */
-  public onSensorEnter?(other: GameObject): void;
+  public OnSensorEnter?(other: GameObject): void;
 
   /**
    * Called when this GameObject (as a sensor) detects another GameObject exiting
@@ -90,26 +90,26 @@ export default class GameObject {
    *
    * @param other - The GameObject that exited this sensor
    */
-  public onSensorExit?(other: GameObject): void;
+  public OnSensorExit?(other: GameObject): void;
 
   constructor() {
     this.initializeAttributes();
   }
 
   private initializeAttributes() {
-    this.experience = Experience.getInstance();
-    this.scene = this.experience.scene;
-    this.physics = this.experience.physics;
+    this.experience = Experience.GetInstance();
+    this.scene = this.experience.Scene;
+    this.Physics = this.experience.Physics;
 
-    this.initialSize = new RAPIER.Vector2(0, 0);
-    this.currentSize = new RAPIER.Vector2(0, 0);
-    this.initialTranslation = new RAPIER.Vector2(0, 0);
-    this.currentTranslation = new RAPIER.Vector2(0, 0);
-    this.currentRotation = 0;
+    this.InitialSize = new RAPIER.Vector2(0, 0);
+    this.CurrentSize = new RAPIER.Vector2(0, 0);
+    this.InitialTranslation = new RAPIER.Vector2(0, 0);
+    this.CurrentTranslation = new RAPIER.Vector2(0, 0);
+    this.CurrentRotation = 0;
 
     this.gameObjectType = "";
 
-    this.isBeingDestroyed = false;
+    this.IsBeingDestroyed = false;
   }
 
   protected createObjectPhysics(
@@ -121,41 +121,41 @@ export default class GameObject {
     specifiedRigidBodyType: RAPIER.RigidBodyDesc = RAPIER.RigidBodyDesc.fixed()
   ) {
     // Set object position, size, and type. Inital size in particular so I don't have to look for it in physicsBody.collider.shape.halfExtents later
-    this.initialTranslation = new RAPIER.Vector2(position.x, position.y);
-    this.initialSize = new RAPIER.Vector2(size.width, size.height);
-    this.currentSize = new RAPIER.Vector2(size.width, size.height);
+    this.InitialTranslation = new RAPIER.Vector2(position.x, position.y);
+    this.InitialSize = new RAPIER.Vector2(size.width, size.height);
+    this.CurrentSize = new RAPIER.Vector2(size.width, size.height);
     this.gameObjectType = gameObjectType;
 
     // Physics setup based on object type
     const collider = this.createCollider(size, gameObjectType);
 
     // Create physicsBody/rigidBody, set type, position, rotation (in radians), userdata
-    this.physicsBody = this.physics.world.createRigidBody(
+    this.PhysicsBody = this.Physics.World.createRigidBody(
       specifiedRigidBodyType
     );
 
-    this.physicsBody.setTranslation({ x: position.x, y: position.y }, true);
-    this.currentTranslation = this.physicsBody.translation();
+    this.PhysicsBody.setTranslation({ x: position.x, y: position.y }, true);
+    this.CurrentTranslation = this.PhysicsBody.translation();
 
-    this.physicsBody.setRotation(rotation, true);
-    this.currentRotation = this.physicsBody.rotation();
+    this.PhysicsBody.setRotation(rotation, true);
+    this.CurrentRotation = this.PhysicsBody.rotation();
 
-    this.physicsBody.userData = {
+    this.PhysicsBody.userData = {
       name: name,
       gameEntityType: this.constructor.name,
     } as UserData;
 
     // Create and attach collider to physicsBody/rigidbody
-    this.physics.world.createCollider(collider, this.physicsBody);
+    this.Physics.World.createCollider(collider, this.PhysicsBody);
 
     // Set GameObjectValues to their defaults
-    this.setObjectValue0();
-    this.setObjectValue1();
-    this.setObjectValue2();
-    this.setObjectValue3();
+    this.SetObjectValue0();
+    this.SetObjectValue1();
+    this.SetObjectValue2();
+    this.SetObjectValue3();
 
     // Register this GameObject with the physics system for collision/sensor callbacks
-    this.physics.registerGameObject(this);
+    this.Physics.RegisterGameObject(this);
 
     // Auto-enable collision/sensor events if callbacks are defined
     this.enablePhysicsEvents();
@@ -166,24 +166,24 @@ export default class GameObject {
    * This allows the event system to efficiently only process events for objects that need them
    */
   private enablePhysicsEvents() {
-    if (!this.physicsBody) {
+    if (!this.PhysicsBody) {
       return;
     }
 
-    const collider = this.physicsBody.collider(0);
+    const collider = this.PhysicsBody.collider(0);
 
     // Determine which events to enable based on callbacks defined
     let eventsToEnable = 0;
 
     // Enable collision events if any collision callbacks are defined.
     // Physics only dispatches enter/exit (no per-frame "stay") — see Physics.handleCollisionEvents.
-    if (this.onCollisionEnter || this.onCollisionExit) {
+    if (this.OnCollisionEnter || this.OnCollisionExit) {
       eventsToEnable |= RAPIER.ActiveEvents.COLLISION_EVENTS;
     }
 
     // Enable intersection events if any sensor callbacks are defined
     // Note: In Rapier, sensors use collision events, not separate intersection events
-    if (this.onSensorEnter || this.onSensorExit) {
+    if (this.OnSensorEnter || this.OnSensorExit) {
       eventsToEnable |= RAPIER.ActiveEvents.COLLISION_EVENTS;
     }
 
@@ -291,7 +291,7 @@ export default class GameObject {
     switch (this.gameObjectType) {
       case GameObjectType.CUBE:
         this.setGeometry(
-          new THREE.BoxGeometry(this.currentSize.x, this.currentSize.y, 1)
+          new THREE.BoxGeometry(this.CurrentSize.x, this.CurrentSize.y, 1)
         );
         this.setMaterial(
           new THREE.MeshBasicMaterial({
@@ -304,7 +304,7 @@ export default class GameObject {
         break;
 
       case GameObjectType.SPHERE:
-        this.setGeometry(new THREE.SphereGeometry(this.currentSize.x));
+        this.setGeometry(new THREE.SphereGeometry(this.CurrentSize.x));
         this.setMaterial(
           new THREE.MeshBasicMaterial({
             color: meshColor,
@@ -328,22 +328,22 @@ export default class GameObject {
     meshOffset: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 }
   ) {
     // Exit early if object is destroyed or physicsBody not ready yet
-    if (this.isBeingDestroyed || !this.physicsBody) {
+    if (this.IsBeingDestroyed || !this.PhysicsBody) {
       return;
     }
 
-    this.currentTranslation = this.physicsBody.translation();
+    this.CurrentTranslation = this.PhysicsBody.translation();
     this.mesh?.position.set(
-      this.currentTranslation.x + meshOffset.x,
-      this.currentTranslation.y + meshOffset.y,
+      this.CurrentTranslation.x + meshOffset.x,
+      this.CurrentTranslation.y + meshOffset.y,
       meshOffset.z
     );
 
-    this.currentRotation = this.physicsBody.rotation();
+    this.CurrentRotation = this.PhysicsBody.rotation();
     this.mesh?.rotation.set(
       this.mesh?.rotation.x,
       this.mesh?.rotation.y,
-      this.currentRotation
+      this.CurrentRotation
     );
   }
 
@@ -352,96 +352,96 @@ export default class GameObject {
     colliderIndex: number = 0
   ) {
     // Physics body needs to be created
-    if (!this.physicsBody) {
+    if (!this.PhysicsBody) {
       return;
     }
 
     // Extract the current mask (upper 16 bits)
     const currentMask =
-      this.physicsBody.collider(colliderIndex).collisionGroups() >> 16;
+      this.PhysicsBody.collider(colliderIndex).collisionGroups() >> 16;
 
     // Set the group, keep the current mask
-    this.physicsBody
+    this.PhysicsBody
       .collider(colliderIndex)
       .setCollisionGroups(collisionGroups | (currentMask << 16));
   }
 
   protected setCollisionMask(collisionMask: number, colliderIndex: number = 0) {
     // Physics body needs to be created
-    if (!this.physicsBody) {
+    if (!this.PhysicsBody) {
       return;
     }
 
     // Extract the current group (lower 16 bits)
     const currentGroup =
-      this.physicsBody.collider(colliderIndex).collisionGroups() & 0xffff;
+      this.PhysicsBody.collider(colliderIndex).collisionGroups() & 0xffff;
 
     // Set the mask, keep the current group
-    this.physicsBody
+    this.PhysicsBody
       .collider(colliderIndex)
       .setCollisionGroups(currentGroup | (collisionMask << 16));
   }
 
-  public setObjectName(newName?: string) {
+  public SetObjectName(newName?: string) {
     if (!newName) {
       return;
     }
 
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).name = newName;
+    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).name = newName;
   }
 
-  public setObjectValue0(newValue?: number) {
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value0 = newValue ?? 0;
+  public SetObjectValue0(newValue?: number) {
+    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value0 = newValue ?? 0;
   }
 
-  public setObjectValue1(newValue?: number) {
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value1 = newValue ?? 0;
+  public SetObjectValue1(newValue?: number) {
+    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value1 = newValue ?? 0;
   }
 
-  public setObjectValue2(newValue?: number) {
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value2 = newValue ?? 0;
+  public SetObjectValue2(newValue?: number) {
+    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value2 = newValue ?? 0;
   }
 
-  public setObjectValue3(newValue?: number) {
-    GameUtils.getDataFromPhysicsBody(this.physicsBody).value3 = newValue ?? 0;
+  public SetObjectValue3(newValue?: number) {
+    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value3 = newValue ?? 0;
   }
 
-  public changeColliderSize(newSize: { width: number; height: number }) {
+  public ChangeColliderSize(newSize: { width: number; height: number }) {
     // Remove the old collider (assuming there's only one collider attached)
-    this.physics.world.removeCollider(this.physicsBody!.collider(0), true);
+    this.Physics.World.removeCollider(this.PhysicsBody!.collider(0), true);
 
     // Create a new collider with the updated size
     const newCollider = this.createCollider(newSize, this.gameObjectType);
 
     // Attach the new collider to the rigid body
-    this.physics.world.createCollider(newCollider, this.physicsBody);
+    this.Physics.World.createCollider(newCollider, this.PhysicsBody);
 
     // Update the current size property
-    this.currentSize = new RAPIER.Vector2(newSize.width, newSize.height);
+    this.CurrentSize = new RAPIER.Vector2(newSize.width, newSize.height);
   }
 
   // Teleport GameObject by x units relative from current location
-  public teleportRelative(newX: number, newY: number) {
-    this.physicsBody!.setTranslation(
+  public TeleportRelative(newX: number, newY: number) {
+    this.PhysicsBody!.setTranslation(
       {
-        x: this.currentTranslation.x + newX,
-        y: this.currentTranslation.y + newY,
+        x: this.CurrentTranslation.x + newX,
+        y: this.CurrentTranslation.y + newY,
       },
       true
     );
   }
 
   // Teleport GameObject to a specific global coordinate
-  public teleportToPosition(targetX: number, targetY: number) {
+  public TeleportToPosition(targetX: number, targetY: number) {
     // Calculate the difference (relative distance) to the target position
-    const deltaX = targetX - this.currentTranslation.x;
-    const deltaY = targetY - this.currentTranslation.y;
+    const deltaX = targetX - this.CurrentTranslation.x;
+    const deltaY = targetY - this.CurrentTranslation.y;
 
     // Use teleportRelative to move to the target position
-    this.teleportRelative(deltaX, deltaY);
+    this.TeleportRelative(deltaX, deltaY);
   }
 
-  public async createObjectGraphics(resourceFromLoader: any) {
+  public async CreateObjectGraphics(resourceFromLoader: any) {
     // Create the MeshGroup if it doesn't exist
     this.createMeshGroup();
 
@@ -456,9 +456,9 @@ export default class GameObject {
     this.syncGraphicsToPhysics();
   }
 
-  public destroy() {
+  public Destroy() {
     // Set immediately — guards concurrent collision callbacks from firing on a partially-destroyed object
-    this.isBeingDestroyed = true;
+    this.IsBeingDestroyed = true;
 
     // Remove the main mesh from the scene if it exists
     if (this.mesh) {
@@ -481,10 +481,10 @@ export default class GameObject {
 
     // Unregister from collision event system, then remove physics body
     // removeRigidBody also removes all attached colliders, so no manual collider removal needed
-    if (this.physicsBody) {
-      this.physics.unregisterGameObject(this);
-      this.physics.world.removeRigidBody(this.physicsBody);
-      this.physicsBody = undefined;
+    if (this.PhysicsBody) {
+      this.Physics.UnregisterGameObject(this);
+      this.Physics.World.removeRigidBody(this.PhysicsBody);
+      this.PhysicsBody = undefined;
     }
 
   }

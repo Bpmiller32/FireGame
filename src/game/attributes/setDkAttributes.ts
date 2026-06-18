@@ -9,27 +9,27 @@ const setDkAttributes = (player: Player) => {
   /*                       DK overrides (differ from base feel)                 */
   /* -------------------------------------------------------------------------- */
   // The top horizontal movement speed
-  player.maxGroundSpeed = 11.8;
+  player.MaxGroundSpeed = 11.8;
   // The player's capacity to gain horizontal speed
-  player.groundAcceleration = 50;
+  player.GroundAcceleration = 50;
   // The pace at which the player comes to a stop
-  player.groundDeceleration = 20;
+  player.GroundDeceleration = 20;
 
   // The maximum vertical movement speed
-  player.maxFallSpeed = 20;
+  player.MaxFallSpeed = 20;
   // The player's capacity to gain fall speed aka In Air Gravity
-  player.fallAcceleration = 20;
+  player.FallAcceleration = 20;
   // Multiplier on fallAcceleration if player ended their jump early
-  player.jumpEndedEarlyGravityModifier = 9001;
+  player.JumpEndedEarlyGravityModifier = 9001;
 
   // Jump strength
-  player.jumpPower = 12;
+  player.JumpPower = 12;
 
   // Distance at which a buffered jump is registered before landing
-  player.bufferJumpRange = 1.5;
+  player.BufferJumpRange = 1.5;
 
   // Minimum time a jump lasts even on a tap
-  player.minJumpTime = 0.25;
+  player.MinJumpTime = 0.25;
 };
 
 export default setDkAttributes;

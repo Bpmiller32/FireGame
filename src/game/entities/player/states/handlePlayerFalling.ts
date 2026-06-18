@@ -10,39 +10,39 @@ const handlePlayerFalling = (player: Player) => {
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
   // Transition to idle or running state
-  if (player.isTouching.ground) {
+  if (player.IsTouching.ground) {
     if (
-      (player.input.isNeitherLeftRight || player.input.isLeftRightCombo) &&
-      Math.abs(player.nextTranslation.x) < player.maxGroundSpeed * 0.01
+      (player.Input.isNeitherLeftRight || player.Input.isLeftRightCombo) &&
+      Math.abs(player.NextTranslation.x) < player.MaxGroundSpeed * 0.01
     ) {
-      player.state = PlayerStates.IDLE;
+      player.State = PlayerStates.IDLE;
     } else {
-      player.state = PlayerStates.RUNNING;
+      player.State = PlayerStates.RUNNING;
     }
 
     // Reset gating mechanism for counting buffer jumps
-    player.wasBufferJumpUsed = false;
+    player.WasBufferJumpUsed = false;
 
     // Reset gating mechanism for changing collider size
-    player.hasColliderUpdated = false;
+    player.HasColliderUpdated = false;
     return;
   }
 
   // Allow transition into jumping state when otherwise should be falling - coyote time
   if (
-    player.input.isJump &&
-    player.coyoteAvailable &&
-    player.time.elapsed < player.timeFallWasEntered + player.coyoteTime
+    player.Input.isJump &&
+    player.CoyoteAvailable &&
+    player.Time.Elapsed < player.TimeFallWasEntered + player.CoyoteTime
   ) {
     // Reset gating mechanism for changing collider size
-    player.hasColliderUpdated = false;
+    player.HasColliderUpdated = false;
 
-    player.coyoteCount += 1;
+    player.CoyoteCount += 1;
 
-    player.nextTranslation.y = 0;
-    player.coyoteAvailable = false;
-    player.timeJumpWasEntered = player.time.elapsed;
-    player.state = PlayerStates.JUMPING;
+    player.NextTranslation.y = 0;
+    player.CoyoteAvailable = false;
+    player.TimeJumpWasEntered = player.Time.Elapsed;
+    player.State = PlayerStates.JUMPING;
     return;
   }
 
@@ -50,7 +50,7 @@ const handlePlayerFalling = (player: Player) => {
   /*                            Handle Falling state                            */
   /* -------------------------------------------------------------------------- */
   // Check if ground is within buffer range
-  if (player.groundWithinBufferRange) {
+  if (player.GroundWithinBufferRange) {
     // // TODO: remove?
     // // Return collider to initial size, gate to only do this once instead of creating multiple colliders per tick in this state
     // if (!player.hasColliderUpdated) {
@@ -63,81 +63,81 @@ const handlePlayerFalling = (player: Player) => {
     // }
 
     // Give buffer jump
-    if (!player.input.isJump) {
-      player.bufferJumpAvailable = true;
+    if (!player.Input.isJump) {
+      player.BufferJumpAvailable = true;
     }
   }
 
   // Count buffer jumps
   if (
-    player.bufferJumpAvailable &&
-    player.input.isJump &&
-    !player.wasBufferJumpUsed
+    player.BufferJumpAvailable &&
+    player.Input.isJump &&
+    !player.WasBufferJumpUsed
   ) {
-    player.wasBufferJumpUsed = true;
-    player.bufferJumpCount++;
+    player.WasBufferJumpUsed = true;
+    player.BufferJumpCount++;
   }
 
   // Take coyote jump if too much time has passed falling
-  if (player.time.elapsed >= player.timeFallWasEntered + player.coyoteTime) {
-    player.coyoteAvailable = false;
+  if (player.Time.Elapsed >= player.TimeFallWasEntered + player.CoyoteTime) {
+    player.CoyoteAvailable = false;
   }
 
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
   // Left
-  if (player.input.isLeft) {
-    player.direction = PlayerDirection.LEFT;
-    player.spriteAnimator.changeState(SpriteAnimations.FALL_LEFT);
+  if (player.Input.isLeft) {
+    player.Direction = PlayerDirection.LEFT;
+    player.SpriteAnimator.ChangeState(SpriteAnimations.FALL_LEFT);
   }
   // Right
-  else if (player.input.isRight) {
-    player.direction = PlayerDirection.RIGHT;
-    player.spriteAnimator.changeState(SpriteAnimations.FALL_RIGHT);
+  else if (player.Input.isRight) {
+    player.Direction = PlayerDirection.RIGHT;
+    player.SpriteAnimator.ChangeState(SpriteAnimations.FALL_RIGHT);
   }
   // Both and neither
   else if (
-    player.input.isNeitherLeftRight ||
-    player.input.isLeftRightCombo
+    player.Input.isNeitherLeftRight ||
+    player.Input.isLeftRightCombo
   ) {
-    player.direction = PlayerDirection.NEUTRAL;
+    player.Direction = PlayerDirection.NEUTRAL;
 
     const isFacingLeft =
-      player.spriteAnimator.state === SpriteAnimations.IDLE_LEFT ||
-      player.spriteAnimator.state === SpriteAnimations.RUN_LEFT ||
-      player.spriteAnimator.state === SpriteAnimations.JUMP_LEFT;
+      player.SpriteAnimator.State === SpriteAnimations.IDLE_LEFT ||
+      player.SpriteAnimator.State === SpriteAnimations.RUN_LEFT ||
+      player.SpriteAnimator.State === SpriteAnimations.JUMP_LEFT;
 
     const isFacingRight =
-      player.spriteAnimator.state === SpriteAnimations.IDLE_RIGHT ||
-      player.spriteAnimator.state === SpriteAnimations.RUN_RIGHT ||
-      player.spriteAnimator.state === SpriteAnimations.JUMP_RIGHT;
+      player.SpriteAnimator.State === SpriteAnimations.IDLE_RIGHT ||
+      player.SpriteAnimator.State === SpriteAnimations.RUN_RIGHT ||
+      player.SpriteAnimator.State === SpriteAnimations.JUMP_RIGHT;
 
     if (isFacingLeft) {
-      player.spriteAnimator.changeState(SpriteAnimations.FALL_LEFT);
+      player.SpriteAnimator.ChangeState(SpriteAnimations.FALL_LEFT);
     }
 
     if (isFacingRight) {
-      player.spriteAnimator.changeState(SpriteAnimations.FALL_RIGHT);
+      player.SpriteAnimator.ChangeState(SpriteAnimations.FALL_RIGHT);
     }
   }
 
   /* -------------------------------------------------------------------------- */
   /*                           Gravity Logic (Y Axis)                           */
   /* -------------------------------------------------------------------------- */
-  let inAirGravity = player.fallAcceleration;
+  let inAirGravity = player.FallAcceleration;
 
   // Apply early jump gravity modifier if the jump ended early and player is moving up
-  if (player.endedJumpEarly && player.nextTranslation.y > 0) {
-    inAirGravity *= player.jumpEndedEarlyGravityModifier;
+  if (player.EndedJumpEarly && player.NextTranslation.y > 0) {
+    inAirGravity *= player.JumpEndedEarlyGravityModifier;
   }
 
   // Move player in the Y direction if coyote time is not available
-  if (!player.coyoteAvailable) {
-    player.nextTranslation.y = GameUtils.moveTowardsPoint(
-      player.nextTranslation.y,
-      -player.maxFallSpeed,
-      inAirGravity * player.time.delta
+  if (!player.CoyoteAvailable) {
+    player.NextTranslation.y = GameUtils.MoveTowardsPoint(
+      player.NextTranslation.y,
+      -player.MaxFallSpeed,
+      inAirGravity * player.Time.Delta
     );
   }
 

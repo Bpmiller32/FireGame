@@ -10,17 +10,17 @@ import { CollisionLogSink } from "../../engine/debug/Debug";
  * game — the engine Physics routes events here without naming this class.
  */
 export default class CollisionLogger implements CollisionLogSink {
-  public logCollisions = false;
-  public logSensors = false;
+  public LogCollisions = false;
+  public LogSensors = false;
 
   private experience?: Experience;
 
-  public logCollisionEvent(
+  public LogCollisionEvent(
     obj1: GameObject,
     obj2: GameObject,
     eventType: "enter" | "exit"
   ) {
-    if (!this.logCollisions) return;
+    if (!this.LogCollisions) return;
 
     const timestamp = this.getTimestamp();
     const color = eventType === "enter" ? "#00ff00" : "#ff6666";
@@ -37,12 +37,12 @@ export default class CollisionLogger implements CollisionLogSink {
     );
   }
 
-  public logSensorEvent(
+  public LogSensorEvent(
     obj1: GameObject,
     obj2: GameObject,
     eventType: "enter" | "exit"
   ) {
-    if (!this.logSensors) return;
+    if (!this.LogSensors) return;
 
     const timestamp = this.getTimestamp();
     const color = eventType === "enter" ? "#00ddff" : "#ff88ff";
@@ -62,11 +62,11 @@ export default class CollisionLogger implements CollisionLogSink {
   private getTimestamp(): string {
     if (!this.experience) {
       try {
-        this.experience = Experience.getInstance();
+        this.experience = Experience.GetInstance();
       } catch {
         return "0.00s";
       }
     }
-    return `${this.experience.time.elapsed.toFixed(2)}s`;
+    return `${this.experience.Time.Elapsed.toFixed(2)}s`;
   }
 }

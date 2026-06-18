@@ -60,41 +60,41 @@ export default class Enemy extends GameObject {
    * Collision callback - handles all enemy collisions with game objects
    * Uses the event-driven collision system for better performance
    */
-  public onCollisionEnter(other: GameObject): void {
-    const otherCollider = other.physicsBody?.collider(0);
+  public OnCollisionEnter(other: GameObject): void {
+    const otherCollider = other.PhysicsBody?.collider(0);
     if (!otherCollider) return;
 
     // Player collision - trigger game over
-    const userData = other.physicsBody?.userData as UserData;
+    const userData = other.PhysicsBody?.userData as UserData;
     if (userData && userData.name === EntityType.PLAYER) {
       Emitter.emit("gameOver");
       return;
     }
 
     // TrashCan collision - destroy enemy and light can on fire
-    if (GameUtils.isColliderName(otherCollider, EntityType.TRASH_CAN)) {
+    if (GameUtils.IsColliderName(otherCollider, EntityType.TRASH_CAN)) {
       Emitter.emit("gameObjectRemoved", this);
-      (other as TrashCan).isOnFire = true;
+      (other as TrashCan).IsOnFire = true;
       return;
     }
 
     // Wall collision - reverse direction
-    if (GameUtils.isColliderName(otherCollider, EntityType.WALL)) {
+    if (GameUtils.IsColliderName(otherCollider, EntityType.WALL)) {
       this.direction = this.direction * -1;
       return;
     }
 
     // OneWayPlatform collision - check if enemy is above platform
-    if (GameUtils.isColliderName(otherCollider, EntityType.ONE_WAY_PLATFORM)) {
-      if (this.physicsBody!.translation().y > otherCollider.translation().y) {
+    if (GameUtils.IsColliderName(otherCollider, EntityType.ONE_WAY_PLATFORM)) {
+      if (this.PhysicsBody!.translation().y > otherCollider.translation().y) {
         this.isCollidingWithPlatforms = true;
-        this.currentFloor = GameUtils.getDataFromCollider(otherCollider).value0;
+        this.currentFloor = GameUtils.GetDataFromCollider(otherCollider).value0;
       }
       return;
     }
 
     // Platform collision - set grounded state
-    if (GameUtils.isColliderName(otherCollider, EntityType.PLATFORM)) {
+    if (GameUtils.IsColliderName(otherCollider, EntityType.PLATFORM)) {
       this.isCollidingWithPlatforms = true;
       return;
     }
@@ -103,8 +103,8 @@ export default class Enemy extends GameObject {
   /**
    * Collision exit callback - handles when enemy stops colliding with objects
    */
-  public onCollisionExit(other: GameObject): void {
-    const otherCollider = other.physicsBody?.collider(0);
+  public OnCollisionExit(other: GameObject): void {
+    const otherCollider = other.PhysicsBody?.collider(0);
     if (!otherCollider) return;
 
     // Ignore sensors - they don't have physics
@@ -112,8 +112,8 @@ export default class Enemy extends GameObject {
 
     // Leaving a platform - update collision state and turn around
     if (
-      GameUtils.isColliderName(otherCollider, EntityType.ONE_WAY_PLATFORM) ||
-      GameUtils.isColliderName(otherCollider, EntityType.PLATFORM)
+      GameUtils.IsColliderName(otherCollider, EntityType.ONE_WAY_PLATFORM) ||
+      GameUtils.IsColliderName(otherCollider, EntityType.PLATFORM)
     ) {
       // Mark as not colliding with platforms
       this.isCollidingWithPlatforms = false;
@@ -126,7 +126,7 @@ export default class Enemy extends GameObject {
   }
 
   private initalizeAttributes() {
-    this.time = this.experience.time;
+    this.time = this.experience.Time;
     // this.resources = this.experience.resources;
 
     this.groundSpeed = 14;
@@ -147,30 +147,30 @@ export default class Enemy extends GameObject {
   private checkLadderIntersections() {
     // Decrease cooldown timer
     if (this.ladderBottomCooldown > 0) {
-      this.ladderBottomCooldown -= this.time.delta;
+      this.ladderBottomCooldown -= this.time.Delta;
     }
 
     // Reset intersecting with ladders
     this.isInsideLadder = false;
 
     // Check for all sensor intersections
-    this.physics.world.intersectionPairsWith(
-      this.physicsBody!.collider(0),
+    this.Physics.World.intersectionPairsWith(
+      this.PhysicsBody!.collider(0),
       (otherCollider) => {
         // Check for touching ladder core, also fully inside the ladder core
         if (
-          GameUtils.isColliderName(otherCollider, EntityType.LADDER_CORE_SENSOR) &&
-          GameUtils.getDataFromCollider(otherCollider).value0 !== 0 &&
-          GameUtils.isObjectFullyInsideSensor(otherCollider, this)
+          GameUtils.IsColliderName(otherCollider, EntityType.LADDER_CORE_SENSOR) &&
+          GameUtils.GetDataFromCollider(otherCollider).value0 !== 0 &&
+          GameUtils.IsObjectFullyInsideSensor(otherCollider, this)
         ) {
           this.ladderSensorValue =
-            GameUtils.getDataFromCollider(otherCollider).value0;
+            GameUtils.GetDataFromCollider(otherCollider).value0;
           this.isInsideLadder = true;
         }
 
         // Check for touching ladder bottom - reset to horizontal rolling
         // Only trigger if cooldown has expired to prevent oscillation
-        if (GameUtils.isColliderName(otherCollider, EntityType.LADDER_BOTTOM_SENSOR) && this.ladderBottomCooldown <= 0) {
+        if (GameUtils.IsColliderName(otherCollider, EntityType.LADDER_BOTTOM_SENSOR) && this.ladderBottomCooldown <= 0) {
           this.performSpecialRoll = false;
           this.isCollidingWithPlatforms = true;
           // Set cooldown to 1 second to prevent immediate re-triggering
@@ -188,9 +188,9 @@ export default class Enemy extends GameObject {
         let currentPercentChance = 1;
 
         // Set the difficulty modifier based on elapsed time
-        if (this.time.elapsed < 33) {
+        if (this.time.Elapsed < 33) {
           currentPercentChance = 0.25;
-        } else if (this.time.elapsed >= 33 && this.time.elapsed < 100) {
+        } else if (this.time.Elapsed >= 33 && this.time.Elapsed < 100) {
           currentPercentChance = 0.5;
         } else {
           currentPercentChance = 0.75;
@@ -198,19 +198,19 @@ export default class Enemy extends GameObject {
 
         // Roll dice for special roll based on difficulty probability
         this.performSpecialRoll =
-          GameUtils.calculatePercentChance(currentPercentChance);
+          GameUtils.CalculatePercentChance(currentPercentChance);
 
         // Override: if on the same floor as the player, never special roll
         if (
-          this.currentFloor == player.currentFloor &&
-          player.state != PlayerStates.CLIMBING
+          this.currentFloor == player.CurrentFloor &&
+          player.State != PlayerStates.CLIMBING
         ) {
           // this.performSpecialRoll = false;
-          this.performSpecialRoll = GameUtils.calculatePercentChance(0.1);
+          this.performSpecialRoll = GameUtils.CalculatePercentChance(0.1);
         }
 
         // Override: if the trashCan is not yet on fire (or absent), always special roll
-        if (!trashCan?.isOnFire) {
+        if (!trashCan?.IsOnFire) {
           this.performSpecialRoll = true;
         }
       }
@@ -246,19 +246,19 @@ export default class Enemy extends GameObject {
   private updateMovement() {
     // Set constant movement
     if (this.direction >= 0) {
-      this.physicsBody!.setLinvel({ x: this.groundSpeed, y: -9.8 }, true);
+      this.PhysicsBody!.setLinvel({ x: this.groundSpeed, y: -9.8 }, true);
     } else {
-      this.physicsBody!.setLinvel({ x: -this.groundSpeed, y: -9.8 }, true);
+      this.PhysicsBody!.setLinvel({ x: -this.groundSpeed, y: -9.8 }, true);
     }
 
     if (this.performSpecialRoll) {
-      this.physicsBody!.setLinvel({ x: 0, y: -this.groundSpeed * 0.65 }, true);
+      this.PhysicsBody!.setLinvel({ x: 0, y: -this.groundSpeed * 0.65 }, true);
     }
   }
 
-  public update(player: Player, trashCan: TrashCan | undefined) {
+  public Update(player: Player, trashCan?: TrashCan) {
     // Exit early if object is destroyed
-    if (this.isBeingDestroyed) {
+    if (this.IsBeingDestroyed) {
       return;
     }
 

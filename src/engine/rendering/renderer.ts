@@ -14,21 +14,21 @@ export default class Renderer {
   private scene: THREE.Scene;
   private camera: Camera;
 
-  public instance!: THREE.WebGLRenderer;
+  public Instance!: THREE.WebGLRenderer;
 
   constructor() {
-    this.experience = Experience.getInstance();
-    this.canvas = this.experience.targetElement as HTMLElement;
-    this.sizes = this.experience.sizes;
-    this.scene = this.experience.scene;
-    this.camera = this.experience.camera;
+    this.experience = Experience.GetInstance();
+    this.canvas = this.experience.TargetElement as HTMLElement;
+    this.sizes = this.experience.Sizes;
+    this.scene = this.experience.Scene;
+    this.camera = this.experience.Camera;
 
     this.setInstance();
-    this.resize();
+    this.Resize();
   }
 
   private setInstance() {
-    this.instance = new THREE.WebGLRenderer({
+    this.Instance = new THREE.WebGLRenderer({
       canvas: this.canvas,
       // CRITICAL: Antialiasing MUST be disabled for pixel art!
       // Antialiasing smooths edges which makes pixel art look blurry, especially during motion.
@@ -36,22 +36,22 @@ export default class Renderer {
       antialias: false,
     });
 
-    this.instance.setClearColor("#211d20");
-    this.instance.setSize(this.sizes.width, this.sizes.height);
-    this.instance.setPixelRatio(this.sizes.pixelRatio);
+    this.Instance.setClearColor("#211d20");
+    this.Instance.setSize(this.sizes.Width, this.sizes.Height);
+    this.Instance.setPixelRatio(this.sizes.PixelRatio);
   }
 
-  public resize() {
-    this.instance?.setSize(this.sizes.width, this.sizes.height);
-    this.instance?.setPixelRatio(this.sizes.pixelRatio);
+  public Resize() {
+    this.Instance?.setSize(this.sizes.Width, this.sizes.Height);
+    this.Instance?.setPixelRatio(this.sizes.PixelRatio);
   }
 
-  public update() {
-    this.instance?.render(this.scene, this.camera.instance);
+  public Update() {
+    this.Instance?.render(this.scene, this.camera.Instance);
   }
 
-  public destroy() {
+  public Destroy() {
     // Dispose of the WebGL renderer
-    this.instance.dispose();
+    this.Instance.dispose();
   }
 }

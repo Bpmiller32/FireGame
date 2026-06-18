@@ -14,7 +14,7 @@ import EntityType from "../types/entityType";
  * The camera automatically adjusts when the player enters the zone!
  */
 export default class CameraSensor extends GameSensor {
-  public positionData: THREE.Vector3;
+  public PositionData: THREE.Vector3;
   private camera: Camera;
 
   constructor(
@@ -25,7 +25,7 @@ export default class CameraSensor extends GameSensor {
   ) {
     super();
 
-    this.positionData = new THREE.Vector3(0, 0, 0);
+    this.PositionData = new THREE.Vector3(0, 0, 0);
     this.camera = camera;
 
     this.createObjectPhysics(
@@ -46,25 +46,25 @@ export default class CameraSensor extends GameSensor {
   /**
    * Set the camera position that should be used when player enters
    */
-  public setCameraPositionData(newPositionData: THREE.Vector3) {
-    this.positionData = newPositionData;
+  public SetCameraPositionData(newPositionData: THREE.Vector3) {
+    this.PositionData = newPositionData;
   }
 
   /**
    * SENSOR CALLBACK - Called when something enters this camera sensor
    * Automatically adjusts camera position when player enters
    */
-  public onSensorEnter(other: GameObject): void {
+  public OnSensorEnter(other: GameObject): void {
     if (other instanceof Player) {
       console.log("📷 Player entered camera zone - adjusting camera");
-      this.camera.changePositionY(this.positionData.y);
+      this.camera.ChangePositionY(this.PositionData.y);
     }
   }
 
   /**
    * SENSOR CALLBACK - Called when something exits this camera sensor
    */
-  public onSensorExit(other: GameObject): void {
+  public OnSensorExit(other: GameObject): void {
     if (other instanceof Player) {
       console.log("📷 Player exited camera zone");
     }

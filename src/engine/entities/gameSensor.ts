@@ -36,14 +36,14 @@ export default class GameSensor extends GameObject {
    * @param value - true to make this a sensor, false to make it solid
    */
   protected setAsSensor(value: boolean) {
-    if (!this.physicsBody) {
+    if (!this.PhysicsBody) {
       return;
     }
     
-    this.physicsBody.collider(0).setSensor(value);
+    this.PhysicsBody.collider(0).setSensor(value);
     
     // Set active collision types so the sensor can detect kinematic and fixed objects
-    this.physicsBody
+    this.PhysicsBody
       .collider(0)
       .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED);
   }
@@ -55,12 +55,12 @@ export default class GameSensor extends GameObject {
    * @param other - The GameObject to check
    * @returns true if the GameObject is completely inside this sensor
    */
-  public isFullyInside(other: GameObject): boolean {
-    const sensorMinX = this.currentTranslation.x - this.currentSize.x / 2;
-    const sensorMaxX = this.currentTranslation.x + this.currentSize.x / 2;
+  public IsFullyInside(other: GameObject): boolean {
+    const sensorMinX = this.CurrentTranslation.x - this.CurrentSize.x / 2;
+    const sensorMaxX = this.CurrentTranslation.x + this.CurrentSize.x / 2;
 
-    const objectMinX = other.currentTranslation.x - other.currentSize.x / 2;
-    const objectMaxX = other.currentTranslation.x + other.currentSize.x / 2;
+    const objectMinX = other.CurrentTranslation.x - other.CurrentSize.x / 2;
+    const objectMaxX = other.CurrentTranslation.x + other.CurrentSize.x / 2;
 
     return objectMinX > sensorMinX && objectMaxX < sensorMaxX;
   }

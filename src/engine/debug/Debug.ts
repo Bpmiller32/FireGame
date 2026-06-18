@@ -19,9 +19,9 @@ type Physics = any;
  * - destroy(): optional teardown (remove listeners, etc.)
  */
 export interface DebugModule {
-  init?(ui: dat.GUI): void;
+  Init?(ui: dat.GUI): void;
   update?(): void;
-  destroy?(): void;
+  Destroy?(): void;
 }
 
 /**
@@ -30,10 +30,10 @@ export interface DebugModule {
  * registered (or no-ops if none). Keeps the engine free of game log formatting.
  */
 export interface CollisionLogSink {
-  logCollisions: boolean;
-  logSensors: boolean;
-  logCollisionEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit"): void;
-  logSensorEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit"): void;
+  LogCollisions: boolean;
+  LogSensors: boolean;
+  LogCollisionEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit"): void;
+  LogSensorEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit"): void;
 }
 
 /**
@@ -45,31 +45,31 @@ export interface CollisionLogSink {
  * coordinator never imports them, so the engine names zero game concepts.
  */
 export default class Debug {
-  public isActive: boolean;
-  public ui?: dat.GUI;
-  public stats?: Stats;
+  public IsActive: boolean;
+  public Ui?: dat.GUI;
+  public Stats?: Stats;
 
   // Expose logger flags directly — Physics reads these to decide whether to log.
   // Delegates to the game-registered sink (false if none registered).
-  public get logCollisions() { return this._logSink?.logCollisions ?? false; }
-  public set logCollisions(v: boolean) { if (this._logSink) this._logSink.logCollisions = v; }
-  public get logSensors() { return this._logSink?.logSensors ?? false; }
-  public set logSensors(v: boolean) { if (this._logSink) this._logSink.logSensors = v; }
+  public get LogCollisions() { return this.logSink?.LogCollisions ?? false; }
+  public set LogCollisions(v: boolean) { if (this.logSink) this.logSink.LogCollisions = v; }
+  public get LogSensors() { return this.logSink?.LogSensors ?? false; }
+  public set LogSensors(v: boolean) { if (this.logSink) this.logSink.LogSensors = v; }
 
-  private _camera = new CameraDebug();
-  private _physics = new PhysicsDebug();
+  private camera = new CameraDebug();
+  private physics = new PhysicsDebug();
 
   // Game-registered modules and an optional game-registered collision log sink.
-  private _modules: DebugModule[] = [];
-  private _logSink?: CollisionLogSink;
+  private modules: DebugModule[] = [];
+  private logSink?: CollisionLogSink;
 
   constructor() {
     // Enable debug mode with #debug in URL, or always on in dev builds
-    this.isActive = import.meta.env.DEV || window.location.hash === "#debug";
+    this.IsActive = import.meta.env.DEV || window.location.hash === "#debug";
 
-    if (this.isActive) {
-      this._initPanel();
-      this._initStats();
+    if (this.IsActive) {
+      this.initPanel();
+      this.initStats();
     }
   }
 
@@ -79,10 +79,10 @@ export default class Debug {
    * Register a game-provided debug module. If the panel is already active its
    * init() runs immediately; otherwise registration is a no-op-ish store.
    */
-  public registerModule(module: DebugModule) {
-    this._modules.push(module);
-    if (this.isActive && this.ui && module.init) {
-      module.init(this.ui);
+  public RegisterModule(module: DebugModule) {
+    this.modules.push(module);
+    if (this.IsActive && this.Ui && module.Init) {
+      module.Init(this.Ui);
     }
   }
 
@@ -90,73 +90,73 @@ export default class Debug {
    * Register the game-provided collision/sensor log sink. Engine Physics routes
    * its log calls here; with no sink registered, logging is a no-op.
    */
-  public registerCollisionLogSink(sink: CollisionLogSink) {
-    this._logSink = sink;
+  public RegisterCollisionLogSink(sink: CollisionLogSink) {
+    this.logSink = sink;
   }
 
   // ── Camera ────────────────────────────────────────────────────────────────
 
-  public initCameraDebug(camera: Camera) {
-    this._camera.init(this.ui!, camera);
+  public InitCameraDebug(camera: Camera) {
+    this.camera.Init(this.Ui!, camera);
   }
 
-  public updateCameraDebug(camera: Camera) {
-    this._camera.update(camera);
+  public UpdateCameraDebug(camera: Camera) {
+    this.camera.Update(camera);
   }
 
   // ── Physics ───────────────────────────────────────────────────────────────
 
-  public initPhysicsDebug(physics: Physics) {
-    this._physics.init(this.ui!, physics);
+  public InitPhysicsDebug(physics: Physics) {
+    this.physics.Init(this.Ui!, physics);
   }
 
-  public updatePhysicsDebug(physics: Physics) {
-    this._physics.update(physics);
+  public UpdatePhysicsDebug(physics: Physics) {
+    this.physics.Update(physics);
   }
 
-  public destroyPhysicsDebug() {
-    this._physics.destroy();
+  public DestroyPhysicsDebug() {
+    this.physics.Destroy();
   }
 
   // ── Logging ───────────────────────────────────────────────────────────────
 
-  public logCollisionEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit") {
-    this._logSink?.logCollisionEvent(obj1, obj2, eventType);
+  public LogCollisionEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit") {
+    this.logSink?.LogCollisionEvent(obj1, obj2, eventType);
   }
 
-  public logSensorEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit") {
-    this._logSink?.logSensorEvent(obj1, obj2, eventType);
+  public LogSensorEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit") {
+    this.logSink?.LogSensorEvent(obj1, obj2, eventType);
   }
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
-  public destroy() {
-    this.ui?.destroy();
-    this.stats?.dom.parentNode?.removeChild(this.stats.dom);
-    for (const module of this._modules) {
-      module.destroy?.();
+  public Destroy() {
+    this.Ui?.destroy();
+    this.Stats?.dom.parentNode?.removeChild(this.Stats.dom);
+    for (const module of this.modules) {
+      module.Destroy?.();
     }
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
 
-  private _initPanel() {
-    this.ui = new dat.GUI({ width: 300, hideable: false });
+  private initPanel() {
+    this.Ui = new dat.GUI({ width: 300, hideable: false });
   }
 
-  private _initStats() {
-    this.stats = new Stats();
-    this.stats.dom.style.cssText =
+  private initStats() {
+    this.Stats = new Stats();
+    this.Stats.dom.style.cssText =
       "position:fixed;top:0;right:315px;cursor:pointer;opacity:0.9;z-index:10000";
 
-    const panels = this.stats.dom.children;
+    const panels = this.Stats.dom.children;
     for (let i = 0; i < panels.length; i++) {
       const panel = panels[i] as HTMLElement;
       panel.style.display = "block";
       panel.style.position = "relative";
     }
 
-    document.body.appendChild(this.stats.dom);
+    document.body.appendChild(this.Stats.dom);
 
     const hasMemory = !!(performance as any).memory;
     console.log("📊 Stats Monitor Active — FPS / MS" + (hasMemory ? " / MB" : " (no memory panel — Chrome flag required)"));

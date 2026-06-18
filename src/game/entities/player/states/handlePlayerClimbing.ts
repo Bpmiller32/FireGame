@@ -9,47 +9,47 @@ const handlePlayerClimbing = (player: Player) => {
   /* -------------------------------------------------------------------------- */
   // Helper variables for touching ladder top and bottom
   const atLadderBottom =
-    player.isTouching.ladderBottom &&
-    (player.input.isDown ||
-      player.input.isNeitherUpDown ||
-      player.input.isUpDownCombo);
+    player.IsTouching.ladderBottom &&
+    (player.Input.isDown ||
+      player.Input.isNeitherUpDown ||
+      player.Input.isUpDownCombo);
 
   const atLadderTop =
-    player.isTouching.ladderTop &&
-    (player.input.isUp ||
-      player.input.isNeitherUpDown ||
-      player.input.isUpDownCombo);
+    player.IsTouching.ladderTop &&
+    (player.Input.isUp ||
+      player.Input.isNeitherUpDown ||
+      player.Input.isUpDownCombo);
 
   // Transition to idle state
-  if (!player.isTouching.ladderCore || atLadderBottom || atLadderTop) {
+  if (!player.IsTouching.ladderCore || atLadderBottom || atLadderTop) {
     if (atLadderTop) {
-      player.nextTranslation.y = player.maxClimbSpeed;
+      player.NextTranslation.y = player.MaxClimbSpeed;
     } else {
-      player.nextTranslation.y = -player.maxClimbSpeed;
+      player.NextTranslation.y = -player.MaxClimbSpeed;
     }
 
-    player.isTouching.ground = true;
-    player.state = PlayerStates.IDLE;
+    player.IsTouching.ground = true;
+    player.State = PlayerStates.IDLE;
     return;
   }
 
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
-  if (player.input.isUp) {
-    player.direction = PlayerDirection.UP;
-  } else if (player.input.isDown) {
-    player.direction = PlayerDirection.DOWN;
+  if (player.Input.isUp) {
+    player.Direction = PlayerDirection.UP;
+  } else if (player.Input.isDown) {
+    player.Direction = PlayerDirection.DOWN;
   } else {
-    player.direction = PlayerDirection.NEUTRAL;
+    player.Direction = PlayerDirection.NEUTRAL;
   }
 
   // Controls accelerating or decellerating the sprite animation transitions
   // Denominator determines the scaling factor relative to player speed, faster/slower move horizontally - faster/slower animation updates
   // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
-  if (Math.abs(player.nextTranslation.x) > 0) {
-    player.spriteAnimator.changeAnimationTiming(
-      1 / (Math.abs(player.nextTranslation.x) / player.animationScalingFactor)
+  if (Math.abs(player.NextTranslation.x) > 0) {
+    player.SpriteAnimator.ChangeAnimationTiming(
+      1 / (Math.abs(player.NextTranslation.x) / player.AnimationScalingFactor)
     );
   }
 
@@ -60,24 +60,24 @@ const handlePlayerClimbing = (player: Player) => {
   let acceleration = 0;
 
   // Accellerate climbing up
-  if (player.direction === PlayerDirection.UP) {
-    targetSpeed = player.direction * player.maxClimbSpeed;
-    acceleration = player.climbAcceleration * player.time.delta;
+  if (player.Direction === PlayerDirection.UP) {
+    targetSpeed = player.Direction * player.MaxClimbSpeed;
+    acceleration = player.ClimbAcceleration * player.Time.Delta;
   }
   // Accellerate climbing down
-  else if (player.direction === PlayerDirection.DOWN) {
-    targetSpeed = player.direction * player.maxClimbSpeed;
-    acceleration = player.climbAcceleration * player.time.delta;
+  else if (player.Direction === PlayerDirection.DOWN) {
+    targetSpeed = player.Direction * player.MaxClimbSpeed;
+    acceleration = player.ClimbAcceleration * player.Time.Delta;
   }
   // Decellerate
   else {
     targetSpeed = 0;
-    acceleration = player.climbDeceleration * player.time.delta;
+    acceleration = player.ClimbDeceleration * player.Time.Delta;
   }
 
   // Set desired velocity
-  player.nextTranslation.y = GameUtils.moveTowardsPoint(
-    player.nextTranslation.y,
+  player.NextTranslation.y = GameUtils.MoveTowardsPoint(
+    player.NextTranslation.y,
     targetSpeed,
     acceleration
   );

@@ -31,14 +31,14 @@ export default class Teleporter extends GameSensor {
     this.positionData = new RAPIER.Vector2(0, 0);
 
     this.setAsSensor(true);
-    this.setTeleportPosition(0, 0);
+    this.SetTeleportPosition(0, 0);
 
     this.createObjectGraphicsDebug("teal", 0.1);
   }
 
-  public setTeleportPosition(x: number, y: number) {
-    this.setObjectValue0(x);
-    this.setObjectValue1(y);
+  public SetTeleportPosition(x: number, y: number) {
+    this.SetObjectValue0(x);
+    this.SetObjectValue1(y);
 
     this.positionData = new RAPIER.Vector2(x, y);
   }
@@ -47,10 +47,10 @@ export default class Teleporter extends GameSensor {
    * SENSOR CALLBACK - Called when something enters the teleporter
    * Automatically teleports the object to the destination
    */
-  public onSensorEnter(other: GameObject): void {
+  public OnSensorEnter(other: GameObject): void {
     if (other instanceof Player) {
       console.log("🌀 Player entered teleporter - teleporting!");
-      other.teleportToPosition(this.positionData.x, this.positionData.y);
+      other.TeleportToPosition(this.positionData.x, this.positionData.y);
     }
   }
 }

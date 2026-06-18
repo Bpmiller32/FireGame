@@ -53,13 +53,13 @@ export default class ResourceLoader {
   private sources: Resource[];
   private gltfLoader: GLTFLoader;
   private textureLoader: THREE.TextureLoader;
-  public items: { [key: string]: THREE.Object3D | THREE.Texture };
+  public Items: { [key: string]: THREE.Object3D | THREE.Texture };
   private toLoad: number;
   private loaded: number;
 
   constructor(sources: Resource[]) {
     this.sources = sources;
-    this.items = {};
+    this.Items = {};
     this.toLoad = sources.length;
     this.loaded = 0;
 
@@ -106,7 +106,7 @@ export default class ResourceLoader {
   private loadResource(source: Resource, path: string) {
     // Callback when resource successfully loads
     const onLoad = (file: THREE.Object3D | THREE.Texture) => {
-      this.items[source.name] = file;
+      this.Items[source.name] = file;
       this.loaded++;
 
       // Check if all resources are loaded
@@ -188,7 +188,7 @@ export default class ResourceLoader {
    * import MyLevelUrl from "../levels/MyLevel.glb?url";
    * const level = await resourceLoader.parseLevel(MyLevelUrl);
    */
-  public async parseLevel(glbPath: string): Promise<LevelData> {
+  public async ParseLevel(glbPath: string): Promise<LevelData> {
     // Load the GLB file
     const gltf = await this.loadGLB(glbPath);
     
@@ -503,13 +503,13 @@ export default class ResourceLoader {
    * Clean up all loaded resources and free memory
    * Call this when destroying the game or switching to a new level
    */
-  public destroy() {
+  public Destroy() {
     // Remove event listeners
     Emitter.off("resourcesReady");
 
     // Loop through all loaded items and dispose of them properly
-    for (const key in this.items) {
-      const item = this.items[key];
+    for (const key in this.Items) {
+      const item = this.Items[key];
 
       if (item instanceof THREE.Texture) {
         // Free GPU texture memory

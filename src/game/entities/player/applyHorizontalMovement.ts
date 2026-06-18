@@ -14,27 +14,27 @@ const applyHorizontalMovement = (player: Player): boolean => {
   let acceleration = 0;
 
   // Decelerate when neutral, otherwise accelerate toward the directional target
-  if (player.direction === PlayerDirection.NEUTRAL) {
+  if (player.Direction === PlayerDirection.NEUTRAL) {
     targetSpeed = 0;
-    acceleration = player.groundDeceleration;
+    acceleration = player.GroundDeceleration;
   } else {
-    targetSpeed = player.direction * player.maxGroundSpeed;
-    acceleration = player.groundAcceleration;
+    targetSpeed = player.Direction * player.MaxGroundSpeed;
+    acceleration = player.GroundAcceleration;
   }
 
   // Set desired velocity
-  player.nextTranslation.x = GameUtils.moveTowardsPoint(
-    player.nextTranslation.x,
+  player.NextTranslation.x = GameUtils.MoveTowardsPoint(
+    player.NextTranslation.x,
     targetSpeed,
-    acceleration * player.time.delta
+    acceleration * player.Time.Delta
   );
 
   // Stop movement on wall collision
   const hitWall =
-    (player.isTouching.leftSide && player.direction === PlayerDirection.LEFT) ||
-    (player.isTouching.rightSide && player.direction === PlayerDirection.RIGHT);
+    (player.IsTouching.leftSide && player.Direction === PlayerDirection.LEFT) ||
+    (player.IsTouching.rightSide && player.Direction === PlayerDirection.RIGHT);
   if (hitWall) {
-    player.nextTranslation.x = 0;
+    player.NextTranslation.x = 0;
   }
 
   return hitWall;

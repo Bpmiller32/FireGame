@@ -46,22 +46,22 @@ export default class GameUtils {
   /**
    * @deprecated Use `moveTowards` from helpers/mathHelpers instead
    */
-  public static moveTowardsPoint = MathHelpers.moveTowards;
+  public static MoveTowardsPoint = MathHelpers.moveTowards;
 
   /**
    * @deprecated Use `radiansToDegrees` from helpers/mathHelpers instead
    */
-  public static radiansToDegrees = MathHelpers.radiansToDegrees;
+  public static RadiansToDegrees = MathHelpers.radiansToDegrees;
 
   /**
    * @deprecated Use `percentChance` from helpers/mathHelpers instead
    */
-  public static calculatePercentChance = MathHelpers.percentChance;
+  public static CalculatePercentChance = MathHelpers.percentChance;
 
   /**
    * @deprecated Use `randomRange` from helpers/mathHelpers instead
    */
-  public static getRandomNumber = MathHelpers.randomRange;
+  public static GetRandomNumber = MathHelpers.randomRange;
 
   /* -------------------------------------------------------------------------- */
   /*                         PHYSICS HELPERS DELEGATION                         */
@@ -70,22 +70,22 @@ export default class GameUtils {
   /**
    * @deprecated Use `getUserData` from helpers/physicsHelpers instead
    */
-  public static getDataFromPhysicsBody = PhysicsHelpers.getUserData;
+  public static GetDataFromPhysicsBody = PhysicsHelpers.getUserData;
 
   /**
    * @deprecated Use `getUserDataFromCollider` from helpers/physicsHelpers instead
    */
-  public static getDataFromCollider = PhysicsHelpers.getUserDataFromCollider;
+  public static GetDataFromCollider = PhysicsHelpers.getUserDataFromCollider;
 
   /**
    * @deprecated Use `isColliderName` from helpers/physicsHelpers instead
    */
-  public static isColliderName = PhysicsHelpers.isColliderName;
+  public static IsColliderName = PhysicsHelpers.isColliderName;
 
   /**
    * @deprecated Use `isOneWayPlatformActive` from helpers/physicsHelpers instead
    */
-  public static isOneWayPlatformAndActive = PhysicsHelpers.isOneWayPlatformActive;
+  public static IsOneWayPlatformAndActive = PhysicsHelpers.isOneWayPlatformActive;
 
   /* -------------------------------------------------------------------------- */
   /*                         GAME-SPECIFIC FUNCTIONS                            */
@@ -97,10 +97,10 @@ export default class GameUtils {
    * @param existingArray - Array of GameObjects to filter
    * @returns New array containing only active objects
    */
-  public static removeDestroyedObjects<T extends GameObject>(
+  public static RemoveDestroyedObjects<T extends GameObject>(
     existingArray: T[]
   ): T[] {
-    return existingArray.filter((object) => !object.isBeingDestroyed);
+    return existingArray.filter((object) => !object.IsBeingDestroyed);
   }
 
   /**
@@ -110,14 +110,14 @@ export default class GameUtils {
    * @param gameObject - The GameObject to check
    * @returns true if GameObject is fully inside
    */
-  public static isObjectFullyInsideSensor<
+  public static IsObjectFullyInsideSensor<
     T extends RAPIER.Collider,
     U extends GameObject
   >(collider: T, gameObject: U): boolean {
     const objectMinX =
-      gameObject.currentTranslation.x - gameObject.currentSize.x / 2;
+      gameObject.CurrentTranslation.x - gameObject.CurrentSize.x / 2;
     const objectMaxX =
-      gameObject.currentTranslation.x + gameObject.currentSize.x / 2;
+      gameObject.CurrentTranslation.x + gameObject.CurrentSize.x / 2;
 
     const colliderMinX =
       collider.translation().x -
@@ -134,17 +134,17 @@ export default class GameUtils {
    * 
    * @deprecated Will be removed once Player uses callbacks
    */
-  public static isAnySensorTriggered<T extends GameSensor>(
+  public static IsAnySensorTriggered<T extends GameSensor>(
     gameSensors: T[]
   ): boolean {
     for (const sensor of gameSensors) {
-      if (!sensor.physicsBody?.collider(0) || !sensor.physics?.world) {
+      if (!sensor.PhysicsBody?.collider(0) || !sensor.Physics?.World) {
         continue;
       }
 
       let isIntersecting = false;
-      sensor.physics.world.intersectionPairsWith(
-        sensor.physicsBody.collider(0),
+      sensor.Physics.World.intersectionPairsWith(
+        sensor.PhysicsBody.collider(0),
         () => {
           isIntersecting = true;
         }
@@ -163,24 +163,24 @@ export default class GameUtils {
    * 
    * @deprecated Will be removed once Player uses callbacks
    */
-  public static isAnySensorTriggeredObjectFullyInside<
+  public static IsAnySensorTriggeredObjectFullyInside<
     T extends GameObject,
     U extends GameSensor
   >(gameSensors: U[], gameObject: T): boolean {
     for (const sensor of gameSensors) {
-      if (!sensor.physicsBody?.collider(0) || !sensor.physics?.world) {
+      if (!sensor.PhysicsBody?.collider(0) || !sensor.Physics?.World) {
         continue;
       }
 
       let isIntersecting = false;
-      sensor.physics.world.intersectionPairsWith(
-        sensor.physicsBody.collider(0),
+      sensor.Physics.World.intersectionPairsWith(
+        sensor.PhysicsBody.collider(0),
         () => {
           isIntersecting = true;
         }
       );
 
-      if (isIntersecting && sensor.isFullyInside(gameObject)) {
+      if (isIntersecting && sensor.IsFullyInside(gameObject)) {
         return true;
       }
     }

@@ -50,15 +50,15 @@ export default class LadderSensor extends GameSensor {
    * Set the ladder direction value
    * Positive = right, Negative = left, 0 = neutral
    */
-  public setLadderValue(value: number) {
-    this.setObjectValue0(value);
+  public SetLadderValue(value: number) {
+    this.SetObjectValue0(value);
   }
 
   /**
    * SENSOR CALLBACK - Called when something enters this ladder sensor
    * This is automatically triggered by the physics system
    */
-  public onSensorEnter(other: GameObject): void {
+  public OnSensorEnter(other: GameObject): void {
     if (other instanceof Player) {
       // TODO: Notify player they're touching a ladder
       // This will be handled when we refactor Player to use callbacks
@@ -69,7 +69,7 @@ export default class LadderSensor extends GameSensor {
   /**
    * SENSOR CALLBACK - Called when something exits this ladder sensor
    */
-  public onSensorExit(other: GameObject): void {
+  public OnSensorExit(other: GameObject): void {
     if (other instanceof Player) {
       // console.log("🪜 Player exited ladder zone");
     }

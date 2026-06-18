@@ -10,33 +10,33 @@ const handlePlayerJumping = (player: Player) => {
   /*                                Change state                                */
   /* -------------------------------------------------------------------------- */
   // Hitting a ceiling
-  if (player.isTouching.ceiling && player.nextTranslation.y >= 0) {
-    player.nextTranslation.y = 0;
-    player.timeFallWasEntered = player.time.elapsed;
-    player.state = PlayerStates.FALLING;
+  if (player.IsTouching.ceiling && player.NextTranslation.y >= 0) {
+    player.NextTranslation.y = 0;
+    player.TimeFallWasEntered = player.Time.Elapsed;
+    player.State = PlayerStates.FALLING;
     return;
   }
 
   // Max jump time exceeded
-  if (player.time.elapsed >= player.timeJumpWasEntered + player.maxJumpTime) {
-    player.endedJumpEarly = false;
+  if (player.Time.Elapsed >= player.TimeJumpWasEntered + player.MaxJumpTime) {
+    player.EndedJumpEarly = false;
 
-    player.nextTranslation.y = 0;
-    player.timeFallWasEntered = player.time.elapsed;
-    player.state = PlayerStates.FALLING;
+    player.NextTranslation.y = 0;
+    player.TimeFallWasEntered = player.Time.Elapsed;
+    player.State = PlayerStates.FALLING;
     return;
   }
 
   // Min jump time exceeded and not holding jump
   if (
-    !player.input.isJump &&
-    player.time.elapsed > player.timeJumpWasEntered + player.minJumpTime
+    !player.Input.isJump &&
+    player.Time.Elapsed > player.TimeJumpWasEntered + player.MinJumpTime
   ) {
-    player.endedJumpEarly = true;
+    player.EndedJumpEarly = true;
 
-    player.nextTranslation.y = 0;
-    player.timeFallWasEntered = player.time.elapsed;
-    player.state = PlayerStates.FALLING;
+    player.NextTranslation.y = 0;
+    player.TimeFallWasEntered = player.Time.Elapsed;
+    player.State = PlayerStates.FALLING;
     return;
   }
 
@@ -44,42 +44,42 @@ const handlePlayerJumping = (player: Player) => {
   /*                            Handle Jumping state                            */
   /* -------------------------------------------------------------------------- */
   // Disable coyote and buffer jump availability
-  player.coyoteAvailable = false;
-  player.bufferJumpAvailable = false;
+  player.CoyoteAvailable = false;
+  player.BufferJumpAvailable = false;
 
   /* -------------------------------------------------------------------------- */
   /*                             Input and animation                            */
   /* -------------------------------------------------------------------------- */
   // Left
-  if (player.input.isLeft) {
-    player.direction = PlayerDirection.LEFT;
-    player.spriteAnimator.changeState(SpriteAnimations.JUMP_LEFT);
+  if (player.Input.isLeft) {
+    player.Direction = PlayerDirection.LEFT;
+    player.SpriteAnimator.ChangeState(SpriteAnimations.JUMP_LEFT);
   }
   // Right
-  else if (player.input.isRight) {
-    player.direction = PlayerDirection.RIGHT;
-    player.spriteAnimator.changeState(SpriteAnimations.JUMP_RIGHT);
+  else if (player.Input.isRight) {
+    player.Direction = PlayerDirection.RIGHT;
+    player.SpriteAnimator.ChangeState(SpriteAnimations.JUMP_RIGHT);
   }
   // Both and neither
   else if (
-    player.input.isNeitherLeftRight ||
-    player.input.isLeftRightCombo
+    player.Input.isNeitherLeftRight ||
+    player.Input.isLeftRightCombo
   ) {
-    player.direction = PlayerDirection.NEUTRAL;
+    player.Direction = PlayerDirection.NEUTRAL;
 
-    const currentState = player.spriteAnimator.state;
+    const currentState = player.SpriteAnimator.State;
 
     if (
       currentState === SpriteAnimations.IDLE_LEFT ||
       currentState === SpriteAnimations.RUN_LEFT
     ) {
-      player.spriteAnimator.changeState(SpriteAnimations.JUMP_LEFT);
+      player.SpriteAnimator.ChangeState(SpriteAnimations.JUMP_LEFT);
     }
     if (
       currentState === SpriteAnimations.IDLE_RIGHT ||
       currentState === SpriteAnimations.RUN_RIGHT
     ) {
-      player.spriteAnimator.changeState(SpriteAnimations.JUMP_RIGHT);
+      player.SpriteAnimator.ChangeState(SpriteAnimations.JUMP_RIGHT);
     }
   }
 
@@ -87,10 +87,10 @@ const handlePlayerJumping = (player: Player) => {
   /*                             Jump Logic (Y Axis)                            */
   /* -------------------------------------------------------------------------- */
   // Apply jump physics
-  player.nextTranslation.y = GameUtils.moveTowardsPoint(
-    player.nextTranslation.y,
-    player.jumpPower,
-    player.jumpAcceleration * player.time.delta
+  player.NextTranslation.y = GameUtils.MoveTowardsPoint(
+    player.NextTranslation.y,
+    player.JumpPower,
+    player.JumpAcceleration * player.Time.Delta
   );
 
   /* -------------------------------------------------------------------------- */

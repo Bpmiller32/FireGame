@@ -18,30 +18,30 @@ export default class Experience {
   private static instance: Experience;
   private constructor() {}
 
-  public debug!: Debug;
-  public sizes!: Sizes;
-  public time!: Time;
-  public input!: Input;
-  public resources!: ResourceLoader;
+  public Debug!: Debug;
+  public Sizes!: Sizes;
+  public Time!: Time;
+  public Input!: Input;
+  public Resources!: ResourceLoader;
 
-  public targetElement!: HTMLCanvasElement | null;
+  public TargetElement!: HTMLCanvasElement | null;
 
-  public scene!: THREE.Scene;
-  public camera!: Camera;
-  public renderer!: Renderer;
-  public physics!: Physics;
+  public Scene!: THREE.Scene;
+  public Camera!: Camera;
+  public Renderer!: Renderer;
+  public Physics!: Physics;
 
   // Late-bound game update hook. The game layer assigns this; the engine just
   // calls it each frame between physics and renderer. Keeps the engine core
   // from naming any game class.
-  public onGameUpdate: (() => void) | null = null;
+  public OnGameUpdate: (() => void) | null = null;
 
   // Stored event handler references for cleanup
-  private _onResize!: () => void;
-  private _onTick!: () => void;
+  private onResize!: () => void;
+  private onTick!: () => void;
 
   // Singleton check/constructor
-  public static getInstance(): Experience {
+  public static GetInstance(): Experience {
     if (!Experience.instance) {
       Experience.instance = new Experience();
     }
@@ -49,12 +49,12 @@ export default class Experience {
   }
 
   // Replacement public constructor
-  public async configure(canvas: HTMLCanvasElement | null) {
-    this.debug = new Debug();
-    this.sizes = new Sizes();
-    this.time = new Time();
-    this.input = new Input();
-    this.resources = new ResourceLoader([
+  public async Configure(canvas: HTMLCanvasElement | null) {
+    this.Debug = new Debug();
+    this.Sizes = new Sizes();
+    this.Time = new Time();
+    this.Input = new Input();
+    this.Resources = new ResourceLoader([
       { name: "randy", type: "texture", path: "/assets/textures/randySpriteSheet.png" },
       { name: "enemy", type: "gltfModel", path: "/assets/models/enemy.glb" },
       {
@@ -64,57 +64,57 @@ export default class Experience {
       },
     ]);
 
-    this.targetElement = canvas;
+    this.TargetElement = canvas;
 
-    this.scene = new THREE.Scene();
-    this.camera = new Camera(new THREE.Vector3(0, 25, 100));
-    this.renderer = new Renderer();
-    this.physics = new Physics();
-    await this.physics.configure();
+    this.Scene = new THREE.Scene();
+    this.Camera = new Camera(new THREE.Vector3(0, 25, 100));
+    this.Renderer = new Renderer();
+    this.Physics = new Physics();
+    await this.Physics.Configure();
 
     // Sizes resize event — store ref for cleanup
-    this._onResize = () => {
-      this.camera.resize();
-      this.renderer.resize();
+    this.onResize = () => {
+      this.Camera.Resize();
+      this.Renderer.Resize();
     };
-    Emitter.on("resize", this._onResize);
+    Emitter.on("resize", this.onResize);
 
     // Time tick event — store ref for cleanup
-    this._onTick = () => {
-      if (this.debug.isActive) {
-        this.debug.stats?.begin();
+    this.onTick = () => {
+      if (this.Debug.IsActive) {
+        this.Debug.Stats?.begin();
       }
 
-      this.physics.update();
-      this.onGameUpdate?.();
-      this.renderer.update();
+      this.Physics.Update();
+      this.OnGameUpdate?.();
+      this.Renderer.Update();
 
-      if (this.debug.isActive) {
-        this.debug.stats?.end();
+      if (this.Debug.IsActive) {
+        this.Debug.Stats?.end();
       }
     };
-    Emitter.on("tick", this._onTick);
+    Emitter.on("tick", this.onTick);
   }
 
-  public destroy() {
+  public Destroy() {
     // Remove our own event listeners first
-    Emitter.off("resize", this._onResize);
-    Emitter.off("tick", this._onTick);
+    Emitter.off("resize", this.onResize);
+    Emitter.off("tick", this.onTick);
 
     // Clear subsystem event listeners
-    this.sizes.destroy();
-    this.time.destroy();
-    this.input.destroy();
+    this.Sizes.Destroy();
+    this.Time.Destroy();
+    this.Input.Destroy();
 
     // Camera then physics then renderer then resources
-    this.camera.destroy();
-    this.physics.destroy();
-    this.renderer.destroy();
-    this.resources.destroy();
+    this.Camera.Destroy();
+    this.Physics.Destroy();
+    this.Renderer.Destroy();
+    this.Resources.Destroy();
 
     // Debug menu
-    if (this.debug && this.debug.isActive) {
-      this.debug.destroy();
+    if (this.Debug && this.Debug.IsActive) {
+      this.Debug.Destroy();
     }
   }
 }
