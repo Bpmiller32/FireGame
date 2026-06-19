@@ -102,7 +102,7 @@ const createWall: EntityFactory = (data, ctx) => {
     { x: data.position[0], y: data.position[2] },
     -data.rotation[1]
   );
-  wall.SetObjectName(EntityType.WALL);
+  wall.SetType(EntityType.WALL);
   ctx.walls.push(wall);
   return wall;
 };
@@ -137,7 +137,7 @@ const createLadderSensor: EntityFactory = (data, ctx, type) => {
     data.vertices
   );
   sensor.SetLadderValue(data.value0);
-  sensor.SetObjectName(type);
+  sensor.SetType(type);
 
   if (type === EntityType.LADDER_TOP_SENSOR) ctx.ladderTopSensors.push(sensor);
   else if (type === EntityType.LADDER_CORE_SENSOR)

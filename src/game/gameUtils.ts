@@ -6,7 +6,7 @@
  * 
  * NEW CODE SHOULD USE:
  * - helpers/mathHelpers.ts - Math utilities (moveTowards, lerp, random, etc.)
- * - helpers/physicsHelpers.ts - Physics utilities (getUserData, isColliderName, etc.)
+ * - helpers/physicsHelpers.ts - Physics utilities (getUserData, isColliderType, etc.)
  * - gameUtils functions - Game-specific logic (removeDestroyedObjects, etc.)
  *
  * This class exists for backward compatibility with existing code.
@@ -78,14 +78,9 @@ export default class GameUtils {
   public static GetDataFromCollider = PhysicsHelpers.getUserDataFromCollider;
 
   /**
-   * @deprecated Use `isColliderName` from helpers/physicsHelpers instead
+   * @deprecated Use `isColliderType` from helpers/physicsHelpers instead
    */
-  public static IsColliderName = PhysicsHelpers.isColliderName;
-
-  /**
-   * @deprecated Use `isOneWayPlatformActive` from helpers/physicsHelpers instead
-   */
-  public static IsOneWayPlatformAndActive = PhysicsHelpers.isOneWayPlatformActive;
+  public static IsColliderType = PhysicsHelpers.isColliderType;
 
   /* -------------------------------------------------------------------------- */
   /*                         GAME-SPECIFIC FUNCTIONS                            */

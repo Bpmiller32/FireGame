@@ -1,13 +1,14 @@
 import * as RAPIER from "@dimforge/rapier2d-compat";
 import GameObjectType from "../../engine/types/gameObjectType";
 import GameSensor from "../../engine/entities/gameSensor";
-import GameObject from "../../engine/entities/gameObject";
-import Player from "./player/player";
 import EntityType from "../types/entityType";
 
 /**
- * Teleporter - Teleports objects to a destination when they enter
- * Now uses the event-driven sensor callback system!
+ * Teleporter - Teleports objects to a destination when they enter.
+ *
+ * The "who triggers it and what happens" rule lives in the declarative contact
+ * table (game/config/contactRules.ts): Player enters Teleporter -> teleport to
+ * Destination. This class just owns the destination and the sensor.
  */
 export default class Teleporter extends GameSensor {
   private positionData: RAPIER.Vector2;
@@ -31,26 +32,19 @@ export default class Teleporter extends GameSensor {
     this.positionData = new RAPIER.Vector2(0, 0);
 
     this.setAsSensor(true);
+    // Take part in the contact table even though we define no callback here.
+    this.enableContactEvents();
     this.SetTeleportPosition(0, 0);
 
     this.createObjectGraphicsDebug("teal", 0.1);
   }
 
   public SetTeleportPosition(x: number, y: number) {
-    this.SetObjectValue0(x);
-    this.SetObjectValue1(y);
-
     this.positionData = new RAPIER.Vector2(x, y);
   }
 
-  /**
-   * SENSOR CALLBACK - Called when something enters the teleporter
-   * Automatically teleports the object to the destination
-   */
-  public OnSensorEnter(other: GameObject): void {
-    if (other instanceof Player) {
-      console.log("🌀 Player entered teleporter - teleporting!");
-      other.TeleportToPosition(this.positionData.x, this.positionData.y);
-    }
+  /** Where this teleporter sends whatever enters it. */
+  public get Destination(): RAPIER.Vector2 {
+    return this.positionData;
   }
 }

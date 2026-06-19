@@ -7,6 +7,7 @@ import Experience from "../core/experience";
 import RAPIER from "@dimforge/rapier2d-compat";
 import Debug from "../debug";
 import GameObject from "../entities/gameObject";
+import ContactRegistry from "../entities/contactRegistry";
 
 export default class Physics {
   private experience!: Experience;
@@ -16,6 +17,10 @@ export default class Physics {
   public World!: RAPIER.World;
   public EventQueue!: RAPIER.EventQueue;
   public IsPaused!: boolean;
+
+  // Declarative "when an A contacts a B, run this" table. The game fills it; the
+  // engine just dispatches contact events into it (see handleCollisionEvents).
+  public Contacts!: ContactRegistry;
 
   // GameObject registration system - maps collider handles to GameObjects
   private gameObjectRegistry!: Map<number, GameObject>;
@@ -32,6 +37,9 @@ export default class Physics {
     this.World = new RAPIER.World({ x: 0.0, y: -9.81 });
     this.EventQueue = new RAPIER.EventQueue(true);
     this.IsPaused = false;
+
+    // Initialize the declarative contact-rule table (game fills it at startup)
+    this.Contacts = new ContactRegistry();
 
     // Initialize GameObject registry for collision event mapping
     this.gameObjectRegistry = new Map<number, GameObject>();
@@ -91,6 +99,21 @@ export default class Physics {
   }
 
   /**
+   * Resolve a collider to its owning GameObject (or undefined if unregistered).
+   *
+   * Lets a kinematic character controller feed its OWN contacts into the contact
+   * registry: a kinematic body keeps a skin gap from solids it moves into, so
+   * Rapier emits no collision event for it as the mover — but the controller's
+   * computed collisions still report what it touched. The game can resolve those
+   * to GameObjects and Dispatch them, so the same contact rules fire either way.
+   */
+  public GetGameObjectFromCollider(
+    collider: RAPIER.Collider
+  ): GameObject | undefined {
+    return this.gameObjectRegistry.get(collider.handle);
+  }
+
+  /**
    * Process collision events (handles both solid collisions and sensor intersections)
    * In Rapier, sensors trigger collision events - we check the sensor flag to route appropriately
    * Called automatically during physics update
@@ -139,6 +162,9 @@ export default class Physics {
             gameObject2.OnSensorEnter(gameObject1);
           }
 
+          // Fire any matching declarative contact rules (two-sided internally)
+          this.Contacts.Dispatch("sensorEnter", gameObject1, gameObject2);
+
           // Log sensor event if debug is enabled
           if (this.debug && this.debug.LogSensors) {
             this.debug.LogSensorEvent(gameObject1, gameObject2, "enter");
@@ -151,6 +177,9 @@ export default class Physics {
           if (isSensor2 && gameObject2.OnSensorExit) {
             gameObject2.OnSensorExit(gameObject1);
           }
+
+          // Fire any matching declarative contact rules (two-sided internally)
+          this.Contacts.Dispatch("sensorExit", gameObject1, gameObject2);
 
           // Log sensor event if debug is enabled
           if (this.debug && this.debug.LogSensors) {
@@ -170,6 +199,9 @@ export default class Physics {
             gameObject2.OnCollisionEnter(gameObject1);
           }
 
+          // Fire any matching declarative contact rules (two-sided internally)
+          this.Contacts.Dispatch("enter", gameObject1, gameObject2);
+
           // Log collision event if debug is enabled
           if (this.debug && this.debug.LogCollisions) {
             this.debug.LogCollisionEvent(gameObject1, gameObject2, "enter");
@@ -182,6 +214,9 @@ export default class Physics {
           if (gameObject2.OnCollisionExit) {
             gameObject2.OnCollisionExit(gameObject1);
           }
+
+          // Fire any matching declarative contact rules (two-sided internally)
+          this.Contacts.Dispatch("exit", gameObject1, gameObject2);
 
           // Log collision event if debug is enabled
           if (this.debug && this.debug.LogCollisions) {

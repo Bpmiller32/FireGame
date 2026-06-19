@@ -94,7 +94,7 @@ export { CommonKeys, createKey } from './key';
  *   ContactPoints,
  *   Vector2D,
  *   Size2D
- * } from '@/webgl/utils/types';
+ * } from '@/engine/types';
  * 
  * // Use the types
  * const position: Vector2D = { x: 10, y: 20 };

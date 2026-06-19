@@ -1,17 +1,20 @@
 import * as RAPIER from "@dimforge/rapier2d-compat";
 import GameObjectType from "../../engine/types/gameObjectType";
 import GameSensor from "../../engine/entities/gameSensor";
-import GameObject from "../../engine/entities/gameObject";
-import Player from "./player/player";
 import EntityType from "../types/entityType";
 
 /**
- * LadderSensor - Detects when the player is touching a ladder
+ * LadderSensor - Marks a ladder region.
  *
- * Ladder sensors now use the event-driven callback system.
- * No need to call update() or check manually - it's automatic!
+ * Ladder detection is intentionally NOT event-driven: it is the hard-won
+ * "fully inside" climb behavior (D9), polled by GameDirector / read by the
+ * player + enemy. That path is preserved and deferred — this sensor defines no
+ * contact callbacks, so it arms no physics events.
  */
 export default class LadderSensor extends GameSensor {
+  // Climb direction: positive = right, negative = left, 0 = neutral
+  public Direction: number = 0;
+
   constructor(
     size: { width: number; height: number },
     position: { x: number; y: number },
@@ -50,28 +53,7 @@ export default class LadderSensor extends GameSensor {
    * Set the ladder direction value
    * Positive = right, Negative = left, 0 = neutral
    */
-  public SetLadderValue(value: number) {
-    this.SetObjectValue0(value);
-  }
-
-  /**
-   * SENSOR CALLBACK - Called when something enters this ladder sensor
-   * This is automatically triggered by the physics system
-   */
-  public OnSensorEnter(other: GameObject): void {
-    if (other instanceof Player) {
-      // TODO: Notify player they're touching a ladder
-      // This will be handled when we refactor Player to use callbacks
-      // console.log("🪜 Player entered ladder zone");
-    }
-  }
-
-  /**
-   * SENSOR CALLBACK - Called when something exits this ladder sensor
-   */
-  public OnSensorExit(other: GameObject): void {
-    if (other instanceof Player) {
-      // console.log("🪜 Player exited ladder zone");
-    }
+  public SetLadderValue(value?: number) {
+    this.Direction = value ?? 0;
   }
 }

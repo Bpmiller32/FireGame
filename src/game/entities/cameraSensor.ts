@@ -3,15 +3,14 @@ import * as RAPIER from "@dimforge/rapier2d-compat";
 import GameObjectType from "../../engine/types/gameObjectType";
 import GameSensor from "../../engine/entities/gameSensor";
 import Camera from "../../engine/camera/camera";
-import GameObject from "../../engine/entities/gameObject";
-import Player from "./player/player";
 import EntityType from "../types/entityType";
 
 /**
- * CameraSensor - Changes camera position when player enters
- * 
- * Camera sensors now use the event-driven callback system.
- * The camera automatically adjusts when the player enters the zone!
+ * CameraSensor - Adjusts the camera when the player enters its zone.
+ *
+ * The trigger rule (Player enters -> adjust camera) lives in the declarative
+ * contact table (game/config/contactRules.ts). This class owns the target
+ * position and the camera reference, and exposes the action it performs.
  */
 export default class CameraSensor extends GameSensor {
   public PositionData: THREE.Vector3;
@@ -38,7 +37,9 @@ export default class CameraSensor extends GameSensor {
     );
 
     this.setAsSensor(true);
-    
+    // Take part in the contact table even though we define no callback here.
+    this.enableContactEvents();
+
     // Uncomment to visualize camera sensors in debug mode
     // this.createObjectGraphicsDebug("yellow", 0.1);
   }
@@ -50,23 +51,8 @@ export default class CameraSensor extends GameSensor {
     this.PositionData = newPositionData;
   }
 
-  /**
-   * SENSOR CALLBACK - Called when something enters this camera sensor
-   * Automatically adjusts camera position when player enters
-   */
-  public OnSensorEnter(other: GameObject): void {
-    if (other instanceof Player) {
-      console.log("📷 Player entered camera zone - adjusting camera");
-      this.camera.ChangePositionY(this.PositionData.y);
-    }
-  }
-
-  /**
-   * SENSOR CALLBACK - Called when something exits this camera sensor
-   */
-  public OnSensorExit(other: GameObject): void {
-    if (other instanceof Player) {
-      console.log("📷 Player exited camera zone");
-    }
+  /** Apply this sensor's camera position. Called by the contact rule on enter. */
+  public ApplyCameraOnEnter() {
+    this.camera.ChangePositionY(this.PositionData.y);
   }
 }

@@ -1,4 +1,3 @@
-import GameUtils from "../gameUtils";
 import GameObject from "../../engine/entities/gameObject";
 import GameObjectType from "../../engine/types/gameObjectType";
 import CollisionGroups from "../types/gameCollisionGroups";
@@ -8,6 +7,13 @@ import EntityType from "../types/entityType";
 export default class Platform extends GameObject {
   private isOneWayPlatform: boolean;
   private oneWayEnablePoint: number;
+
+  // Named, typed metadata (replaces the old anonymous userData value0/1/3).
+  public FloorLevel: number = 0;
+  public IsEdge: boolean = false;
+  // For a one-way platform: is it currently pass-through-from-below active?
+  // (Only ever true for one-way platforms — regular platforms never toggle it.)
+  public IsOneWayActive: boolean = false;
 
   constructor(
     size: { width: number; height: number; depth: number },
@@ -31,23 +37,17 @@ export default class Platform extends GameObject {
       this.oneWayEnablePoint = position.y;
     }
 
-    // Determine platform's objectName
-    let objectName: string;
-
-    if (isOneWayPlatform) {
-      objectName = EntityType.ONE_WAY_PLATFORM;
-      this.SetOneWayPlatformActive(1);
-    } else {
-      objectName = EntityType.PLATFORM;
-      this.SetOneWayPlatformActive(0);
-    }
+    // Determine platform's routing type
+    const objectName = isOneWayPlatform
+      ? EntityType.ONE_WAY_PLATFORM
+      : EntityType.PLATFORM;
 
     // Create the physics object based on the shape
     this.createObjectPhysics(objectName, objectType, size, position, rotation);
 
     // Handle one-way platform-specific properties
     this.isOneWayPlatform = isOneWayPlatform;
-    this.SetObjectName(objectName);
+    this.SetType(objectName);
     // this.createObjectGraphicsDebug(graphicsColor);
 
     // Set collision groups and masks
@@ -55,24 +55,19 @@ export default class Platform extends GameObject {
     this.setCollisionMask(CollisionGroups.DEFAULT);
   }
 
-  // GameObjectValue[0] is the floor level of the platform
-  public SetPlatformFloorLevel(value: number) {
-    this.SetObjectValue0(value);
+  // The floor level this platform represents (used for enemy/player floor logic)
+  public SetPlatformFloorLevel(value?: number) {
+    this.FloorLevel = value ?? 0;
   }
 
-  // GameObjectValue[1] is whether or not the platform is an edge platform
-  public SetEdgePlatform(value: number) {
-    this.SetObjectValue1(value);
+  // Whether this is an edge platform (enemies turn around at its edge)
+  public SetEdgePlatform(value?: number) {
+    this.IsEdge = (value ?? 0) > 0;
   }
 
-  // GameObjectValue[2] is the enable point Y coordinate for OneWay, needed for ComplexColliders
+  // The enable-point Y for OneWay pass-through (needed for ComplexColliders)
   public SetOneWayEnablePoint(value: number) {
     this.oneWayEnablePoint = value;
-  }
-
-  // GameObjectValue[3] is whether or not the platform is currently OneWay
-  public SetOneWayPlatformActive(value: number) {
-    this.SetObjectValue3(value);
   }
 
   public Update(player: Player) {
@@ -87,15 +82,15 @@ export default class Platform extends GameObject {
       player.CurrentTranslation.y - player.CurrentSize.y / 2 >
         this.oneWayEnablePoint
     ) {
-      GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value3 = 0;
+      this.IsOneWayActive = false;
     } else {
-      GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value3 = 1;
+      this.IsOneWayActive = true;
     }
 
     // While the player is climbing, force this platform to pass-through so the
     // player can move up/down a ladder without landing on one-way platforms.
     if (player.State === "climbing") {
-      this.SetOneWayPlatformActive(1);
+      this.IsOneWayActive = true;
     }
   }
 }

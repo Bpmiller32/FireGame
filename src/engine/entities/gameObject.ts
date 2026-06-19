@@ -140,19 +140,16 @@ export default class GameObject {
     this.PhysicsBody.setRotation(rotation, true);
     this.CurrentRotation = this.PhysicsBody.rotation();
 
+    // The game supplies the identity. `type` is the shared routing flag (many
+    // entities can share one); `name` is the per-instance id, defaulting to the
+    // type until SetType/SetName change it. The engine treats both as opaque.
     this.PhysicsBody.userData = {
+      type: name,
       name: name,
-      gameEntityType: this.constructor.name,
     } as UserData;
 
     // Create and attach collider to physicsBody/rigidbody
     this.Physics.World.createCollider(collider, this.PhysicsBody);
-
-    // Set GameObjectValues to their defaults
-    this.SetObjectValue0();
-    this.SetObjectValue1();
-    this.SetObjectValue2();
-    this.SetObjectValue3();
 
     // Register this GameObject with the physics system for collision/sensor callbacks
     this.Physics.RegisterGameObject(this);
@@ -191,6 +188,18 @@ export default class GameObject {
     if (eventsToEnable > 0) {
       collider.setActiveEvents(eventsToEnable);
     }
+  }
+
+  /**
+   * Explicitly arm collision/sensor events on a collider so this entity takes
+   * part in the contact-rule system even when it defines no collision or sensor
+   * callback of its own (its interactions live in the declarative contact table
+   * instead). Entities that DO define a callback are armed automatically above.
+   */
+  protected enableContactEvents(colliderIndex: number = 0) {
+    this.PhysicsBody?.collider(colliderIndex)?.setActiveEvents(
+      RAPIER.ActiveEvents.COLLISION_EVENTS
+    );
   }
 
   protected createCollider(
@@ -382,28 +391,32 @@ export default class GameObject {
       .setCollisionGroups(currentGroup | (collisionMask << 16));
   }
 
-  public SetObjectName(newName?: string) {
+  /**
+   * Set this entity's TYPE flag — the shared routing identity. Used to specialize
+   * an entity after construction (a generic shape becomes a more specific kind,
+   * e.g. a Platform becomes a "Wall"). Keeps `name` mirroring `type` as a sensible
+   * default; call SetName afterwards for a distinct per-instance id.
+   */
+  public SetType(newType?: string) {
+    if (!newType) {
+      return;
+    }
+
+    const userData = GameUtils.GetDataFromPhysicsBody(this.PhysicsBody);
+    userData.type = newType;
+    userData.name = newType;
+  }
+
+  /**
+   * Set this entity's per-INSTANCE name (e.g. "SpecificEnemy2"), leaving its
+   * routing `type` unchanged so type-flag matching still groups it with its kind.
+   */
+  public SetName(newName?: string) {
     if (!newName) {
       return;
     }
 
     GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).name = newName;
-  }
-
-  public SetObjectValue0(newValue?: number) {
-    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value0 = newValue ?? 0;
-  }
-
-  public SetObjectValue1(newValue?: number) {
-    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value1 = newValue ?? 0;
-  }
-
-  public SetObjectValue2(newValue?: number) {
-    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value2 = newValue ?? 0;
-  }
-
-  public SetObjectValue3(newValue?: number) {
-    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).value3 = newValue ?? 0;
   }
 
   public ChangeColliderSize(newSize: { width: number; height: number }) {

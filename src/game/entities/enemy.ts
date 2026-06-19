@@ -1,4 +1,3 @@
-import Emitter from "../../engine/events/eventBus";
 import Time from "../../engine/core/time";
 import GameUtils from "../gameUtils";
 import GameObject from "../../engine/entities/gameObject";
@@ -8,7 +7,8 @@ import RAPIER from "@dimforge/rapier2d-compat";
 import Player from "./player/player";
 import PlayerStates from "../../engine/types/playerStates";
 import TrashCan from "./trashCan";
-import UserData from "../../engine/types/userData";
+import Platform from "./platform";
+import LadderSensor from "./ladderSensor";
 import EntityType from "../types/entityType";
 // import ResourceLoader from "../../engine/resources/resourceLoader";
 
@@ -47,54 +47,42 @@ export default class Enemy extends GameObject {
     this.initalizeAttributes();
     // this.createObjectGraphicsDebug("white");
 
-    // Set collision groups: Enemy collides with platforms and both player colliders
+    // Set collision groups: Enemy collides with platforms and the player box
     this.setCollisionGroup(CollisionGroups.ENEMY);
     this.setCollisionMask(
-      CollisionGroups.PLATFORM |
-        CollisionGroups.PLAYER_HIT_BOX |
-        CollisionGroups.PLAYER_BOUNDING_BOX
+      CollisionGroups.PLATFORM | CollisionGroups.PLAYER_BOUNDING_BOX
     );
   }
 
   /**
-   * Collision callback - handles all enemy collisions with game objects
-   * Uses the event-driven collision system for better performance
+   * Collision callback - the enemy's own MOVEMENT reactions to the world it
+   * rolls through (reverse at walls, track grounded floor). The enemy's GAME
+   * interactions (kills Player, ignites TrashCan) are NOT here — they live in
+   * the declarative contact table (game/config/contactRules.ts).
    */
   public OnCollisionEnter(other: GameObject): void {
     const otherCollider = other.PhysicsBody?.collider(0);
     if (!otherCollider) return;
 
-    // Player collision - trigger game over
-    const userData = other.PhysicsBody?.userData as UserData;
-    if (userData && userData.name === EntityType.PLAYER) {
-      Emitter.emit("gameOver");
-      return;
-    }
-
-    // TrashCan collision - destroy enemy and light can on fire
-    if (GameUtils.IsColliderName(otherCollider, EntityType.TRASH_CAN)) {
-      Emitter.emit("gameObjectRemoved", this);
-      (other as TrashCan).IsOnFire = true;
-      return;
-    }
-
     // Wall collision - reverse direction
-    if (GameUtils.IsColliderName(otherCollider, EntityType.WALL)) {
+    if (GameUtils.IsColliderType(otherCollider, EntityType.WALL)) {
       this.direction = this.direction * -1;
       return;
     }
 
     // OneWayPlatform collision - check if enemy is above platform
-    if (GameUtils.IsColliderName(otherCollider, EntityType.ONE_WAY_PLATFORM)) {
+    if (GameUtils.IsColliderType(otherCollider, EntityType.ONE_WAY_PLATFORM)) {
       if (this.PhysicsBody!.translation().y > otherCollider.translation().y) {
         this.isCollidingWithPlatforms = true;
-        this.currentFloor = GameUtils.GetDataFromCollider(otherCollider).value0;
+        if (other instanceof Platform) {
+          this.currentFloor = other.FloorLevel;
+        }
       }
       return;
     }
 
     // Platform collision - set grounded state
-    if (GameUtils.IsColliderName(otherCollider, EntityType.PLATFORM)) {
+    if (GameUtils.IsColliderType(otherCollider, EntityType.PLATFORM)) {
       this.isCollidingWithPlatforms = true;
       return;
     }
@@ -112,8 +100,8 @@ export default class Enemy extends GameObject {
 
     // Leaving a platform - update collision state and turn around
     if (
-      GameUtils.IsColliderName(otherCollider, EntityType.ONE_WAY_PLATFORM) ||
-      GameUtils.IsColliderName(otherCollider, EntityType.PLATFORM)
+      GameUtils.IsColliderType(otherCollider, EntityType.ONE_WAY_PLATFORM) ||
+      GameUtils.IsColliderType(otherCollider, EntityType.PLATFORM)
     ) {
       // Mark as not colliding with platforms
       this.isCollidingWithPlatforms = false;
@@ -157,20 +145,22 @@ export default class Enemy extends GameObject {
     this.Physics.World.intersectionPairsWith(
       this.PhysicsBody!.collider(0),
       (otherCollider) => {
+        const ladder = this.Physics.GetGameObjectFromCollider(otherCollider);
+
         // Check for touching ladder core, also fully inside the ladder core
         if (
-          GameUtils.IsColliderName(otherCollider, EntityType.LADDER_CORE_SENSOR) &&
-          GameUtils.GetDataFromCollider(otherCollider).value0 !== 0 &&
+          GameUtils.IsColliderType(otherCollider, EntityType.LADDER_CORE_SENSOR) &&
+          ladder instanceof LadderSensor &&
+          ladder.Direction !== 0 &&
           GameUtils.IsObjectFullyInsideSensor(otherCollider, this)
         ) {
-          this.ladderSensorValue =
-            GameUtils.GetDataFromCollider(otherCollider).value0;
+          this.ladderSensorValue = ladder.Direction;
           this.isInsideLadder = true;
         }
 
         // Check for touching ladder bottom - reset to horizontal rolling
         // Only trigger if cooldown has expired to prevent oscillation
-        if (GameUtils.IsColliderName(otherCollider, EntityType.LADDER_BOTTOM_SENSOR) && this.ladderBottomCooldown <= 0) {
+        if (GameUtils.IsColliderType(otherCollider, EntityType.LADDER_BOTTOM_SENSOR) && this.ladderBottomCooldown <= 0) {
           this.performSpecialRoll = false;
           this.isCollidingWithPlatforms = true;
           // Set cooldown to 1 second to prevent immediate re-triggering
@@ -232,14 +222,10 @@ export default class Enemy extends GameObject {
     // Set collision mask - MUST ALWAYS include PLAYER_BOUNDING_BOX!
     if (this.isCollidingWithPlatforms && this.performSpecialRoll == false) {
       this.setCollisionMask(
-        CollisionGroups.PLATFORM |
-          CollisionGroups.PLAYER_HIT_BOX |
-          CollisionGroups.PLAYER_BOUNDING_BOX
+        CollisionGroups.PLATFORM | CollisionGroups.PLAYER_BOUNDING_BOX
       );
     } else {
-      this.setCollisionMask(
-        CollisionGroups.PLAYER_HIT_BOX | CollisionGroups.PLAYER_BOUNDING_BOX
-      );
+      this.setCollisionMask(CollisionGroups.PLAYER_BOUNDING_BOX);
     }
   }
 

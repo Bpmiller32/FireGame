@@ -9,6 +9,7 @@
 
 import { Collider, RigidBody } from "@dimforge/rapier2d-compat";
 import UserData from "../types/userData";
+import GameObject from "../entities/gameObject";
 
 /**
  * Get UserData from a Rapier RigidBody
@@ -21,8 +22,8 @@ import UserData from "../types/userData";
  * @example
  * ```typescript
  * const userData = getUserData(someBody);
- * if (userData.name === "someEntityName") {
- *   console.log(`metadata value0 = ${userData.value0}`);
+ * if (userData.type === someType) {
+ *   // handle it
  * }
  * ```
  */
@@ -32,14 +33,7 @@ export function getUserData(physicsBody?: RigidBody): UserData {
   }
 
   // Return empty default data
-  return {
-    name: "",
-    gameEntityType: "",
-    value0: 0,
-    value1: 0,
-    value2: 0,
-    value3: 0,
-  };
+  return { type: "", name: "" };
 }
 
 /**
@@ -63,14 +57,7 @@ export function getUserData(physicsBody?: RigidBody): UserData {
  * ```
  */
 export function getUserDataFromCollider(collider?: Collider): UserData {
-  const defaultData: UserData = {
-    name: "",
-    gameEntityType: "",
-    value0: 0,
-    value1: 0,
-    value2: 0,
-    value3: 0,
-  };
+  const defaultData: UserData = { type: "", name: "" };
 
   if (!collider) return defaultData;
 
@@ -81,54 +68,54 @@ export function getUserDataFromCollider(collider?: Collider): UserData {
 }
 
 /**
- * Check if a collider's name matches a specific name
- * 
- * @param collider - The collider to check
- * @param name - The name to match against
- * @returns true if collider's name matches
- * 
- * @example
- * ```typescript
- * if (isColliderName(hit.collider, "someEntityName")) {
- *   // matched — react to the contact
- * }
+ * Does this GameObject carry the given TYPE flag?
  *
- * if (isColliderName(hit.collider, "anotherEntityName")) {
- *   // matched a different entity
- * }
- * ```
+ * The contact system matches "by type" with this: many entities can share one
+ * type, so a single rule covers all of them. Reads the opaque userData.type
+ * string — the engine assigns it no meaning.
+ *
+ * @param gameObject - the GameObject to test
+ * @param type - the type flag to match (a game-layer string)
+ * @returns true if the object's userData.type equals `type`
  */
-export function isColliderName(collider: Collider, name: string): boolean {
-  const userData = collider.parent()?.userData as UserData;
-  return userData.name === name;
+export function matchesType(gameObject: GameObject, type: string): boolean {
+  const userData = gameObject.PhysicsBody?.userData as UserData | undefined;
+  return userData?.type === type;
 }
 
 /**
- * Check if a collider matches the given name AND is currently toggled active
+ * Does this GameObject carry the given per-INSTANCE name?
  *
- * A matching collider can be toggled on/off via its metadata. This checks both:
- * 1. Does the collider's name match the given name?
- * 2. Is it currently active? (value3 > 0)
+ * The contact system matches "by name" with this — for singling out one specific
+ * entity. Reads the opaque userData.name string.
  *
- * @param collider - The collider to check
- * @param name - The entity name to match against (game-layer defined)
- * @returns true if the collider matches the name and is toggled active
+ * @param gameObject - the GameObject to test
+ * @param name - the instance name to match (a game-layer string)
+ * @returns true if the object's userData.name equals `name`
+ */
+export function matchesName(gameObject: GameObject, name: string): boolean {
+  const userData = gameObject.PhysicsBody?.userData as UserData | undefined;
+  return userData?.name === name;
+}
+
+/**
+ * Does this collider's parent carry the given TYPE flag?
+ *
+ * Collider-based sibling of matchesType, for Rapier shapecast/intersection
+ * callbacks that hand back a raw Collider rather than a GameObject.
+ *
+ * @param collider - the collider to check
+ * @param type - the type flag to match (a game-layer string)
+ * @returns true if the collider's parent userData.type equals `type`
  *
  * @example
  * ```typescript
- * // In a shapeCast predicate - ignore matching colliders that are active
- * (collider) => {
- *   if (isOneWayPlatformActive(collider, "someEntityName")) {
- *     return false; // Don't collide
- *   }
- *   return true; // Collide with everything else
+ * if (isColliderType(hit.collider, someType)) {
+ *   // matched — react to the contact
  * }
  * ```
  */
-export function isOneWayPlatformActive(
-  collider: Collider,
-  name: string
-): boolean {
+export function isColliderType(collider: Collider, type: string): boolean {
   const userData = collider.parent()?.userData as UserData;
-  return userData.name === name && userData.value3 > 0;
+  return userData.type === type;
 }

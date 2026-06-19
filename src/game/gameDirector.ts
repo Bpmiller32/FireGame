@@ -35,7 +35,7 @@ import setCelesteAttributes from "./attributes/setCelesteAttributes";
 import setDkAttributes from "./attributes/setDkAttributes";
 
 // Import GLB files as URLs (Vite will handle the path)
-// Put your GLB files in src/webgl/world/levels/ and import them like this:
+// Put your GLB files in src/game/levels/ and import them like this:
 // import TestLevelNewUrl from "../levels/TestLevelNew.glb?url";
 
 // A level-data entity the uniform update loop may tick. update() is optional so
@@ -172,12 +172,9 @@ export default class GameDirector {
 
     // Update every level-data entity that has an update, in one uniform loop.
     // Runs AFTER player.update() so the platform one-way toggle reads this
-    // frame's player state. Entities without an update are skipped. Win flags
-    // run before platforms, same relative order as before.
-    const updatableLevelEntities: UpdatableEntity[] = [
-      ...this.WinFlags,
-      ...this.Platforms,
-    ];
+    // frame's player state. Entities without an update are skipped. (WinFlag no
+    // longer updates — it wins via the contact table, not a per-frame shapecast.)
+    const updatableLevelEntities: UpdatableEntity[] = [...this.Platforms];
     for (const e of updatableLevelEntities) {
       e.Update?.(this.Player, firstTrashCan);
     }

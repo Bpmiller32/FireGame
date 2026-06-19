@@ -2,108 +2,63 @@
 /*                         PHYSICS BODY USER DATA                             */
 /* -------------------------------------------------------------------------- */
 /*
- * User data attached to Rapier physics bodies.
+ * Identity attached to every Rapier physics body — what the contact system and
+ * physics queries read off a collider.
  *
- * Every physics body has userData containing:
- * - name: Entity-defined identifier (meaning assigned by the game layer)
- * - gameEntityType: Entity-defined type tag (meaning assigned by the game layer)
- * - value0-3: Generic metadata storage for entity-specific data
+ * - type: TYPE flag — a shared routing identity. Many entities can carry the
+ *         same type, so one contact rule can match all of them at once.
+ * - name: Per-INSTANCE identifier — for singling out one specific entity.
  *
- * This data is used for:
- * - Collision filtering (check what kind of object was hit)
- * - Entity-defined metadata (raw numeric values; meaning assigned by the game layer)
- * - Debug information
+ * Meaning of both fields is assigned by the game layer; the engine treats them
+ * as opaque strings. (Per-entity NUMERIC metadata is no longer carried here —
+ * it lives as named, typed fields on the entity classes; level data is the only
+ * place generic value0-3 still exist, as the on-disk wire format.)
  */
 /* -------------------------------------------------------------------------- */
 
 /**
  * User data interface for physics bodies
- * 
+ *
  * Attached to every Rapier RigidBody via physicsBody.userData
- * 
+ *
  * @example
  * ```typescript
- * // Access user data from a physics body
  * const userData = physicsBody.userData as UserData;
- * if (userData.name === "someEntityName") {
- *   // Handle the collision
+ * if (userData.type === someType) {
+ *   // handle any entity of that type
  * }
- *
- * // Set user data when creating an entity
- * this.physicsBody.userData = {
- *   name: "someEntityName",
- *   gameEntityType: "someEntityType",
- *   value0: 0,  // entity-defined metadata
- *   value1: 0,  // entity-defined metadata
- *   value2: 0,  // entity-defined metadata
- *   value3: 0   // entity-defined metadata
- * } as UserData;
  * ```
  */
 export default interface UserData {
   /**
-   * Entity name identifier
+   * TYPE flag — a shared routing identity.
    *
-   * Entity-defined string; meaning assigned by the game layer.
+   * Entity-defined string; meaning assigned by the game layer. Many entities can
+   * share one type, which is what lets the contact system match "by type".
+   */
+  type: string;
+
+  /**
+   * Per-INSTANCE identifier — for singling out one specific entity by name.
+   *
+   * Entity-defined string; meaning assigned by the game layer. Defaults to the
+   * type until SetName overrides it.
    */
   name: string;
-
-  /**
-   * Entity type tag
-   * Entity-defined string; meaning assigned by the game layer.
-   */
-  gameEntityType: string;
-
-  /* ===== GENERIC METADATA FIELDS ===== */
-  /*
-   * value0-3 are flexible fields that store raw numeric metadata.
-   * Their meaning is entity-defined and assigned by the game layer.
-   */
-
-  /**
-   * Generic metadata field 0
-   * Entity-defined; meaning assigned by the game layer.
-   */
-  value0: number;
-
-  /**
-   * Generic metadata field 1
-   * Entity-defined; meaning assigned by the game layer.
-   */
-  value1: number;
-
-  /**
-   * Generic metadata field 2
-   * Entity-defined; meaning assigned by the game layer.
-   */
-  value2: number;
-
-  /**
-   * Generic metadata field 3
-   * Entity-defined; meaning assigned by the game layer.
-   */
-  value3: number;
 }
 
 /**
  * Helper function to create default UserData
- * 
- * @param name - entity name (entity-defined; meaning assigned by the game layer)
- * @param gameEntityType - entity type tag (entity-defined; meaning assigned by the game layer)
- * @returns UserData with default values
+ *
+ * @param type - entity type flag / routing identity (entity-defined)
+ * @param name - per-instance id (entity-defined; defaults to the type)
+ * @returns UserData
  *
  * @example
  * ```typescript
- * this.physicsBody.userData = createDefaultUserData("someEntityName", "someEntityType");
+ * this.physicsBody.userData = createDefaultUserData(someType);
  * ```
  */
-export function createDefaultUserData(name: string, gameEntityType: string): UserData {
-  return {
-    name,
-    gameEntityType,
-    value0: 0,
-    value1: 0,
-    value2: 0,
-    value3: 0,
-  };
+export function createDefaultUserData(type: string, name: string = type): UserData {
+  return { type, name };
 }

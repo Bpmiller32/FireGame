@@ -24,6 +24,7 @@ import GameUtils from "../../gameUtils";
 import handlePlayerClimbing from "./states/handlePlayerClimbing";
 import CollisionGroups from "../../types/gameCollisionGroups";
 import EntityType from "../../types/entityType";
+import Platform from "../platform";
 
 export default class Player extends GameObject {
   // Experience
@@ -84,8 +85,6 @@ export default class Player extends GameObject {
 
   public AnimationScalingFactor!: number;
 
-  private hasTriggeredGameOver!: boolean;
-
   public constructor(
     size: { width: number; height: number },
     position: { x: number; y: number }
@@ -105,22 +104,18 @@ export default class Player extends GameObject {
       RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
     );
 
-    this.createHitBoxCollider();
     this.createSpriteGraphics();
 
-    // Set collision groups and masks for both colliders
-    // Collider 0: Player bounding box - collides with platforms AND enemies
+    // Collider 0: Player bounding box — collides with platforms AND enemies.
+    // Death now fires from this full bounding box via the contact table ("any
+    // touch registers"); the old 62.5% hit-box sensor + its per-frame poll were
+    // removed as dead code (re-add on demand if a stomp mechanic ever wants it).
     this.setCollisionGroup(CollisionGroups.PLAYER_BOUNDING_BOX, 0);
     this.setCollisionMask(CollisionGroups.PLATFORM | CollisionGroups.ENEMY, 0);
-    
-    // Collider 1: Player hit box - collides with enemies (sensor)
-    this.setCollisionGroup(CollisionGroups.PLAYER_HIT_BOX, 1);
-    this.setCollisionMask(CollisionGroups.ENEMY, 1);
 
-    // Enable collision events on both colliders for the event-driven collision system
+    // Enable collision events on the bounding box so it feeds the contact system
     if (this.PhysicsBody) {
       this.PhysicsBody.collider(0).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-      this.PhysicsBody.collider(1).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
     }
 
     // Debug — the game registers its player debug module with the engine
@@ -179,7 +174,6 @@ export default class Player extends GameObject {
     this.HasColliderUpdated = false;
 
     this.CurrentFloor = 0;
-    this.hasTriggeredGameOver = false;
 
     this.IsTouching = {
       ground: false,
@@ -211,21 +205,6 @@ export default class Player extends GameObject {
 
     this.scene.add(this.mesh);
     this.syncGraphicsToPhysics();
-  }
-
-  private createHitBoxCollider() {
-    // Create a smaller hit box collider for enemy detection (62.5% of full height)
-    const collider = this.createCollider(
-      { width: this.InitialSize.x, height: this.InitialSize.y * 0.625 },
-      GameObjectType.CUBE
-    );
-
-    // Make hit box a sensor - sensors detect intersections without physical collision
-    // This allows enemies to pass through while still being detected
-    collider.setSensor(true);
-
-    // Attach collider to player's physics body
-    this.Physics.World.createCollider(collider, this.PhysicsBody);
   }
 
   private setCharacterController() {
@@ -275,7 +254,7 @@ export default class Player extends GameObject {
       (collider: RAPIER.Collider) =>
         !(
           collider.isSensor() ||
-          GameUtils.IsOneWayPlatformAndActive(collider, EntityType.ONE_WAY_PLATFORM)
+          this.isActiveOneWayPlatform(collider)
         )
     );
 
@@ -288,15 +267,26 @@ export default class Player extends GameObject {
       y: this.CurrentTranslation.y + correctiveMovement.y,
     });
 
-    // Check if character controller hit an enemy during movement
-    // The character controller computes collisions internally, so we need to check its results
-    const numCollisions = this.CharacterController.numComputedCollisions();
-    for (let i = 0; i < numCollisions; i++) {
-      const collision = this.CharacterController.computedCollision(i);
-      if (collision && collision.collider && GameUtils.IsColliderName(collision.collider, EntityType.ENEMY) && !this.hasTriggeredGameOver) {
-        this.hasTriggeredGameOver = true;
-        Emitter.emit("gameOver");
-        break;
+    // Feed the character controller's own contacts into the contact table.
+    // A kinematic character keeps a skin gap from solids it moves into, so Rapier
+    // fires NO collision event for the player-as-mover — but the controller still
+    // reports what it was blocked by this frame. Dispatch those as contacts so the
+    // same declarative rules (Enemy<->Player = gameOver, etc.) fire in BOTH
+    // directions. (Confirmed via runtime logging: ccBlockedBy=[Enemy] yet zero
+    // Rapier events for the player.) Skip while paused so a game-over doesn't
+    // re-fire every frame on the freeze screen.
+    if (!this.Physics.IsPaused) {
+      const numCollisions = this.CharacterController.numComputedCollisions();
+      for (let i = 0; i < numCollisions; i++) {
+        const collision = this.CharacterController.computedCollision(i);
+        if (!collision?.collider) {
+          continue;
+        }
+
+        const other = this.Physics.GetGameObjectFromCollider(collision.collider);
+        if (other) {
+          this.Physics.Contacts.Dispatch("enter", this, other);
+        }
       }
     }
   }
@@ -331,6 +321,24 @@ export default class Player extends GameObject {
     });
   }
 
+  /**
+   * Resolve a collider to the Platform it belongs to (or undefined). Lets the
+   * shapecasts read a platform's named fields (FloorLevel / IsEdge / IsOneWayActive)
+   * instead of anonymous userData numbers.
+   */
+  private getPlatform(collider: RAPIER.Collider): Platform | undefined {
+    const go = this.Physics.GetGameObjectFromCollider(collider);
+    return go instanceof Platform ? go : undefined;
+  }
+
+  /**
+   * Is this collider an active one-way platform (currently pass-through)?
+   * Replaces the old userData.value3 check; reads the platform's typed flag.
+   */
+  private isActiveOneWayPlatform(collider: RAPIER.Collider): boolean {
+    return this.getPlatform(collider)?.IsOneWayActive ?? false;
+  }
+
   private getShapeCastCollisions() {
     // ShapeCast in all directions
     const shapeCasts = {
@@ -345,25 +353,16 @@ export default class Player extends GameObject {
     if (
       downCast &&
       downCast.time_of_impact <= this.ColliderOffsetThreshold &&
-      GameUtils.IsColliderName(downCast.collider, EntityType.WALL) == false &&
-      GameUtils.IsOneWayPlatformAndActive(
-        downCast.collider,
-        EntityType.ONE_WAY_PLATFORM
-      ) == false
+      GameUtils.IsColliderType(downCast.collider, EntityType.WALL) == false &&
+      this.isActiveOneWayPlatform(downCast.collider) == false
     ) {
       // Establish that ground is being touched
       this.IsTouching.ground = true;
 
-      // Handle specific platform types
-      this.CurrentFloor = GameUtils.GetDataFromCollider(
-        downCast.collider
-      ).value0;
-
-      if (GameUtils.GetDataFromCollider(downCast.collider).value1 > 0) {
-        this.IsTouching.edgePlatform = true;
-      } else {
-        this.IsTouching.edgePlatform = false;
-      }
+      // Read floor / edge from the platform we're standing on (named fields)
+      const platform = this.getPlatform(downCast.collider);
+      this.CurrentFloor = platform ? platform.FloorLevel : 0;
+      this.IsTouching.edgePlatform = platform ? platform.IsEdge : false;
     }
 
     // Detect ground within buffer jump range
@@ -383,7 +382,7 @@ export default class Player extends GameObject {
     if (
       leftCast &&
       leftCast.time_of_impact <= this.ColliderOffsetThreshold &&
-      GameUtils.IsColliderName(leftCast.collider, EntityType.ONE_WAY_PLATFORM) == false
+      GameUtils.IsColliderType(leftCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
       this.IsTouching.leftSide = true;
     }
@@ -393,7 +392,7 @@ export default class Player extends GameObject {
     if (
       rightCast &&
       rightCast.time_of_impact <= this.ColliderOffsetThreshold &&
-      GameUtils.IsColliderName(rightCast.collider, EntityType.ONE_WAY_PLATFORM) == false
+      GameUtils.IsColliderType(rightCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
       this.IsTouching.rightSide = true;
     }
@@ -403,7 +402,7 @@ export default class Player extends GameObject {
     if (
       upCast &&
       upCast.time_of_impact <= this.ColliderOffsetThreshold &&
-      GameUtils.IsColliderName(upCast.collider, EntityType.ONE_WAY_PLATFORM) == false
+      GameUtils.IsColliderType(upCast.collider, EntityType.ONE_WAY_PLATFORM) == false
     ) {
       this.IsTouching.ceiling = true;
     }
@@ -442,12 +441,12 @@ export default class Player extends GameObject {
         }
         
         // Ignore active one-way platforms
-        if (GameUtils.IsOneWayPlatformAndActive(collider, EntityType.ONE_WAY_PLATFORM)) {
+        if (this.isActiveOneWayPlatform(collider)) {
           return false;
         }
 
         // Ignore enemies! They shouldn't be treated as solid ground
-        if (GameUtils.IsColliderName(collider, EntityType.ENEMY)) {
+        if (GameUtils.IsColliderType(collider, EntityType.ENEMY)) {
           return false;
         }
         
@@ -457,25 +456,6 @@ export default class Player extends GameObject {
     );
 
     return hit;
-  }
-
-  /**
-   * Check for enemy collisions using the hit box sensor
-   * This detects when enemies enter the player's sensor zone
-   */
-  private checkEnemyCollisions() {
-    if (this.hasTriggeredGameOver) return;
-
-    // Check sensor intersections with enemies
-    this.Physics.World.intersectionPairsWith(
-      this.PhysicsBody!.collider(1),
-      (otherCollider) => {
-        if (GameUtils.IsColliderName(otherCollider, EntityType.ENEMY) && !this.hasTriggeredGameOver) {
-          this.hasTriggeredGameOver = true;
-          Emitter.emit("gameOver");
-        }
-      }
-    );
   }
 
   public Update() {
@@ -489,9 +469,8 @@ export default class Player extends GameObject {
 
     this.syncGraphicsToPhysics();
     this.updatePlayerState();
-    this.updateTranslation();  // This also checks for enemy collisions via character controller
+    this.updateTranslation();
     this.detectCollisions();
-    this.checkEnemyCollisions();  // Check for enemies in sensor zone
   }
 
   public Destroy() {

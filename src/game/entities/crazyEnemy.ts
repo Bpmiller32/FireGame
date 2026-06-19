@@ -1,5 +1,4 @@
 import RAPIER from "@dimforge/rapier2d-compat";
-import Emitter from "../../engine/events/eventBus";
 import CollisionGroups from "../types/gameCollisionGroups";
 import TrashCan from "./trashCan";
 import Time from "../../engine/core/time";
@@ -41,35 +40,15 @@ export default class CrazyEnemy extends GameObject {
     this.initalizeAttributes();
     this.createObjectGraphicsDebug("orange");
 
-    // Set collision groups: CrazyEnemy collides with platforms, walls, and both player colliders
+    // Set collision groups: CrazyEnemy collides with platforms and the player box
     this.setCollisionGroup(CollisionGroups.ENEMY);
     this.setCollisionMask(
-      CollisionGroups.PLATFORM | 
-      CollisionGroups.PLAYER_HIT_BOX | 
-      CollisionGroups.PLAYER_BOUNDING_BOX
+      CollisionGroups.PLATFORM | CollisionGroups.PLAYER_BOUNDING_BOX
     );
-  }
 
-  /**
-   * COLLISION CALLBACK - Called when crazy enemy collides with another GameObject
-   * This replaces the old manual contactPairsWith checking
-   */
-  public OnCollisionEnter(other: GameObject): void {
-    // Collision with Player - Game Over!
-    if (other instanceof Player) {
-      console.log("💀 Crazy Enemy hit player - Game Over!");
-      Emitter.emit("gameOver");
-      return;
-    }
-
-    // Collision with TrashCan - Enemy is destroyed
-    if (other instanceof TrashCan) {
-      console.log("🔥 Crazy Enemy fell into trash can!");
-      Emitter.emit("gameObjectRemoved", this);
-      // Light the trash can on fire
-      (other as TrashCan).IsOnFire = true;
-      return;
-    }
+    // CrazyEnemy's interactions (kills Player, ignites TrashCan) are declared in
+    // the contact table, not here — so arm contact events explicitly.
+    this.enableContactEvents();
   }
 
   private initalizeAttributes() {

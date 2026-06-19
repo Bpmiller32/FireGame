@@ -4,14 +4,15 @@
 /*
  * The single identity source for this game's entities.
  *
- * Every entity carries a string name (set via createObjectPhysics/setObjectName).
- * Collision routing matches against that name — and Rapier shapecast/intersection
- * callbacks hand back a raw Collider, not a class, so name-based routing (not
- * `instanceof`) is what survives those callbacks.
+ * Every entity carries a string `type` flag (set via createObjectPhysics / SetType).
+ * Collision routing matches against that type — and Rapier shapecast/intersection
+ * callbacks hand back a raw Collider, not a class, so type-based routing (not
+ * `instanceof`) is what survives those callbacks. (A separate per-instance `name`
+ * exists for singling out one specific entity; routing uses `type`.)
  *
- * Keeping every name in one const map means the spawn side (which writes the name)
- * and the routing side (which matches it) can never silently drift apart. Mirrors
- * the PlayerStates / CollisionGroups pattern.
+ * Keeping every type in one const map means the spawn side (which writes it) and
+ * the routing side (which matches it) can never silently drift apart. Mirrors the
+ * PlayerStates / CollisionGroups pattern.
  *
  * NOTE: the VALUES here are the exact strings the level data and the engine's
  * resourceLoader emit — do NOT change a value without changing those too, or
@@ -24,7 +25,7 @@
  *
  * @example
  * ```typescript
- * if (GameUtils.isColliderName(collider, EntityType.ENEMY)) {
+ * if (GameUtils.IsColliderType(collider, EntityType.ENEMY)) {
  *   // routed an enemy hit
  * }
  * ```

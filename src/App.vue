@@ -4,6 +4,7 @@ import Experience from "./engine/core/experience.ts";
 import Emitter from "./engine/events/eventBus.ts";
 import GameDirector from "./game/gameDirector.ts";
 import InputBindings from "./game/config/inputBindings.ts";
+import registerContactRules from "./game/config/contactRules.ts";
 import CollisionLogger from "./game/debug/CollisionLogger.ts";
 
 const webglRef = ref<HTMLCanvasElement | null>(null);
@@ -14,6 +15,11 @@ const isResetButtonVisible = ref<boolean | null>(null);
 onMounted(async () => {
   const webglExperience = Experience.GetInstance();
   await webglExperience.Configure(webglRef.value);
+
+  // The game declares its cross-entity contact rules (Enemy->Player = gameOver,
+  // teleporter, camera zones, …) into the engine's contact registry. The engine
+  // dispatches physics contact events into it; it never names a game concept.
+  registerContactRules(webglExperience.Physics.Contacts);
 
   // The game owns its collision-log formatting; it registers the sink with the
   // engine Debug coordinator, which Physics routes collision/sensor events to.

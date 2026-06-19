@@ -27,6 +27,7 @@ export {
 export {
   getUserData,
   getUserDataFromCollider,
-  isColliderName,
-  isOneWayPlatformActive
+  isColliderType,
+  matchesType,
+  matchesName
 } from './physicsHelpers';

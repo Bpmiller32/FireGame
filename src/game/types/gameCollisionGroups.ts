@@ -37,19 +37,15 @@ const CollisionGroups = {
    * Used for solid collisions with platforms and enemies
    */
   PLAYER_BOUNDING_BOX: 0b0000000000000001, // Bit 0
-  
-  /**
-   * Player's hit detection sensor
-   * Used for detecting enemy hits without blocking movement
-   * This is a sensor that triggers game over on enemy contact
-   */
-  PLAYER_HIT_BOX: 0b0000000000000010, // Bit 1
-  
+
+  // Bit 1 is free — was PLAYER_HIT_BOX (the player's 62.5% hit sensor), removed
+  // when death detection moved to the full bounding box via the contact table.
+
   /* ===== ENEMY COLLISION GROUPS ===== */
-  
+
   /**
    * Enemy collision group
-   * Collides with player (both bounding box and hit box) and platforms
+   * Collides with the player's bounding box and platforms
    */
   ENEMY: 0b0000000000000100, // Bit 2
   
