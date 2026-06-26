@@ -128,12 +128,12 @@ export default class SpriteAnimator {
   }
 
   public Destroy() {
-    // Remove the reference to the texture to prevent memory leaks
-    if (this.Material.map) {
-      this.Material.map.dispose();
-    }
-
-    // Nullify the material to break references
+    // Dispose ONLY the material — NOT this.Material.map. The map is the shared
+    // spritesheet texture owned by ResourceLoader (Resources.Items.randy) and is
+    // reused by any future player; disposing it here would leave the next
+    // SpriteAnimator rendering a freed texture (a use-after-free that only shows up
+    // once the player is ever destroyed+recreated — respawn, character select, MP
+    // join). ResourceLoader.Destroy() frees the texture once at teardown.
     this.Material.dispose();
   }
 }

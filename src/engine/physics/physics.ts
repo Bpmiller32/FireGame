@@ -77,12 +77,6 @@ export default class Physics {
     }
   }
 
-  // Get the GameObject associated with a collider handle
-  // Returns undefined if not found
-  private getGameObject(colliderHandle: number): GameObject | undefined {
-    return this.gameObjectRegistry.get(colliderHandle);
-  }
-
   // Resolve a collider to its owning GameObject (or undefined if unregistered).
   // Lets a kinematic character controller feed its OWN contacts into the contact
   // registry: a kinematic body keeps a skin gap from solids it moves into, so
@@ -108,8 +102,8 @@ export default class Physics {
         return;
       }
 
-      const gameObject1 = this.getGameObject(handle1);
-      const gameObject2 = this.getGameObject(handle2);
+      const gameObject1 = this.GetGameObjectFromCollider(collider1);
+      const gameObject2 = this.GetGameObjectFromCollider(collider2);
 
       // Skip if either GameObject is not registered or is being destroyed
       if (

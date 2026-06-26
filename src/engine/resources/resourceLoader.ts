@@ -499,9 +499,6 @@ export default class ResourceLoader {
   // Clean up all loaded resources and free memory.
   // Call this when destroying the game or switching to a new level.
   public Destroy() {
-    // Remove event listeners
-    Emitter.off("resourcesReady");
-
     // Loop through all loaded items and dispose of them properly
     for (const key in this.Items) {
       const item = this.Items[key];

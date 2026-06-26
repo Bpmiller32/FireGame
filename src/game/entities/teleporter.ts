@@ -33,7 +33,10 @@ export default class Teleporter extends GameSensor {
     this.enableContactEvents();
     this.SetTeleportPosition(0, 0);
 
-    this.createObjectGraphicsDebug("teal", 0.1);
+    // Uncomment to visualize the teleporter volume (matches CameraSensor /
+    // LadderSensor, which keep this off). The physics-debug wireframe already draws
+    // the collider, so there's no always-on mesh in normal play.
+    // this.createObjectGraphicsDebug("teal", 0.1);
   }
 
   // Set where this teleporter sends whatever enters it.

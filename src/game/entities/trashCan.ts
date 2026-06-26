@@ -27,5 +27,10 @@ export default class TrashCan extends GameObject {
     // Collide with the default world so enemies can fall in.
     this.setCollisionGroup(CollisionGroups.DEFAULT);
     this.setCollisionMask(CollisionGroups.DEFAULT);
+
+    // Take part in the contact table (Enemy + TrashCan -> ignite) even though this
+    // class defines no callback. It works today only because the enemy's collider is
+    // auto-armed; arming our own is explicit and matches every other contact-table entity.
+    this.enableContactEvents();
   }
 }

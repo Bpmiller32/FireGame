@@ -122,10 +122,14 @@ const handlePlayerFalling = (player: Player) => {
   }
 
   // Gravity Logic (Y Axis)
-  // Variable jump height now lives entirely in the JUMPING state (early release
-  // boosts rise gravity), so the fall is a plain accel toward terminal speed.
-  // (The old early-release branch here was dead: FALLING is always entered at
-  // the apex with y <= 0, so its `y > 0` guard never fired.)
+  // Gravity is intentionally HELD OFF during the coyote window: for the few frames
+  // after leaving a ledge (CoyoteAvailable stays true until CoyoteTime expires above)
+  // the player floats with vy unchanged — the literal Wile-E-Coyote hang — and can
+  // still jump (see the coyote-jump branch up top). NOTE: this hang fires on EVERY
+  // walk-off, whether or not a jump is pressed. Once the window expires (CoyoteAvailable
+  // cleared above) gravity becomes a plain accel toward terminal speed. Variable jump
+  // height lives entirely in JUMPING (early release boosts rise gravity), so there's
+  // no early-release branch here.
   if (!player.CoyoteAvailable) {
     player.NextTranslation.y = GameUtils.MoveTowardsPoint(
       player.NextTranslation.y,
