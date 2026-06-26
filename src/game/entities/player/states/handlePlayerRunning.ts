@@ -3,14 +3,38 @@ import PlayerStates from "../../../../engine/types/playerStates";
 import SpriteAnimations from "../spriteAnimations";
 import PlayerDirection from "../../../../engine/types/playerDirection";
 import applyHorizontalMovement from "../applyHorizontalMovement";
+import applyGroundedStick from "../applyGroundedStick";
 
 // Running state: transitions, horizontal movement, run animation timing
 const handlePlayerRunning = (player: Player) => {
   // Change state
   // Transition to falling state
   if (!player.IsTouching.ground) {
-    if (player.IsTouching.edgePlatform) {
-      player.NextTranslation.y = 0;
+    // Launch feel off the platform you just left: an EDGE platform gives a SOFT
+    // launch (coyote-friendly, what edge platforms exist for), a non-edge one a FIRM
+    // launch. Reads WasOnEdgePlatform because IsTouching.edgePlatform has already
+    // cleared now that ground is lost.
+    if (player.WasOnEdgePlatform) {
+      if (player.GroundIsWalkableFlat) {
+        // FLAT (or a ramp within FlatToleranceDegrees): launch at 0 — the loved soft,
+        // coyote feel. A shallow ramp counts as flat here so its edge feels like a flat
+        // platform's, instead of getting the slope carry.
+        player.NextTranslation.y = 0;
+      } else {
+        // SLOPE edge (Bug-2): while running down the ramp the controller was moving us
+        // down at ~vx*tan(θ) (the slope-clamped stick). Carry that real descent into the
+        // fall so the lip is seamless — the old hard 0 here is what caused the
+        // anti-gravity "notch". /dt converts the stored per-step movement back to a
+        // velocity (FALLING re-multiplies by dt). Clamp to (-MaxFallSpeed..0]: min(0)
+        // kills an uphill-crest upward pop, max(-MaxFallSpeed) caps a snap-to-ground spike.
+        const carried = player.LastGroundedMoveY / player.Time.Delta;
+        player.NextTranslation.y = Math.max(
+          -player.MaxFallSpeed,
+          Math.min(0, carried)
+        );
+      }
+    } else {
+      player.NextTranslation.y = -player.MaxFallSpeed;
     }
 
     player.TimeFallWasEntered = player.Time.Elapsed;
@@ -103,24 +127,20 @@ const handlePlayerRunning = (player: Player) => {
     1 / (Math.abs(player.NextTranslation.x) / player.AnimationScalingFactor)
   );
 
-  // Gravity Logic (Y Axis)
-  if (player.IsTouching.edgePlatform) {
-    // Exception to simple gravity when about to run off an edge
-    player.NextTranslation.y = 0;
-  } else {
-    // Simple max gravity in non-vertical state to fix downward movement on slopes, maintain touching ground
-    player.NextTranslation.y = -player.MaxFallSpeed;
-  }
-
-  // Movement Logic (X Axis)
-  // Shared accel/decel + wall-stop; returns true on a wall hit, which running
-  // uses to keep its wall animation playing.
+  // Movement Logic (X Axis) — run BEFORE the grounded stick below so the slope-follow
+  // stick uses this frame's horizontal speed. Shared accel/decel + wall-stop; returns
+  // true on a wall hit, which running uses to keep its wall animation playing.
   if (applyHorizontalMovement(player)) {
     // Play running animation even though hitting a wall (should be in animation section above but I didn't want 2 identical checks)
     player.SpriteAnimator.ChangeAnimationTiming(
       1 / (player.MaxGroundSpeed / player.AnimationScalingFactor)
     );
   }
+
+  // Gravity Logic (Y Axis): the grounded "stick" that keeps the player glued. On a
+  // walkable-flat slope this follows the surface tangent so horizontal speed matches flat
+  // ground (no climb-slow / slide-fast); flat → 0; steeper slope → firm -MaxFallSpeed.
+  applyGroundedStick(player);
 };
 
 export default handlePlayerRunning;

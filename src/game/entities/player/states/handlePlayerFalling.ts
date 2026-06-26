@@ -22,6 +22,23 @@ const handlePlayerFalling = (player: Player) => {
     // Reset gating mechanism for counting buffer jumps
     player.WasBufferJumpUsed = false;
 
+    // Seat the player on touchdown the SAME way the grounded states do, so the landing
+    // frame's KCC move matches the surface under the feet:
+    //  • FLAT ground → 0, so the landing frame doesn't drive the now-full feet down into
+    //    the floor (Bug-1).
+    //  • SLOPE → the -MaxFallSpeed downward stick, so the player is firmly clamped onto the
+    //    ramp instead of floating a hair above it. A flat 0 on a slope lets the feet settle
+    //    slowly, and during that settle ground detection sits on the boundary and flickers
+    //    RUNNING<->FALLING for a few frames after landing on an up-slope. The KCC clamps the
+    //    stick to the surface, so this is the firm seat, not a downward dive.
+    // (Safe: FALLING is only entered at the apex with vy <= 0; GroundIsFlat is fresh from
+    //  the down-cast that just registered ground this transition.)
+    if (player.GroundIsFlat) {
+      player.NextTranslation.y = 0;
+    } else {
+      player.NextTranslation.y = -player.MaxFallSpeed;
+    }
+
     return;
   }
 

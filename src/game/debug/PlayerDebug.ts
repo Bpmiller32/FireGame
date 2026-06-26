@@ -53,12 +53,18 @@ type Player = {
   CoyoteTime: number;
   AnimationScalingFactor: number;
 
+  // Diagnostic hook (Bug-1 ring-buffer capture; all logic lives on Player)
+  DiagnosticLogLive: boolean;
+  DepenFireCount: number;
+  DumpDiagnostics: () => string;
+
   // Capsule collider + character-controller tuning (live-editable)
   AirColliderHeightScale: number;
   AirColliderGrowDistance: number;
   SnapToGroundDistance: number;
   MaxSlopeClimbDegrees: number;
   MinSlopeSlideDegrees: number;
+  FlatToleranceDegrees: number;
 };
 
 // Adds a Player Debug folder to dat.GUI: live state/movement readouts + click-to-teleport noclip mode.
@@ -328,6 +334,13 @@ export default class PlayerDebug implements DebugModule {
       .step(1)
       .listen();
     colliderFolder
+      .add(player, "FlatToleranceDegrees")
+      .name("Flat Tolerance°")
+      .min(0)
+      .max(20)
+      .step(0.5)
+      .listen();
+    colliderFolder
       .add(player, "AirColliderHeightScale")
       .name("Air Height Scale")
       .min(0.3)
@@ -348,6 +361,17 @@ export default class PlayerDebug implements DebugModule {
       dump: () => this.dumpFeelValues(),
     };
     feel.add(actions, "dump").name("📋 Dump Feel Values");
+
+    // ── 🔬 Diagnostics — floor-clip ring buffer (Bug-1) ───────────────────────
+    // Live console log toggle + a rolling ~3s trace dumped on demand. Catch the rare
+    // floor-clip: it's always recording, so reproduce it then click Dump to get the
+    // frames that led up to it. "De-pen Fires" is the regression canary — it should
+    // stay ~0 once the prevention holds.
+    const diag = folder.addFolder("🔬 Diagnostics");
+    diag.add(player, "DiagnosticLogLive").name("Live Console Log").listen();
+    diag.add(player, "DepenFireCount").name("De-pen Fires").listen();
+    const diagActions = { dump: () => this.dumpDiagnostics() };
+    diag.add(diagActions, "dump").name("📋 Dump 3s Trace");
   }
 
   // Cleanup: drop the teleport click listener.
@@ -372,6 +396,7 @@ export default class PlayerDebug implements DebugModule {
       `player.SnapToGroundDistance = ${p.SnapToGroundDistance};`,
       `player.MaxSlopeClimbDegrees = ${p.MaxSlopeClimbDegrees};`,
       `player.MinSlopeSlideDegrees = ${p.MinSlopeSlideDegrees};`,
+      `player.FlatToleranceDegrees = ${p.FlatToleranceDegrees};`,
       "",
       "// ── profile overrides (setDkAttributes.ts / setCelesteAttributes.ts) ──",
       `player.MaxGroundSpeed = ${p.MaxGroundSpeed};`,
@@ -395,6 +420,21 @@ export default class PlayerDebug implements DebugModule {
     if (copy) {
       copy
         .then(() => console.log("📋 Copied to clipboard."))
+        .catch(() =>
+          console.log("⚠️ Clipboard blocked — copy from the log above."),
+        );
+    }
+  }
+
+  // Dump the player's last ~3s diagnostic ring buffer as CSV and copy to clipboard
+  // (same pattern as dumpFeelValues), so a captured floor-clip can be pasted out.
+  private dumpDiagnostics() {
+    const trace = this.player.DumpDiagnostics();
+    console.log("🔬 Player 3s trace (CSV):\n" + trace);
+    const copy = navigator.clipboard?.writeText(trace);
+    if (copy) {
+      copy
+        .then(() => console.log("📋 Trace copied to clipboard."))
         .catch(() =>
           console.log("⚠️ Clipboard blocked — copy from the log above."),
         );

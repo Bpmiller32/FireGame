@@ -30,7 +30,7 @@ const applyBaseFeel = (player: Player) => {
   player.TimeJumpWasEntered = 0;
   player.TimeFallWasEntered = 0;
 
-  player.CoyoteTime = 0.033; // 2 frames
+  player.CoyoteTime = 0.05; // 3 frames — slightly more forgiving edges
 
   // Capsule collider + character-controller tuning (all Feel-Lab tunable; great to
   // dial live in the slope lab).
@@ -49,6 +49,13 @@ const applyBaseFeel = (player: Player) => {
   // Slope limits (degrees): the player can climb up to Max; past Min it slides down.
   player.MaxSlopeClimbDegrees = 45;
   player.MinSlopeSlideDegrees = 30;
+  // Flat tolerance (degrees): any ramp whose surface is within this of horizontal is
+  // treated as a FLAT platform for FEEL — the player walks/launches off it exactly like a
+  // flat platform (the loved edge feel applies), no slope launch. The KCC still physically
+  // follows the surface (the down-stick glues you), so only the feel changes. Bump this if
+  // gentle ramps still feel "slopey"; lower it if real slopes start feeling too flat.
+  // Default 8 so ~7.5° DK ramps are comfortably inside the flat band.
+  player.FlatToleranceDegrees = 8;
 
   // Sprite-animation pacing divisor (faster horizontal move → faster animation)
   player.AnimationScalingFactor = 1.6;

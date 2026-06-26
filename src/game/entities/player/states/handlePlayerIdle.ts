@@ -2,13 +2,17 @@ import Player from "../player";
 import PlayerStates from "../../../../engine/types/playerStates";
 import SpriteAnimations from "../spriteAnimations";
 import PlayerDirection from "../../../../engine/types/playerDirection";
+import applyGroundedStick from "../applyGroundedStick";
 
 // Idle state: transitions, grounded coyote/buffer resets, idle anim
 const handlePlayerIdle = (player: Player) => {
   // Change state
-  // Check for edge case where vertical direction is positive before entering idle
+  // Edge case: only when vertical velocity is genuinely POSITIVE (rising) and a
+  // direction is held — give the downward stick before entering idle. Uses > 0 (not
+  // >= 0) so flat-ground idle (where the stick now holds y = 0) does NOT trip this; a
+  // >= 0 here cost a 1-frame stall on every walk-start from a standstill.
   if (
-    player.NextTranslation.y >= 0 &&
+    player.NextTranslation.y > 0 &&
     (player.Input.isLeft || player.Input.isRight)
   ) {
     player.NextTranslation.y = -player.MaxFallSpeed;
@@ -61,8 +65,11 @@ const handlePlayerIdle = (player: Player) => {
     player.BufferJumpAvailable = true;
   }
 
-  // Simple max gravity in non-vertical state to fix downward movement on slopes, maintain touching ground
-  player.NextTranslation.y = -player.MaxFallSpeed;
+  // Grounded "stick" that keeps the player glued (shared with running). On a walkable-flat
+  // slope it follows the surface so a near-stationary idle isn't pulled around; flat → 0
+  // (so a hard landing de-penetrates instead of being pinned into the floor); steeper slope
+  // → firm -MaxFallSpeed. Idle's horizontal speed is ~0, so the slope-follow term is ~0.
+  applyGroundedStick(player);
 
   // Animation
   switch (player.Direction) {

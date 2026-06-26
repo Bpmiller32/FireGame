@@ -25,6 +25,47 @@ import CollisionGroups from "../../types/gameCollisionGroups";
 import EntityType from "../../types/entityType";
 import Platform from "../platform";
 
+// One frame of player physics state for the diagnostic ring buffer (Bug-1 capture).
+// Mirrored to CSV by DumpDiagnostics; the named fields map 1:1 to the dump columns.
+interface PlayerDiagFrame {
+  frame: number;
+  elapsed: number;
+  state: string;
+  vx: number;
+  vyPre: number; // NextTranslation.y BEFORE the de-pen vy-clamp
+  vyPost: number; // NextTranslation.y AFTER de-pen
+  desY: number; // scratchDesired.y fed to the KCC
+  movX: number; // computedMovement().x the KCC allowed
+  movY: number; // computedMovement().y the KCC allowed
+  lastGroundedMoveY: number; // the Bug-2 grounded-gated carry
+  kccGrounded: boolean;
+  ground: boolean;
+  ceiling: boolean;
+  groundIsFlat: boolean; // STRICT (~0.8°)
+  walkableFlat: boolean; // within FlatToleranceDegrees (treated as flat for feel)
+  snapGrace: boolean; // ground came from the snap-grace, not the strict cast
+  toi: number; // down-cast time_of_impact
+  downN1y: number;
+  downN2y: number;
+  halfHeight: number; // collider half-height this frame (shrunk vs full)
+  radius: number;
+  airborne: boolean; // colliderIsAirborne (which shape is live)
+  centerY: number;
+  dy: number; // per-step vertical delta of the body center
+  feetBottom: number;
+  surfaceTop: number; // flat down-contact top (NaN on slopes)
+  feetGap: number; // feetBottom - surfaceTop; negative ⇒ penetration
+  penetration: number; // de-pen measured overlap this frame
+  depenLift: number; // de-pen lift applied this frame
+  contactType: string; // EntityType of the down-contact body
+  oneWayActive: boolean;
+  snapDist: number;
+  growDist: number;
+  airScale: number;
+  offsetThresh: number;
+  maxFall: number;
+}
+
 export default class Player extends GameObject {
   // Experience
   public Time!: Time;
@@ -43,8 +84,9 @@ export default class Player extends GameObject {
   public State!: PlayerState;
   private fsm!: StateMachine<Player, PlayerState>;
 
-  // Hoisted predicates + scratch vectors so the per-frame hot path (4 shapecasts +
-  // the KCC move) allocates NOTHING: these are created ONCE, not per call. (Rapier
+  // Hoisted predicates + scratch vectors so the per-frame hot path (5 shapecasts — 4 in
+  // detectCollisions + 1 in updateAirCollider — plus the KCC move) allocates NOTHING:
+  // these are created ONCE, not per call. (Rapier
   // reads the vectors synchronously, so reusing them across calls is safe.) This is
   // the main fix for periodic GC stutter.
   private moveFilter = (collider: RAPIER.Collider): boolean =>
@@ -72,6 +114,56 @@ export default class Player extends GameObject {
   public ColliderOffsetThreshold!: number;
   public IsTouching!: ContactPoints;
   public CurrentFloor!: number;
+  // STRICT flatness (~0.8°): true only on truly axis-aligned ground. Drives the grounded
+  // down-"stick" (flat → 0, slope → -MaxFallSpeed adhesion so the player follows slopes
+  // DOWN) and the de-pen gate (its surfaceTop math is only valid for axis-aligned cuboids).
+  public GroundIsFlat = true;
+  // "Treat as flat for FEEL": true when the ground normal is within FlatToleranceDegrees of
+  // vertical (default 7°). Drives the run→fall edge launch, so a shallow ramp gets the loved
+  // flat soft-launch instead of the slope carry. Wider than GroundIsFlat on purpose.
+  public GroundIsWalkableFlat = true;
+  // Surface gradient dy/dx (= -normal.x/normal.y) from the last grounded frame. On a
+  // walkable-flat slope the grounded stick sets vy = GroundSlopeDyDx * vx so the desired
+  // move runs exactly along the slope tangent — the KCC then doesn't slide-project the
+  // horizontal, so ground speed equals flat-ground speed both up and down. ~0 on flat.
+  public GroundSlopeDyDx = 0;
+  // Last frame's final ground verdict — feeds the snap-grace (see getShapeCastCollisions),
+  // so a one-frame down-cast miss while walking a slope doesn't flicker RUNNING<->FALLING.
+  private wasGroundedLastFrame = false;
+  // The edge-platform flag from the LAST grounded frame. Used when leaving a
+  // platform (ground already lost, so IsTouching.edgePlatform has cleared) to give
+  // an edge platform a soft launch and a non-edge one a firm launch.
+  public WasOnEdgePlatform = false;
+
+  // Bug-2 (slope-edge launch): the KCC's vertical movement on the LAST GROUNDED frame
+  // (gated to kccGrounded in updateTranslation). On a downhill slope this holds the
+  // slope-clamped descent (~ -vx*tan θ); handlePlayerRunning carries it into the FALLING
+  // launch so running off a slope edge is seamless instead of an anti-gravity "notch".
+  // Gating to grounded frames is essential — an ungated capture would store the first
+  // FREE-FALL frame (~ -MaxFallSpeed*dt), which is exactly the frame the transition
+  // reads. Reset on teleport so a respawn can't leak a stale descent.
+  public LastGroundedMoveY = 0;
+
+  // ── Diagnostics (Bug-1 capture) + de-pen safety-net telemetry ───────────────────
+  public DiagnosticLogLive = false; // dat.gui toggle: live console log each frame
+  // Frames the de-pen net has corrected. Stays LOW if prevention holds — a slow/edge
+  // touchdown can still seat shrunk then grow-embed the full feet ~0.17u (healed in ~2
+  // frames); a climbing count or a DEEP (>0.2u) warn from depenetrate is the real canary.
+  public DepenFireCount = 0;
+  private static readonly DIAG_CAPACITY = 180; // ~3s @ fixed 60fps
+  private diagRing: PlayerDiagFrame[] = []; // grown on demand to capacity, then mutated in place
+  private diagHead = 0;
+  private diagFilled = 0;
+  private diagFrame = 0; // monotonic sim-step counter (orders frames, rate-limits warns)
+  private diagPrevCenterY = 0;
+  private diagVyPre = 0; // NextTranslation.y snapshot before the de-pen clamp
+  private diagDesY = 0;
+  private diagMoveX = 0;
+  private diagMoveY = 0;
+  private lastDepenLift = 0;
+  private lastDepenPenetration = 0;
+  private lastDepenWarnFrame = -999;
+  private diagSnapGrace = false; // did the snap-grace (not the strict cast) supply ground?
 
   // Capsule collider tuning (Feel-Lab tunable; set in baseFeel).
   public AirColliderHeightScale!: number; // fraction of full half-height kept airborne
@@ -79,6 +171,7 @@ export default class Player extends GameObject {
   public SnapToGroundDistance!: number; // KCC snap-to-ground distance
   public MaxSlopeClimbDegrees!: number; // steepest slope the player can climb
   public MinSlopeSlideDegrees!: number; // slope angle past which it slides down
+  public FlatToleranceDegrees!: number; // ramps within this of horizontal feel/launch as FLAT
 
   // Cached capsule sizes (read off the collider after creation) for the air-shrink.
   private fullHalfHeight = 0;
@@ -129,7 +222,7 @@ export default class Player extends GameObject {
 
   public constructor(
     size: { width: number; height: number },
-    position: { x: number; y: number }
+    position: { x: number; y: number },
   ) {
     super();
 
@@ -146,7 +239,7 @@ export default class Player extends GameObject {
       size,
       position,
       0,
-      RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
+      RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations(),
     );
 
     this.createSpriteGraphics();
@@ -163,7 +256,9 @@ export default class Player extends GameObject {
 
     // Enable collision events on the bounding box so it feeds the contact system
     if (this.PhysicsBody) {
-      this.PhysicsBody.collider(0).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+      this.PhysicsBody.collider(0).setActiveEvents(
+        RAPIER.ActiveEvents.COLLISION_EVENTS,
+      );
     }
 
     // Debug — the game registers its player debug module with the engine
@@ -238,7 +333,11 @@ export default class Player extends GameObject {
 
   private setSpriteAnimator() {
     // Set initial sprite loop
-    this.SpriteAnimator = new SpriteAnimator(this.Resources.Items.randy as THREE.Texture, 4, 6);
+    this.SpriteAnimator = new SpriteAnimator(
+      this.Resources.Items.randy as THREE.Texture,
+      4,
+      6,
+    );
     this.SpriteAnimator.State = SpriteAnimations.IDLE_RIGHT;
     this.setMaterial(this.SpriteAnimator.Material, 4);
   }
@@ -258,7 +357,7 @@ export default class Player extends GameObject {
   private setCharacterController() {
     // Independent character controller (exclusively the Player's).
     this.CharacterController = this.Physics.World.createCharacterController(
-      this.ColliderOffset
+      this.ColliderOffset,
     );
     // Autostep over short ledges (height <= 0.5, min width 0.2, include dynamics).
     this.CharacterController.enableAutostep(0.5, 0.2, true);
@@ -272,10 +371,10 @@ export default class Player extends GameObject {
   private applyControllerTuning() {
     this.CharacterController.enableSnapToGround(this.SnapToGroundDistance);
     this.CharacterController.setMaxSlopeClimbAngle(
-      (this.MaxSlopeClimbDegrees * Math.PI) / 180
+      (this.MaxSlopeClimbDegrees * Math.PI) / 180,
     );
     this.CharacterController.setMinSlopeSlideAngle(
-      (this.MinSlopeSlideDegrees * Math.PI) / 180
+      (this.MinSlopeSlideDegrees * Math.PI) / 180,
     );
   }
 
@@ -330,6 +429,15 @@ export default class Player extends GameObject {
     this.scratchDesired.x = this.NextTranslation.x * this.Time.Delta;
     this.scratchDesired.y = this.NextTranslation.y * this.Time.Delta;
 
+    // Bug-1 prevention: decide the airborne capsule shrink/grow HERE, BEFORE the move is
+    // computed, so the shape the KCC clamps against is the SAME shape World.step applies
+    // the committed move with next step. (It used to run at the end of detectCollisions —
+    // AFTER the move was committed — so a grow dropped the full feet ~0.17u into the floor
+    // a frame later, and the KCC never de-penetrates an embedded start. See
+    // updateAirCollider.)
+    this.diagVyPre = this.NextTranslation.y;
+    this.updateAirCollider();
+
     // Given a desired translation, compute the actual translation possible given
     // obstacles. Predicate is hoisted (this.moveFilter) — don't collide with sensors
     // or active OneWayPlatforms; we DO collide with enemies (they stop the player).
@@ -340,7 +448,7 @@ export default class Player extends GameObject {
       this.scratchDesired,
       undefined,
       undefined,
-      this.moveFilter
+      this.moveFilter,
     );
 
     // Apply the actual translation to the next kinematic translation (scratch reuse).
@@ -349,6 +457,20 @@ export default class Player extends GameObject {
     // Rapier's own grounded verdict from this move — a robust OR in ground detection
     // so a slope/step descent doesn't flicker RUNNING<->FALLING (see getShapeCast).
     this.kccGrounded = this.CharacterController.computedGrounded();
+
+    // Bug-2 carry: remember the vertical movement the controller actually produced on the
+    // LAST GROUNDED frame. The gate is load-bearing — an ungated capture would store the
+    // first free-fall frame (~ -MaxFallSpeed*dt), the exact frame the running→falling
+    // transition reads, defeating the fix. While glued to a downhill slope this holds the
+    // slope-clamped descent that handlePlayerRunning carries into the launch.
+    if (this.kccGrounded) {
+      this.LastGroundedMoveY = correctiveMovement.y;
+    }
+
+    // Diagnostic raw captures (consumed by captureDiagnostics at the end of the frame).
+    this.diagDesY = this.scratchDesired.y;
+    this.diagMoveX = correctiveMovement.x;
+    this.diagMoveY = correctiveMovement.y;
 
     this.scratchNext.x = this.CurrentTranslation.x + correctiveMovement.x;
     this.scratchNext.y = this.CurrentTranslation.y + correctiveMovement.y;
@@ -370,7 +492,9 @@ export default class Player extends GameObject {
         if (!collision?.collider) {
           continue;
         }
-        const other = this.Physics.GetGameObjectFromCollider(collision.collider);
+        const other = this.Physics.GetGameObjectFromCollider(
+          collision.collider,
+        );
         if (other && !other.IsBeingDestroyed) {
           this.currentContacts.add(other);
         }
@@ -449,23 +573,53 @@ export default class Player extends GameObject {
       up: this.shapeCast(PlayerDirection.NEUTRAL, PlayerDirection.UP),
     };
 
-    // Detect ground collisions, ignore walls and active OneWayPlatforms
+    // Detect ground, ignoring walls and active OneWayPlatforms. A solid down-cast counts
+    // as ground if its toi is within the tight threshold (STRICT), OR within
+    // SnapToGroundDistance while we're grounded+descending (SNAP-GRACE). The snap-grace
+    // exists because the tight down-cast threshold (0.025) is far tighter than the snap
+    // distance (0.15) that actually re-glues the feet: while walking a slope the feet blip
+    // a frame above 0.025 even though snap-to-ground will pull them right back, which used
+    // to flicker RUNNING<->FALLING (and felt like "climbing up / sliding down"). Counting
+    // "solid floor within snap distance, descending, grounded last frame" as grounded kills
+    // that at the source — without making a real jump (it rises) or a run-off-an-edge (no
+    // floor within snap) sticky.
     const downCast = shapeCasts.down;
-    if (
-      downCast &&
-      downCast.time_of_impact <= this.ColliderOffsetThreshold &&
+    const downIsSolidFloor =
+      !!downCast &&
       GameUtils.IsColliderType(downCast.collider, EntityType.WALL) === false &&
-      this.isActiveOneWayPlatform(downCast.collider) === false
-    ) {
+      this.isActiveOneWayPlatform(downCast.collider) === false;
+    const strictGround =
+      downIsSolidFloor && downCast!.time_of_impact <= this.ColliderOffsetThreshold;
+    const snapGraceGround =
+      downIsSolidFloor &&
+      this.wasGroundedLastFrame &&
+      this.NextTranslation.y <= 0 &&
+      downCast!.time_of_impact <= this.SnapToGroundDistance;
+    this.diagSnapGrace = !strictGround && snapGraceGround;
+
+    if (strictGround || snapGraceGround) {
       // Establish that ground is being touched
       this.IsTouching.ground = true;
 
       // Read floor / edge from the platform we're standing on (named fields)
-      const platform = this.getPlatform(downCast.collider);
-      if (platform) this.CurrentFloor = platform.FloorLevel;
-      else this.CurrentFloor = 0;
-      if (platform) this.IsTouching.edgePlatform = platform.IsEdge;
-      else this.IsTouching.edgePlatform = false;
+      const platform = this.getPlatform(downCast!.collider);
+      this.CurrentFloor = platform ? platform.FloorLevel : 0;
+      this.IsTouching.edgePlatform = platform ? platform.IsEdge : false;
+
+      // Slope-ness from the contact normal (|y| ≈ 1 flat, < 1 sloped), two thresholds:
+      //  • GroundIsFlat — STRICT (~0.8°): truly axis-aligned. Drives the down-stick and the
+      //    de-pen gate (de-pen's surfaceTop math only holds for axis-aligned cuboids).
+      //  • GroundIsWalkableFlat — within FlatToleranceDegrees (default 7°): "treat as flat
+      //    for feel", drives the run→fall edge launch so a shallow ramp launches like flat.
+      const ny = downCast!.normal1.y;
+      const normalY = Math.abs(ny);
+      this.GroundIsFlat = normalY > 0.9999;
+      this.GroundIsWalkableFlat =
+        normalY >= Math.cos((this.FlatToleranceDegrees * Math.PI) / 180);
+      // Surface gradient for the slope-follow stick (see applyGroundedStick). Guard a
+      // near-zero ny (only happens on near-vertical walls, which aren't walkable ground).
+      this.GroundSlopeDyDx =
+        Math.abs(ny) > 0.001 ? -downCast!.normal1.x / ny : 0;
     }
 
     // Robustness: also count grounded if Rapier's controller says so this frame.
@@ -474,6 +628,15 @@ export default class Player extends GameObject {
     if (this.kccGrounded) {
       this.IsTouching.ground = true;
     }
+
+    // Remember the edge state while grounded, so the FALLING transition can read it
+    // after ground is lost (IsTouching.edgePlatform clears the moment you leave).
+    if (this.IsTouching.ground) {
+      this.WasOnEdgePlatform = this.IsTouching.edgePlatform;
+    }
+
+    // Latch this frame's final ground verdict for next frame's snap-grace test.
+    this.wasGroundedLastFrame = this.IsTouching.ground;
 
     // Detect ground within buffer jump range
     if (
@@ -492,7 +655,10 @@ export default class Player extends GameObject {
     if (
       leftCast &&
       leftCast.time_of_impact <= this.ColliderOffsetThreshold &&
-      GameUtils.IsColliderType(leftCast.collider, EntityType.ONE_WAY_PLATFORM) === false
+      GameUtils.IsColliderType(
+        leftCast.collider,
+        EntityType.ONE_WAY_PLATFORM,
+      ) === false
     ) {
       this.IsTouching.leftSide = true;
     }
@@ -502,7 +668,10 @@ export default class Player extends GameObject {
     if (
       rightCast &&
       rightCast.time_of_impact <= this.ColliderOffsetThreshold &&
-      GameUtils.IsColliderType(rightCast.collider, EntityType.ONE_WAY_PLATFORM) === false
+      GameUtils.IsColliderType(
+        rightCast.collider,
+        EntityType.ONE_WAY_PLATFORM,
+      ) === false
     ) {
       this.IsTouching.rightSide = true;
     }
@@ -512,24 +681,20 @@ export default class Player extends GameObject {
     if (
       upCast &&
       upCast.time_of_impact <= this.ColliderOffsetThreshold &&
-      GameUtils.IsColliderType(upCast.collider, EntityType.ONE_WAY_PLATFORM) === false
+      GameUtils.IsColliderType(upCast.collider, EntityType.ONE_WAY_PLATFORM) ===
+        false
     ) {
       this.IsTouching.ceiling = true;
     }
 
-    // ── Air collider shrink/grow (height-only, center-fixed, via setShape) ──────
-    // Shrink the capsule while airborne so the player clears obstacles; grow it back
-    // as the ground approaches while DESCENDING — in free air, before touchdown — so
-    // it never grows INTO the floor (no landing pop). Full size whenever grounded.
-    const descending = this.NextTranslation.y <= 0;
-    const groundWithinGrow =
-      !!downCast &&
-      downCast.time_of_impact <= this.AirColliderGrowDistance &&
-      GameUtils.IsColliderType(downCast.collider, EntityType.WALL) === false &&
-      this.isActiveOneWayPlatform(downCast.collider) === false;
-    const shouldBeAirborne =
-      !this.IsTouching.ground && !(descending && groundWithinGrow);
-    this.SetColliderAirborne(shouldBeAirborne);
+    // The air-collider shrink/grow decision now runs in updateAirCollider() BEFORE the
+    // move is computed (Bug-1 prevention) — it is intentionally NOT here anymore.
+
+    // Bug-1 safety net + per-frame diagnostic capture. depenetrate() is a clamped,
+    // positional-only catch for any residual overlap; captureDiagnostics() records this
+    // frame (post-de-pen, final shape) into the ring buffer.
+    this.depenetrate(shapeCasts.down, shapeCasts.up);
+    this.captureDiagnostics(shapeCasts.down);
   }
 
   private shapeCast(xDirection: number, yDirection: number) {
@@ -557,10 +722,239 @@ export default class Player extends GameObject {
       undefined, // filterGroups
       this.PhysicsBody!.collider(0), // Exclude collider 0
       this.PhysicsBody, // Exclude entire player rigid body (its single collider)
-      this.shapeCastFilter
+      this.shapeCastFilter,
     );
 
     return hit;
+  }
+
+  // Bug-1 PREVENTION: choose the airborne (shrunk) vs grounded (full) capsule and apply
+  // it BEFORE computeColliderMovement, using a FRESH down-cast — so the move is computed
+  // with the same shape World.step later applies it with. The GROW guard refuses to grow
+  // back to full while still airborne and within feetDelta of the surface: a center-fixed
+  // grow drops the feet ~feetDelta and the KCC can't de-penetrate an embedded start, so in
+  // that case it stays shrunk and lets the grounded grow + the de-pen net seat the feet.
+  // (Reads last frame's IsTouching.ground — detectCollisions hasn't run yet this step —
+  // plus a fresh toi; that's intentional and sufficient for the clearance check.)
+  private updateAirCollider() {
+    const downProbe = this.shapeCast(
+      PlayerDirection.NEUTRAL,
+      PlayerDirection.DOWN,
+    );
+    const descending = this.NextTranslation.y <= 0;
+    const feetDelta = this.fullHalfHeight * (1 - this.AirColliderHeightScale);
+    const groundWithinGrow =
+      !!downProbe &&
+      downProbe.time_of_impact <= this.AirColliderGrowDistance &&
+      GameUtils.IsColliderType(downProbe.collider, EntityType.WALL) === false &&
+      this.isActiveOneWayPlatform(downProbe.collider) === false;
+
+    let shouldBeAirborne =
+      !this.IsTouching.ground && !(descending && groundWithinGrow);
+
+    // GROW guard: block ONLY the shrunk→full transition in mid-air when the (shrunk) feet
+    // are within feetDelta+skin of the surface (growing there pushes the full feet below
+    // it). Never re-shrinks an already-full collider near ground.
+    if (
+      this.colliderIsAirborne &&
+      !shouldBeAirborne &&
+      !this.IsTouching.ground &&
+      downProbe &&
+      downProbe.time_of_impact <= feetDelta + this.ColliderOffset
+    ) {
+      shouldBeAirborne = true;
+    }
+
+    this.SetColliderAirborne(shouldBeAirborne);
+  }
+
+  // Bug-1 SAFETY NET: clamped, positional-only de-penetration. If the (full) feet end up
+  // below a FLAT solid surface (the rare grounded-grow residual, or any stray overlap),
+  // nudge the pending kinematic target UP to rest — never down, never a positive velocity,
+  // so a Halo-2-style superbounce is structurally impossible (a kinematic body has no
+  // velocity integrator to turn depth into an impulse). Gated to flat ground (slopes are
+  // rotated cubes — left to the KCC snap), to a solid CURRENT-ground contact (never fights
+  // one-way pass-through), and to vy<=0. Clamped per frame AND by the up-cast clearance so
+  // it can't pop the head through a low ceiling. After the prevention this should fire
+  // almost never; frequent/deep fires are the regression canary, so it logs.
+  private depenetrate(downCast: any, upCast: any) {
+    this.lastDepenLift = 0;
+    this.lastDepenPenetration = 0;
+
+    const MAX_LIFT = 0.1; // per fixed step; heals the ~0.17u grow residual over ~2 frames
+    const EPS = this.ColliderOffset; // resting-on-skin counts as "not penetrating"
+
+    if (!this.IsTouching.ground || !this.GroundIsFlat) return;
+    if (!downCast?.collider) return;
+    if (this.isActiveOneWayPlatform(downCast.collider)) return;
+    if (this.NextTranslation.y > 0) return;
+
+    const he = (downCast.collider.shape as any).halfExtents;
+    if (!he) return; // flat (axis-aligned) cuboid only
+
+    const col = this.PhysicsBody!.collider(0);
+    const feetBottomNext =
+      this.scratchNext.y - (col.halfHeight() + col.radius());
+    const surfaceTop = downCast.collider.translation().y + he.y;
+    const penetration = surfaceTop - feetBottomNext; // > 0 ⇒ feet below the surface
+    if (penetration <= EPS) return;
+
+    // Never push the head into a ceiling: clamp the lift by the up-cast clearance.
+    const ceilingClearance = upCast
+      ? Math.max(0, upCast.time_of_impact - this.ColliderOffset)
+      : Infinity;
+    const lift = Math.min(penetration, MAX_LIFT, ceilingClearance);
+    if (lift <= 0) return;
+
+    this.scratchNext.y += lift;
+    this.PhysicsBody!.setNextKinematicTranslation(this.scratchNext);
+    // Positional only: never write a positive vy; kill residual downward drive so the next
+    // step doesn't immediately re-bury the feet.
+    if (this.NextTranslation.y < 0) this.NextTranslation.y = 0;
+
+    this.lastDepenPenetration = penetration;
+    this.lastDepenLift = lift;
+    this.DepenFireCount++;
+
+    // Deeper than the known grow residual ⇒ tunneling / a prevention regression, not the
+    // expected ~0.17u grounded-grow drop. Warn loudly (rate-limited to ~2x/sec).
+    if (penetration > 0.2 && this.diagFrame - this.lastDepenWarnFrame > 30) {
+      this.lastDepenWarnFrame = this.diagFrame;
+      console.warn(
+        `[depen] DEEP ${penetration.toFixed(3)}u lift=${lift.toFixed(3)} ` +
+          `state=${this.State} toi=${downCast.time_of_impact.toFixed(3)} ` +
+          `halfH=${col.halfHeight().toFixed(3)} vy=${this.NextTranslation.y.toFixed(2)}`,
+      );
+    } else if (this.DiagnosticLogLive) {
+      console.log(
+        `[depen] pen=${penetration.toFixed(3)} lift=${lift.toFixed(3)} state=${this.State}`,
+      );
+    }
+  }
+
+  // Record this frame into the ring buffer (mutate-in-place; no per-frame GC). Runs every
+  // frame so a rare glitch is already captured when DumpDiagnostics is clicked after it.
+  private captureDiagnostics(downCast: any) {
+    this.diagFrame++;
+
+    const col = this.PhysicsBody!.collider(0);
+    const halfHeight = col.halfHeight();
+    const radius = col.radius();
+    const centerY = this.CurrentTranslation.y;
+    const feetBottom = centerY - (halfHeight + radius);
+
+    let toi = NaN;
+    let n1y = NaN;
+    let n2y = NaN;
+    let surfaceTop = NaN;
+    let feetGap = NaN;
+    let contactType = "-";
+    let oneWayActive = false;
+    if (downCast?.collider) {
+      toi = downCast.time_of_impact;
+      n1y = downCast.normal1?.y ?? NaN;
+      n2y = downCast.normal2?.y ?? NaN;
+      const he = (downCast.collider.shape as any).halfExtents;
+      if (he) {
+        surfaceTop = downCast.collider.translation().y + he.y;
+        feetGap = feetBottom - surfaceTop;
+      }
+      contactType =
+        (downCast.collider.parent()?.userData as any)?.type ?? "-";
+      oneWayActive = this.isActiveOneWayPlatform(downCast.collider);
+    }
+
+    const dy = centerY - this.diagPrevCenterY;
+    this.diagPrevCenterY = centerY;
+
+    // Pre-grow the ring once, then overwrite in place.
+    let f = this.diagRing[this.diagHead];
+    if (!f) {
+      f = {} as PlayerDiagFrame;
+      this.diagRing[this.diagHead] = f;
+    }
+    f.frame = this.diagFrame;
+    f.elapsed = this.Time.Elapsed;
+    f.state = this.State;
+    f.vx = this.NextTranslation.x;
+    f.vyPre = this.diagVyPre;
+    f.vyPost = this.NextTranslation.y;
+    f.desY = this.diagDesY;
+    f.movX = this.diagMoveX;
+    f.movY = this.diagMoveY;
+    f.lastGroundedMoveY = this.LastGroundedMoveY;
+    f.kccGrounded = this.kccGrounded;
+    f.ground = this.IsTouching.ground;
+    f.ceiling = this.IsTouching.ceiling;
+    f.groundIsFlat = this.GroundIsFlat;
+    f.walkableFlat = this.GroundIsWalkableFlat;
+    f.snapGrace = this.diagSnapGrace;
+    f.toi = toi;
+    f.downN1y = n1y;
+    f.downN2y = n2y;
+    f.halfHeight = halfHeight;
+    f.radius = radius;
+    f.airborne = this.colliderIsAirborne;
+    f.centerY = centerY;
+    f.dy = dy;
+    f.feetBottom = feetBottom;
+    f.surfaceTop = surfaceTop;
+    f.feetGap = feetGap;
+    f.penetration = this.lastDepenPenetration;
+    f.depenLift = this.lastDepenLift;
+    f.contactType = contactType;
+    f.oneWayActive = oneWayActive;
+    f.snapDist = this.SnapToGroundDistance;
+    f.growDist = this.AirColliderGrowDistance;
+    f.airScale = this.AirColliderHeightScale;
+    f.offsetThresh = this.ColliderOffsetThreshold;
+    f.maxFall = this.MaxFallSpeed;
+
+    this.diagHead = (this.diagHead + 1) % Player.DIAG_CAPACITY;
+    this.diagFilled = Math.min(this.diagFilled + 1, Player.DIAG_CAPACITY);
+
+    if (this.DiagnosticLogLive) {
+      const fmt = (v: number) => (Number.isNaN(v) ? "-" : v.toFixed(3));
+      console.log(
+        `[diag f${f.frame}] st=${f.state} grnd=${f.ground ? 1 : 0} ` +
+          `kcc=${f.kccGrounded ? 1 : 0} flat=${f.groundIsFlat ? 1 : 0} ` +
+          `vy=${f.vyPost.toFixed(1)} toi=${fmt(f.toi)} feetGap=${fmt(f.feetGap)} ` +
+          `halfH=${f.halfHeight.toFixed(3)} air=${f.airborne ? 1 : 0} lift=${f.depenLift.toFixed(3)}`,
+      );
+    }
+  }
+
+  // Build a CSV of the last ~3s ring buffer (chronological) for the dat.gui dump button.
+  public DumpDiagnostics(): string {
+    const cols: (keyof PlayerDiagFrame)[] = [
+      "frame", "elapsed", "state", "vx", "vyPre", "vyPost", "desY", "movX",
+      "movY", "lastGroundedMoveY", "kccGrounded", "ground", "ceiling",
+      "groundIsFlat", "walkableFlat", "snapGrace", "toi", "downN1y", "downN2y",
+      "halfHeight", "radius",
+      "airborne", "centerY", "dy", "feetBottom", "surfaceTop", "feetGap",
+      "penetration", "depenLift", "contactType", "oneWayActive", "snapDist",
+      "growDist", "airScale", "offsetThresh", "maxFall",
+    ];
+    const rows: string[] = [cols.join(",")];
+    const cap = Player.DIAG_CAPACITY;
+    const start = (this.diagHead - this.diagFilled + cap) % cap;
+    for (let i = 0; i < this.diagFilled; i++) {
+      const f = this.diagRing[(start + i) % cap];
+      if (!f) continue;
+      rows.push(
+        cols
+          .map((c) => {
+            const v = f[c];
+            if (typeof v === "number") {
+              return Number.isFinite(v) ? String(+v.toFixed(4)) : "";
+            }
+            if (typeof v === "boolean") return v ? "1" : "0";
+            return String(v);
+          })
+          .join(","),
+      );
+    }
+    return rows.join("\n");
   }
 
   // Force full collider size on teleport/reset, so a teleport while airborne (small)
@@ -568,6 +962,9 @@ export default class Player extends GameObject {
   public TeleportToPosition(targetX: number, targetY: number) {
     super.TeleportToPosition(targetX, targetY);
     this.SetColliderAirborne(false);
+    // Reset the slope-edge carry so a respawn right after a descent can't leak a stale
+    // downward velocity into the first airborne frame.
+    this.LastGroundedMoveY = 0;
   }
 
   public Update() {
