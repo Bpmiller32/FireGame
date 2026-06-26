@@ -1,0 +1,766 @@
+<section class="doc-section" id="game-player">
+  <header class="section-head">
+    <h2 class="section-title">Player — body, movement &amp; sprites</h2>
+    <p class="section-blurb">
+      Randy, the hero. <code>Player</code> is the one entity that fuses a Rapier <em>kinematic character
+      controller</em>, a Three.js animated sprite, the generic finite-state-machine, and the tunable "feel"
+      attributes into a single <code>GameObject</code> subclass. It owns its movement <code>State</code>, snapshots
+      input as data each frame, drives itself through five state handlers, and feeds the contact table from BOTH
+      sides of every collision. The two helpers beside it are deliberately tiny: <code>applyHorizontalMovement</code>
+      is the shared accel/decel/clamp the run/jump/fall handlers all call, and <code>spriteAnimations</code> is the
+      flat lookup table of sprite-sheet frames keyed by state + facing.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/game/entities/player/player.ts</span>
+      <span class="chip">src/game/entities/player/applyHorizontalMovement.ts</span>
+      <span class="chip">src/game/entities/player/spriteAnimations.ts</span>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <!-- player.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="game-player--player">
+    <h3 class="file-name">src/game/entities/player/player.ts <span class="loc">508 LOC</span></h3>
+    <p class="file-role">
+      This file IS the playable character. It <code>extends GameObject</code> (see <em>Engine Entities</em>), so it
+      inherits the rigid-body/mesh marriage, the transform sync, the collision-group helpers and <code>Destroy</code>;
+      what it adds on top is everything Donkey-Kong-specific about a controllable hero. It is constructed by the
+      <em>entity factories</em> (the game's spawn registry), never by the engine. Its imports tell the whole story:
+      engine singletons it caches (<em>Time</em>, the input device — held behind the <code>InputSource</code> interface, not the concrete keyboard device — <em>ResourceLoader</em>, <em>Debug</em>),
+      the generic <code>StateMachine</code> it runs on, the five <code>handlePlayer*</code> state functions it dispatches
+      to (see <em>Player States</em>), <code>SpriteAnimator</code> + the local <code>SpriteAnimations</code> table for
+      rendering, <code>setDkAttributes</code> for feel (see <em>Feel</em>), <code>GameUtils</code> for collider-type
+      checks, the local <code>CollisionGroups</code>/<code>EntityType</code> vocabulary, and <code>Platform</code> so
+      shapecasts can read named fields. (It no longer imports <code>Emitter</code> — it does not announce its own removal; see <code>Destroy()</code>.)
+    </p>
+    <p class="file-role">
+      <b>Lifecycle:</b> the <b>constructor</b> wires attributes → sprite → character-controller → physics body →
+      sprite mesh → collision groups → debug. Each frame the owner (the <em>GameDirector</em>) calls
+      <code>Update()</code>, which snapshots input, syncs the mesh, runs one FSM tick, moves the kinematic body, and
+      re-senses ground/walls. <code>Destroy()</code> frees the character controller and sprite animator, then defers to
+      <code>GameObject.Destroy()</code> — it deliberately does <em>not</em> emit its own removal (see below).
+    </p>
+
+    <div class="callout note"><b>Note on the names.</b> <code>NextTranslation</code> is a <em>velocity</em> in
+      units/second, not a position delta — <code>updateTranslation()</code> multiplies it by <code>Time.Delta</code> to
+      get the per-frame move. <code>CurrentPosition</code> is the live body translation copied out for handlers/debug,
+      and <code>CurrentTranslation</code> (inherited from <em>GameObject</em>) is the same value mirrored onto the mesh.
+      Keep the trio straight and the rest of the file reads cleanly.</div>
+
+    <h4 class="member-sig"><code class="language-typescript">public State / Direction / CurrentPosition / NextTranslation / IsTouching / CurrentFloor (public state fields)</code></h4>
+    <p>
+      The public surface is wide because the state handlers in <em>Player States</em> mutate it directly — the
+      <code>Player</code> object IS the handlers' shared blackboard. The load-bearing fields:
+    </p>
+    <table class="tbl">
+      <thead><tr><th>Field</th><th>Type</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>State</code></td><td><code>PlayerState</code></td><td>Current FSM state string (<code>idle</code>/<code>running</code>/<code>jumping</code>/<code>falling</code>/<code>climbing</code>). Handlers reassign it to transition.</td></tr>
+        <tr><td><code>Direction</code></td><td><code>number</code></td><td>Signed facing/move axis from <code>PlayerDirection</code> (<code>-1</code>/<code>0</code>/<code>+1</code>): feeds velocity, shapecast direction, and sprite flip.</td></tr>
+        <tr><td><code>CurrentPosition</code></td><td><code>RAPIER.Vector2</code></td><td>Live body translation, refreshed at the top of <code>updateTranslation()</code>.</td></tr>
+        <tr><td><code>NextTranslation</code></td><td><code>RAPIER.Vector2</code></td><td>Desired <em>velocity</em> (x = horizontal, y = vertical) the handlers write; consumed by the character controller.</td></tr>
+        <tr><td><code>IsTouching</code></td><td><code>ContactPoints</code></td><td>Per-frame contact booleans: <code>ground/ceiling/leftSide/rightSide/edgePlatform/ladderTop/ladderCore/ladderBottom</code>.</td></tr>
+        <tr><td><code>CurrentFloor</code></td><td><code>number</code></td><td>Floor level of the platform currently underfoot (read from the <code>Platform</code> we stand on).</td></tr>
+        <tr><td><code>InitialTranslation</code></td><td><code>RAPIER.Vector2</code></td><td><em>(inherited from GameObject)</em> the spawn coordinate, cached by <code>createObjectPhysics</code> for respawn/teleport math.</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Below those sit two clusters of feel attributes — climb (<code>MaxClimbSpeed</code>, <code>ClimbAcceleration</code>,
+      <code>ClimbDeceleration</code>), ground/air (<code>MaxGroundSpeed</code> shared, plus separate
+      <code>Ground*</code>/<code>Air*</code> accel/decel), and the jump arc/timing block (<code>JumpPower</code>,
+      <code>RiseGravity</code>, <code>FallAcceleration</code>, <code>MaxFallSpeed</code>, apex-hang,
+      coyote/buffer counters and timers). All of them are declared here with the definite-assignment <code>!</code> and
+      <em>filled in by <code>setDkAttributes</code></em>, not in this file — the seam that lets the <em>Feel</em> Lab swap a
+      whole profile (DK vs Celeste) without touching the player.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public constructor(size: { width: number; height: number }, position: { x: number; y: number })</code></h4>
+      <p>
+        Builds the entire player from a bounding-box size and a spawn point. There are no other parameters — feel and
+        identity come from elsewhere. Order matters here; the sequence is deliberate.
+      </p>
+      <pre class="code"><code class="language-typescript">super();
+
+this.initializePlayerAttributes();
+this.setSpriteAnimator();
+this.setCharacterController();
+
+this.createObjectPhysics(
+  EntityType.PLAYER,
+  GameObjectType.CUBE,
+  size,
+  position,
+  0,
+  RAPIER.RigidBodyDesc.kinematicPositionBased().lockRotations()
+);
+
+this.createSpriteGraphics();
+
+this.setCollisionGroup(CollisionGroups.PLAYER_BOUNDING_BOX, 0);
+this.setCollisionMask(CollisionGroups.PLATFORM | CollisionGroups.ENEMY, 0);</code></pre>
+      <p>Line-level notes:</p>
+      <ul>
+        <li><code>super()</code> runs <code>GameObject.initializeAttributes()</code> — grabs <code>Experience</code>,
+          <code>Scene</code>, <code>Physics</code> and zeroes the transform vectors — <em>before</em> any player code
+          touches <code>this.experience</code>.</li>
+        <li><code>initializePlayerAttributes()</code> must run first because it both caches singletons and builds the
+          FSM and <code>IsTouching</code> map the rest of the constructor and every frame rely on.</li>
+        <li><code>setSpriteAnimator()</code> runs before <code>createSpriteGraphics()</code> because the latter reads the
+          <code>SpriteMaterial</code> the animator produced.</li>
+        <li><code>setCharacterController()</code> creates the KCC <em>before</em> <code>createObjectPhysics</code> makes the
+          body — the controller is world-attached and independent of the body, so it can be built first.</li>
+        <li><code>createObjectPhysics</code> (in <em>GameObject</em>) is handed <code>EntityType.PLAYER</code> as the
+          routing <em>name/type</em>, <code>GameObjectType.CUBE</code> so the collider becomes a cuboid, and a
+          <code>kinematicPositionBased().lockRotations()</code> body — kinematic because the player is driven by the
+          character controller, not by forces, and rotation-locked so a humanoid never tips over.</li>
+        <li><code>createSpriteGraphics()</code> must come <em>after</em> <code>createObjectPhysics</code> so there is a
+          body translation to sync the new sprite mesh to.</li>
+        <li>The two collision calls run <em>after</em> the body exists (both early-return if <code>PhysicsBody</code> is
+          missing): the player's collider 0 is tagged group <code>PLAYER_BOUNDING_BOX</code> and masked to collide with
+          <code>PLATFORM | ENEMY</code> only.</li>
+      </ul>
+      <pre class="code"><code class="language-typescript">// Enable collision events on the bounding box so it feeds the contact system
+if (this.PhysicsBody) {
+  this.PhysicsBody.collider(0).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+}
+
+if (this.experience.Debug.IsActive) {
+  this.Debug = this.experience.Debug;
+  this.Debug.RegisterModule(new PlayerDebug(this));
+}</code></pre>
+      <p>
+        <code>GameObject.enablePhysicsEvents()</code> only auto-arms colliders that define
+        <code>OnCollisionEnter/Exit</code> callbacks. The player deliberately defines <em>none</em> — it routes through
+        the declarative contact table instead — so the constructor must arm collision events on collider 0 by hand,
+        otherwise Rapier would emit nothing and Enemy↔Player death would never fire. The debug block is the engine's
+        inversion seam: the <em>game</em> hands its <code>PlayerDebug</code> module to the engine's debug coordinator;
+        the engine never imports it.
+      </p>
+      <div class="callout victory"><b>Hard-won victory (collider/death rework).</b> The header comment on the collision
+        block records that the old <em>62.5% hit-box sensor</em> and its per-frame poll were deleted. Death now fires
+        from the full bounding box via the contact table's "any touch registers" rule (Enemy↔Player ⇒ game over). One
+        collider, one source of truth — re-add a smaller sensor only if a stomp mechanic ever needs it.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private initializePlayerAttributes(): void</code></h4>
+      <p>
+        Caches the engine singletons, seeds the per-entity input snapshot, sets the starting state/direction, applies
+        the DK feel profile, builds the FSM, and zeroes the physics/contact fields. This is where the FSM state map and
+        the <code>IsTouching</code> shape are defined.
+      </p>
+      <pre class="code"><code class="language-typescript">this.Time = this.experience.Time;
+this.inputDevice = this.experience.Input;
+this.Resources = this.experience.Resources;
+
+// Per-entity input snapshot, refreshed from the device each frame (D10:
+// input-as-data — a network/replay/AI source could fill this instead).
+this.Input = { isLeft: false, isRight: false, /* ...nine flags... */ isNeitherUpDown: true };
+
+this.State = PlayerStates.IDLE;
+this.Direction = PlayerDirection.NEUTRAL;
+
+setDkAttributes(this);
+
+this.fsm = new StateMachine&lt;Player, PlayerState&gt;(this, {
+  [PlayerStates.IDLE]: handlePlayerIdle,
+  [PlayerStates.RUNNING]: handlePlayerRunning,
+  [PlayerStates.FALLING]: handlePlayerFalling,
+  [PlayerStates.JUMPING]: handlePlayerJumping,
+  [PlayerStates.CLIMBING]: handlePlayerClimbing,
+});</code></pre>
+      <div class="callout victory"><b>D10 — input as data.</b> The player does not read the live keyboard inside its
+        handlers. It owns an <code>InputState</code> struct and the device <em>fills</em> it each frame via
+        <code>CaptureInto</code>. Decoupling intent (the nine booleans) from the device is the single seam that lets a
+        network packet, a replay file, or an AI controller drive the exact same handlers — see <em>Engine Input</em>.
+        The seam is now explicit in the type system too: <code>inputDevice</code> is typed
+        <code>InputSource</code> — the one-method interface <code>{ CaptureInto(state: InputState): void }</code> — not
+        the concrete keyboard <code>Input</code> class. The player depends only on the interface, so a touch / gamepad /
+        network / replay source drops in with zero Player changes.</div>
+      <p>
+        Note <code>setDkAttributes(this)</code> mutates the player in place, writing every feel field declared above. The
+        FSM is constructed with <code>this</code> as the host and a frozen map from state string → handler; the
+        <code>StateMachine</code> never owns the state, the player does (the host's <code>State</code> field is the source
+        of truth). The tail seeds physics constants and the contact map:
+      </p>
+      <pre class="code"><code class="language-typescript">this.ColliderOffset = 0.01;
+// Increased threshold significantly for better slope detection and prevent micro-falling
+this.ColliderOffsetThreshold = this.ColliderOffset + 0.015;
+this.CurrentPosition = new RAPIER.Vector2(0, 0);
+this.NextTranslation = new RAPIER.Vector2(0, 0);
+this.CurrentFloor = 0;
+
+this.IsTouching = {
+  ground: false, ceiling: false, leftSide: false, rightSide: false,
+  edgePlatform: false, ladderCore: false, ladderTop: false, ladderBottom: false,
+};</code></pre>
+      <p>
+        <code>ColliderOffset</code> (0.01) is the KCC skin gap; <code>ColliderOffsetThreshold</code> (0.025) is the
+        shapecast time-of-impact cutoff that counts as "touching" — bumped above the raw offset specifically to keep the
+        player glued to the ground on downslopes and stop one-pixel micro-falls.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private setSpriteAnimator(): void</code></h4>
+      <p>
+        Creates the sprite-sheet animator from the loaded <code>randy</code> texture, declares the sheet layout, sets the
+        opening animation, and registers the resulting material on the base class.
+      </p>
+      <pre class="code"><code class="language-typescript">this.SpriteAnimator = new SpriteAnimator(this.Resources.Items.randy as THREE.Texture, 4, 6);
+this.SpriteAnimator.State = SpriteAnimations.IDLE_RIGHT;
+this.setMaterial(this.SpriteAnimator.Material, 4);</code></pre>
+      <p>
+        The <code>4, 6</code> are the sheet's tile grid — 4 columns × 6 rows = 24 tiles — which the animator uses to
+        compute UV offsets (see <em>Engine Rendering → SpriteAnimator</em>). The initial <code>State</code> is set
+        directly (the very first frame), and <code>setMaterial(..., 4)</code> stores the animator's material on
+        <code>GameObject</code> with a sprite scale of <code>4</code> for <code>createSpriteGraphics</code> to apply.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private createSpriteGraphics(): void</code></h4>
+      <p>Builds the actual <code>THREE.Sprite</code> mesh from the animator's material, scales it, adds it to the scene,
+        and snaps it onto the body's transform.</p>
+      <pre class="code"><code class="language-typescript">this.mesh = new THREE.Sprite(this.material as THREE.SpriteMaterial);
+if (this.spriteScale) {
+  this.mesh.scale.set(this.spriteScale, this.spriteScale, this.spriteScale);
+}
+this.scene.add(this.mesh);
+this.syncGraphicsToPhysics();</code></pre>
+      <p>
+        A <code>THREE.Sprite</code> always faces the camera — exactly right for a 2D billboarded character in a 3D
+        WebGL scene. The trailing <code>syncGraphicsToPhysics()</code> (from <em>GameObject</em>) copies the body's
+        translation onto the fresh mesh so it appears at the spawn point on frame zero, not at the origin.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private setCharacterController(): void</code></h4>
+      <p>
+        Creates the player's own Rapier <code>KinematicCharacterController</code> and tunes its slope/step behaviour. The
+        KCC is what turns a desired velocity into a collision-aware move.
+      </p>
+      <pre class="code"><code class="language-typescript">this.CharacterController = this.Physics.World.createCharacterController(this.ColliderOffset);
+this.CharacterController.enableSnapToGround(0.02);
+this.CharacterController.enableAutostep(0.5, 0.2, true);
+this.CharacterController.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
+this.CharacterController.setMinSlopeSlideAngle((30 * Math.PI) / 180);</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Call</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td><code>createCharacterController(0.01)</code></td><td>KCC with a 0.01 skin gap (= <code>ColliderOffset</code>).</td></tr>
+          <tr><td><code>enableSnapToGround(0.02)</code></td><td>Snap down to ground within 0.02 units — kills micro-falling on slopes.</td></tr>
+          <tr><td><code>enableAutostep(0.5, 0.2, true)</code></td><td>Step up ledges ≤ 0.5 tall / ≥ 0.2 wide, including onto dynamic bodies.</td></tr>
+          <tr><td><code>setMaxSlopeClimbAngle(45°)</code></td><td>Refuse to climb slopes steeper than 45°.</td></tr>
+          <tr><td><code>setMinSlopeSlideAngle(30°)</code></td><td>Auto-slide down slopes shallower than 30°.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        This controller is created here (not in <em>Physics</em>) precisely because it is the player's alone, and it must
+        be removed by hand in <code>Destroy()</code> — Rapier does not free it when the body goes.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Update(): void</code></h4>
+      <p>The per-frame entry point the <em>GameDirector</em> calls. Five steps in a fixed order; reordering them
+        breaks things.</p>
+      <pre class="code"><code class="language-typescript">if (this.IsBeingDestroyed) {
+  return;
+}
+
+// Refresh this entity's input snapshot before the state handlers read it.
+this.inputDevice.CaptureInto(this.Input);
+
+this.syncGraphicsToPhysics();
+this.updatePlayerState();
+this.updateTranslation();
+this.detectCollisions();</code></pre>
+      <pre class="mermaid">flowchart TD
+  A["Player.Update()"] --> B{"IsBeingDestroyed?"}
+  B -- yes --> Z["return"]
+  B -- no --> C["inputDevice.CaptureInto(Input)"]
+  C --> D["syncGraphicsToPhysics() (mesh = last body pose)"]
+  D --> E["updatePlayerState()"]
+  E --> E1["fsm.Update() -> handlePlayer*(player)"]
+  E1 --> E2["SpriteAnimator.Update(Time.Delta)"]
+  E2 --> F["updateTranslation() (move KCC + diff contact edges)"]
+  F --> G["detectCollisions() (reset + shapecast IsTouching)"]</pre>
+      <ul>
+        <li><b>Destroy guard first</b> — a removed player must not run a frame against a freed body.</li>
+        <li><b>Capture input next</b> — the snapshot must be fresh <em>before</em> the handlers read <code>this.Input</code>.</li>
+        <li><b>Sync before state</b> — the mesh shows last frame's resolved pose while the new one is computed.</li>
+        <li><b>State → translation → detect</b> — handlers write <code>NextTranslation</code>, the KCC consumes it, then
+          shapecasts refresh <code>IsTouching</code> for next frame's handlers.</li>
+      </ul>
+      <div class="callout gotcha"><b>Gotcha (one-frame contact lag).</b> <code>detectCollisions()</code> runs <em>after</em>
+        the handlers, so <code>IsTouching</code> the handlers read is always last frame's sensing. That is fine — and
+        intended — but it's why "just landed" logic checks the previous frame's ground flag.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private updatePlayerState(): void</code></h4>
+      <p>Two lines: tick the FSM, then advance the sprite animation by the frame's delta.</p>
+      <pre class="code"><code class="language-typescript">this.fsm.Update();
+this.SpriteAnimator.Update(this.Time.Delta);</code></pre>
+      <p>
+        <code>fsm.Update()</code> calls exactly the handler registered for the current <code>State</code> string
+        (<code>handlers[host.State]?.(host)</code>) — one dispatch, no re-entry. If a handler reassigns
+        <code>player.State</code>, the new handler runs <em>next</em> frame, not this one. The sprite advance is separate
+        and unconditional: handlers pick <em>which</em> animation via <code>SpriteAnimator.ChangeState(...)</code>, and
+        this line plays whatever is current.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private updateTranslation(): void</code></h4>
+      <p>
+        The heart of locomotion: read the body's position, scale the handler's desired velocity by delta, ask the KCC
+        what move is actually possible against the world, apply it, then feed the KCC's own blocked-by contacts into the
+        contact table as proper enter/exit <em>edges</em>. This is the second half of the engine's
+        <b>two-sided contact dispatch</b>.
+      </p>
+      <pre class="code"><code class="language-typescript">const position = this.PhysicsBody!.translation();
+this.CurrentPosition.x = position.x;
+this.CurrentPosition.y = position.y;
+
+// Desired translation scaled by the (fixed) timestep — reuse a scratch object.
+this.scratchDesired.x = this.NextTranslation.x * this.Time.Delta;
+this.scratchDesired.y = this.NextTranslation.y * this.Time.Delta;
+
+// Predicate is hoisted (this.moveFilter) — don't collide with sensors or active
+// OneWayPlatforms; we DO collide with enemies (they stop the player).
+this.CharacterController.computeColliderMovement(
+  this.PhysicsBody!.collider(0),
+  this.scratchDesired,
+  undefined,
+  undefined,
+  this.moveFilter
+);
+
+// Apply the actual translation to the next kinematic translation (scratch reuse).
+const correctiveMovement = this.CharacterController.computedMovement();
+this.scratchNext.x = this.CurrentTranslation.x + correctiveMovement.x;
+this.scratchNext.y = this.CurrentTranslation.y + correctiveMovement.y;
+this.PhysicsBody!.setNextKinematicTranslation(this.scratchNext);</code></pre>
+      <p>
+        <code>computeColliderMovement</code> takes the <em>desired</em> move and clips it against obstacles, returning the
+        <em>corrective</em> (actually-possible) move via <code>computedMovement()</code>. The two <code>undefined</code>
+        slots are filter flags/groups the author found unreliable; the work is done by <code>moveFilter</code> — now a
+        <em>hoisted bound field</em> (created once, not a fresh closure per frame) that lets the player pass through
+        sensors and active one-way platforms but be stopped by everything solid, including enemies (deliberately: a
+        roaming enemy halts the player). The move is staged in reused <code>scratchDesired</code>/<code>scratchNext</code>
+        vectors and committed with <code>setNextKinematicTranslation</code> on top of <code>CurrentTranslation</code> — no
+        per-frame allocation (see the allocation-free callout below).
+      </p>
+      <pre class="code"><code class="language-typescript">if (!this.Physics.IsPaused) {
+  this.currentContacts.clear();
+  const numCollisions = this.CharacterController.numComputedCollisions();
+  for (let i = 0; i &lt; numCollisions; i++) {
+    const collision = this.CharacterController.computedCollision(i);
+    if (!collision?.collider) {
+      continue;
+    }
+    const other = this.Physics.GetGameObjectFromCollider(collision.collider);
+    if (other &amp;&amp; !other.IsBeingDestroyed) {
+      this.currentContacts.add(other);
+    }
+  }
+
+  // New contacts this frame → "enter".
+  for (const other of this.currentContacts) {
+    if (!this.previousContacts.has(other)) {
+      this.Physics.Contacts.Dispatch("enter", this, other);
+    }
+  }
+  // Contacts gone since last frame → "exit".
+  for (const other of this.previousContacts) {
+    if (!this.currentContacts.has(other) &amp;&amp; !other.IsBeingDestroyed) {
+      this.Physics.Contacts.Dispatch("exit", this, other);
+    }
+  }
+
+  // Swap the two sets (no allocation); next frame clears `current` before refill.
+  const swap = this.previousContacts;
+  this.previousContacts = this.currentContacts;
+  this.currentContacts = swap;
+}</code></pre>
+      <div class="callout victory"><b>Hard-won victory — the KCC two-sided dispatch, now as contact EDGES.</b> A
+        kinematic character keeps a skin gap from solids it moves into, so Rapier fires <em>no</em> collision event for
+        the player-as-mover (confirmed by runtime logging: <code>ccBlockedBy=[Enemy]</code> yet zero Rapier events for
+        the player). Without this, running <em>into</em> an enemy would never trigger game-over — only the enemy bumping
+        <em>into</em> a standing player would. So we ask the controller what it was blocked by and dispatch those
+        contacts ourselves, making the same declarative rules (Enemy↔Player ⇒ gameOver) fire in BOTH directions. But
+        <code>numComputedCollisions()</code> is a per-frame <em>currently-touching</em> set — dispatching
+        <code>"enter"</code> from it every frame would re-fire game-over on every resting frame. So we diff it against
+        last frame's set using two reused <code>Set&lt;GameObject&gt;</code>s: new contacts dispatch <code>"enter"</code>,
+        vanished ones dispatch <code>"exit"</code> (skipping <code>IsBeingDestroyed</code> objects), then the two sets
+        swap. Now an "enter" rule fires <em>once</em> on contact and there is a real "exit" edge. (The contact table only
+        has enter/sensorEnter rules today, so "exit" is a no-op there for now — but the edge is real, and a future rule
+        can use it.) See <em>Engine Physics / Contacts</em> for the table.</div>
+      <div class="callout gotcha"><b>Gotcha (pause guard).</b> The whole diff is wrapped in
+        <code>if (!Physics.IsPaused)</code> so the game-over freeze screen does zero contact bookkeeping. With the edge
+        diff this is belt-and-braces — a resting contact no longer re-fires <code>"enter"</code> on its own — but
+        skipping it while paused keeps the frozen frame from churning the sets at all.</div>
+      <div class="callout victory"><b>Hard-won victory — an allocation-free hot path (the GC-stutter fix).</b> Everything
+        the player does every frame used to allocate: a fresh desired-move object and next-translation object here, two
+        inline predicate closures (one in <code>computeColliderMovement</code>, one per <code>castShape</code> ×4), plus a
+        pair of cast-origin/direction objects per cast. That garbage piled up until the GC paused mid-jump — visible
+        stutter. Now the two predicates are hoisted to bound arrow <em>fields</em> (<code>moveFilter</code>,
+        <code>shapeCastFilter</code>) created once, and four scratch vectors (<code>scratchDesired</code>,
+        <code>scratchNext</code>, <code>scratchCastOrigin</code>, <code>scratchCastDir</code>) are reused across the KCC
+        move and all four casts. Rapier reads the vectors synchronously, so reuse is safe — and the per-frame hot path
+        now allocates nothing.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private detectCollisions(): void</code></h4>
+      <p>Clears last frame's contact flags, then re-senses ground/walls/ceiling by shapecasting. Two lines:</p>
+      <pre class="code"><code class="language-typescript">this.resetCollisions();
+this.getShapeCastCollisions();</code></pre>
+      <p>
+        Note the division of labour: the <em>solid contact</em> flags in <code>IsTouching</code> (ground/walls/ceiling/
+        edge) are sensed here by shapecast, while the KCC's <code>numComputedCollisions()</code> (for game-rule dispatch)
+        is handled separately in <code>updateTranslation</code>. Two mechanisms, two jobs.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private resetCollisions(): void</code></h4>
+      <p>Resets all eight <code>IsTouching</code> flags to <code>false</code> each frame — but in place.</p>
+      <pre class="code"><code class="language-typescript">// Use assign instead of replacing with a JS Object, fixes issue with dat.gui
+Object.assign(this.IsTouching, {
+  ground: false, ceiling: false, leftSide: false, rightSide: false,
+  edgePlatform: false, ladderCore: false, ladderTop: false, ladderBottom: false,
+});</code></pre>
+      <div class="callout gotcha"><b>Gotcha (dat.gui live binding).</b> It uses <code>Object.assign</code> rather than
+        <code>this.IsTouching = {...}</code> on purpose. The <em>PlayerDebug</em> panel binds dat.gui controllers to the
+        original object reference; replacing it with a new object would leave the GUI pointed at a stale struct that
+        never updates. Mutating in place keeps the live debug bindings valid.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public UpdateLadderState(top: boolean, core: boolean, bottom: boolean): void</code></h4>
+      <p>
+        Pushes the three ladder-zone flags into <code>IsTouching</code> from outside. Parameters map 1:1 onto
+        <code>ladderTop</code>/<code>ladderCore</code>/<code>ladderBottom</code>. No return value.
+      </p>
+      <pre class="code"><code class="language-typescript">this.IsTouching.ladderTop = top;
+this.IsTouching.ladderCore = core;
+this.IsTouching.ladderBottom = bottom;</code></pre>
+      <p>
+        Unlike ground/wall sensing, ladder contact is detected by external <em>ladder sensors</em> (see
+        <em>LadderSensor</em>), and the <em>GameDirector</em> relays their state into the player through this setter. The
+        comment flags it as a stopgap "until ladder sensors use proper callbacks" — for now the director is the courier.
+        The climbing handler reads these three flags to decide enter/exit and to clamp at the rails.
+      </p>
+      <div class="callout gotcha"><b>Ordering dependency.</b> Because <code>detectCollisions()</code> →
+        <code>resetCollisions()</code> wipes <em>all</em> eight flags (including the ladder trio) each
+        <code>Update()</code>, the director must call <code>UpdateLadderState(...)</code> <em>after</em> the player's
+        update each frame, or the climb flags will be zero by the time the handlers read them.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private getPlatform(collider): Platform | undefined / private isActiveOneWayPlatform(collider): boolean</code></h4>
+      <p>Two small adapters that turn an anonymous Rapier collider into typed game data.</p>
+      <pre class="code"><code class="language-typescript">private getPlatform(collider: RAPIER.Collider): Platform | undefined {
+  const go = this.Physics.GetGameObjectFromCollider(collider);
+  if (go instanceof Platform) return go;
+  return undefined;
+}
+
+private isActiveOneWayPlatform(collider: RAPIER.Collider): boolean {
+  return this.getPlatform(collider)?.IsOneWayActive ?? false;
+}</code></pre>
+      <p>
+        <code>getPlatform</code> resolves a collider back to its owning <code>GameObject</code> via the physics registry,
+        and narrows to <code>Platform</code> so callers can read named fields (<code>FloorLevel</code>,
+        <code>IsEdge</code>, <code>IsOneWayActive</code>) instead of poking at anonymous <code>userData</code>.
+        <code>isActiveOneWayPlatform</code> is the typed replacement for the old <code>userData.value3</code> check — a
+        one-way platform you can currently jump <em>up</em> through. Both feed the shapecast predicate and the KCC filter.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private getShapeCastCollisions(): void</code></h4>
+      <p>
+        Casts the player's own collider shape a hair in each of the four directions and converts near hits into the
+        ground/wall/ceiling/edge/buffer flags. Direction is encoded as a signed axis pair from
+        <code>PlayerDirection</code> (down = <code>(0,-1)</code>, left = <code>(-1,0)</code>, etc.).
+      </p>
+      <pre class="code"><code class="language-typescript">const shapeCasts = {
+  down:  this.shapeCast(PlayerDirection.NEUTRAL, PlayerDirection.DOWN),
+  left:  this.shapeCast(PlayerDirection.LEFT,    PlayerDirection.NEUTRAL),
+  right: this.shapeCast(PlayerDirection.RIGHT,   PlayerDirection.NEUTRAL),
+  up:    this.shapeCast(PlayerDirection.NEUTRAL, PlayerDirection.UP),
+};</code></pre>
+      <p><b>Ground</b> — a down hit within the touch threshold that is not a wall and not an active one-way platform:</p>
+      <pre class="code"><code class="language-typescript">if (downCast &amp;&amp;
+    downCast.time_of_impact &lt;= this.ColliderOffsetThreshold &amp;&amp;
+    GameUtils.IsColliderType(downCast.collider, EntityType.WALL) === false &amp;&amp;
+    this.isActiveOneWayPlatform(downCast.collider) === false) {
+  this.IsTouching.ground = true;
+
+  const platform = this.getPlatform(downCast.collider);
+  if (platform) this.CurrentFloor = platform.FloorLevel;
+  else this.CurrentFloor = 0;
+  if (platform) this.IsTouching.edgePlatform = platform.IsEdge;
+  else this.IsTouching.edgePlatform = false;
+}</code></pre>
+      <p>
+        When grounded, the player also reads <code>CurrentFloor</code> and <code>edgePlatform</code> straight off the
+        <code>Platform</code> it is standing on — named fields, no <code>userData</code> spelunking. The
+        <code>edgePlatform</code> flag is what lets the running handler zero vertical velocity right at a ledge so the
+        player walks off cleanly into <code>FALLING</code> instead of catching on the lip.
+      </p>
+      <p><b>Buffer-jump range</b> — a down hit that is close-ish (within <code>BufferJumpRange</code>) while descending,
+        but not yet grounded, latches <code>GroundWithinBufferRange</code> so a jump pressed just before landing still
+        fires:</p>
+      <pre class="code"><code class="language-typescript">if (!this.IsTouching.ground &amp;&amp;
+    downCast &amp;&amp;
+    downCast.time_of_impact &lt;= this.BufferJumpRange &amp;&amp;
+    this.NextTranslation.y &lt;= 0) {
+  this.GroundWithinBufferRange = true;
+} else {
+  this.GroundWithinBufferRange = false;
+}</code></pre>
+      <p><b>Walls and ceiling</b> — left/right/up hits within the threshold set the matching flag, but each ignores
+        one-way platforms (you should never be wall-stopped or head-bonked by a pass-through platform):</p>
+      <pre class="code"><code class="language-typescript">// left/right/up each:
+if (cast &amp;&amp;
+    cast.time_of_impact &lt;= this.ColliderOffsetThreshold &amp;&amp;
+    GameUtils.IsColliderType(cast.collider, EntityType.ONE_WAY_PLATFORM) === false) {
+  this.IsTouching.leftSide /* rightSide / ceiling */ = true;
+}</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private shapeCast(xDirection: number, yDirection: number): RAPIER.ShapeCastHit | null</code></h4>
+      <p>
+        Casts collider 0's shape from a tiny offset of the body origin, in the given direction, and returns the first
+        solid hit. The predicate is what makes it see <em>through</em> non-solids to the real ground — and it, plus the
+        cast origin/direction, are now reused fields so the four casts per frame allocate nothing.
+      </p>
+      <pre class="code"><code class="language-typescript">// Reuse scratch vectors (Rapier reads them synchronously) so the 4 casts/frame
+// allocate nothing.
+this.scratchCastOrigin.x =
+  this.CurrentTranslation.x + this.ColliderOffset * xDirection;
+this.scratchCastOrigin.y =
+  this.CurrentTranslation.y + this.ColliderOffset * yDirection;
+this.scratchCastDir.x = xDirection;
+this.scratchCastDir.y = yDirection;
+
+// HOISTED predicate (this.shapeCastFilter) penetrates sensors / active one-way
+// platforms / enemies to find solid ground.
+const hit = this.Physics.World.castShape(
+  this.scratchCastOrigin,
+  0,
+  this.scratchCastDir,
+  this.PhysicsBody!.collider(0).shape,
+  0.0, 1000, true,
+  undefined, undefined,                 // filterFlags, filterGroups
+  this.PhysicsBody!.collider(0),        // exclude collider 0
+  this.PhysicsBody,                     // exclude the whole player body
+  this.shapeCastFilter
+);
+return hit;</code></pre>
+      <ul>
+        <li>The small <code>ColliderOffset * direction</code> nudge to the cast origin fixes a quirk where an unoffset
+          X-cast collides with the shape's own inner wall.</li>
+        <li>The player's own collider and body are excluded explicitly (the two args before the predicate) so a cast
+          never reports the player hitting itself.</li>
+        <li><code>shapeCastFilter</code> (a hoisted bound field, not a fresh closure per cast) runs for <em>every</em>
+          candidate, returning <code>false</code> to skip — so the cast tunnels through sensors (camera/ladder), through
+          active one-way platforms, and through enemies (an enemy must never be treated as standable ground), and
+          reports only the solid surface beneath.</li>
+      </ul>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public TeleportToPosition(targetX: number, targetY: number): void <span class="loc">inherited</span></code></h4>
+      <p>
+        Defined on <em>GameObject</em>, not on <code>Player</code> — included here because it is how the game relocates
+        Randy (respawn, level start, teleporters). It computes the delta from <code>CurrentTranslation</code> to the
+        target and hard-sets the body translation, bypassing the character controller entirely.
+      </p>
+      <pre class="code"><code class="language-typescript">public TeleportToPosition(targetX: number, targetY: number) {
+  const deltaX = targetX - this.CurrentTranslation.x;
+  const deltaY = targetY - this.CurrentTranslation.y;
+  this.TeleportRelative(deltaX, deltaY);  // setTranslation(current + delta)
+}</code></pre>
+      <div class="callout note"><b>Note.</b> Because this calls <code>setTranslation</code> (an instantaneous warp) rather
+        than <code>setNextKinematicTranslation</code> (the interpolated kinematic move), it skips collision resolution —
+        correct for a respawn, but it is the caller's job to pick a non-overlapping target.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Destroy(): void</code></h4>
+      <p>Tears the player down in the right order. Note what it pointedly does <em>not</em> do anymore: announce itself.</p>
+      <pre class="code"><code class="language-typescript">// NOTE: do NOT emit "gameObjectRemoved" here. The director's handler for that
+// event calls .Destroy(), so self-emitting was unbounded recursion. Whatever
+// removes the player owns the emit (the same way enemies are removed).
+this.Physics.World.removeCharacterController(this.CharacterController);
+this.SpriteAnimator.Destroy();
+super.Destroy();</code></pre>
+      <ul>
+        <li><code>removeCharacterController</code> — frees the KCC created in <code>setCharacterController</code>; Rapier
+          won't reclaim it with the body.</li>
+        <li><code>SpriteAnimator.Destroy()</code> — disposes the sprite texture/material (GPU memory).</li>
+        <li><code>super.Destroy()</code> — latches <code>IsBeingDestroyed</code> (now idempotent: a second
+          <code>Destroy()</code> early-returns), removes the mesh, disposes geometry/material, unregisters from the contact
+          system, and removes the rigid body (and its collider) last.</li>
+      </ul>
+      <div class="callout victory"><b>Hard-won fix (no more self-emit recursion).</b> The player used to call
+        <code>Emitter.emit("gameObjectRemoved", this)</code> on its way out. But the <em>GameDirector</em>'s handler for
+        that very event calls <code>.Destroy()</code> — so a player emitting its own removal re-entered <code>Destroy()</code>
+        unbounded. The emit (and the now-unused <code>Emitter</code> import) were removed: whoever removes the player owns
+        the emit, exactly like enemies. The base class's <code>IsBeingDestroyed</code> latch is the belt-and-braces guard
+        that makes any stray double-<code>Destroy()</code> a no-op.</div>
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> add a new movement state by writing a <code>handlePlayerX</code> function (see
+      <em>Player States</em>), adding a <code>PlayerStates.X</code> constant, and registering the pair in the FSM map in
+      <code>initializePlayerAttributes</code> — nothing else here changes. To retune the character physically (snap, step,
+      slope), edit <code>setCharacterController</code>; to retune <em>feel</em> (speeds, gravity, jump), do NOT touch this
+      file — change a profile in <em>Feel</em>. To add a new sensed contact, add a flag to <code>ContactPoints</code>,
+      reset it in <code>resetCollisions</code>, and set it from a new branch in <code>getShapeCastCollisions</code>. Any
+      teardown you add (a new world resource) belongs in <code>Destroy()</code> <em>before</em> <code>super.Destroy()</code>.</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- applyHorizontalMovement.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="game-player--applyhorizontalmovement">
+    <h3 class="file-name">src/game/entities/player/applyHorizontalMovement.ts <span class="loc">47 LOC</span></h3>
+    <p class="file-role">
+      One pure-ish helper function, shared by three state handlers — running, jumping, falling (see <em>Player States</em>).
+      It is the single place horizontal velocity is accelerated, decelerated, clamped, and wall-stopped, so the three
+      airborne/grounded states stay consistent without duplicating the math. It imports only <code>Player</code> (the
+      blackboard it mutates), <code>PlayerDirection</code> (the signed axis), and <code>GameUtils.MoveTowardsPoint</code>
+      (the framerate-independent stepper). It has no lifecycle of its own; the handlers call it once per frame.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const applyHorizontalMovement = (player: Player, airborne = false): boolean</code></h4>
+      <p>
+        Accelerate <code>player.NextTranslation.x</code> toward the directional target speed (or decelerate toward 0 when
+        neutral), then hard-stop on a wall. <b>Parameters:</b> <code>player</code> — the entity to move;
+        <code>airborne</code> — selects the air accel/decel pair instead of the ground pair (the running handler omits it
+        → ground; jumping and falling pass <code>true</code> → air). <b>Returns</b> <code>true</code> if a wall was hit
+        this frame, which the running handler uses to keep its wall animation playing.
+      </p>
+      <pre class="code"><code class="language-typescript">let accelRate = player.GroundAcceleration;
+if (airborne) accelRate = player.AirAcceleration;
+let decelRate = player.GroundDeceleration;
+if (airborne) decelRate = player.AirDeceleration;
+
+let targetSpeed = 0;
+let acceleration = 0;
+
+if (player.Direction === PlayerDirection.NEUTRAL) {
+  targetSpeed = 0;
+  acceleration = decelRate;
+} else {
+  targetSpeed = player.Direction * player.MaxGroundSpeed;
+  acceleration = accelRate;
+}
+
+player.NextTranslation.x = GameUtils.MoveTowardsPoint(
+  player.NextTranslation.x,
+  targetSpeed,
+  acceleration * player.Time.Delta
+);
+
+const hitWall =
+  (player.IsTouching.leftSide  &amp;&amp; player.Direction === PlayerDirection.LEFT) ||
+  (player.IsTouching.rightSide &amp;&amp; player.Direction === PlayerDirection.RIGHT);
+if (hitWall) {
+  player.NextTranslation.x = 0;
+}
+
+return hitWall;</code></pre>
+      <ul>
+        <li><b>Air vs ground only differ on accel/decel</b> — top speed is <em>shared</em> (<code>MaxGroundSpeed</code> is
+          the target for both). Air control therefore tunes how quickly you reach/lose speed mid-jump, not how fast you
+          can ultimately go, so a jump never out-runs a sprint.</li>
+        <li><b>Neutral decelerates, input accelerates</b> — when <code>Direction</code> is <code>NEUTRAL</code> the target
+          is 0 at the decel rate (coast to a stop); otherwise the target is <code>Direction * MaxGroundSpeed</code> (the
+          sign IS the facing) at the accel rate.</li>
+        <li><b>Framerate independence</b> — <code>MoveTowardsPoint</code> (= <code>mathHelpers.moveTowards</code>) steps
+          toward the target by <code>acceleration * Time.Delta</code> and snaps exactly to it when within one step, so the
+          curve is identical at 30 or 144 fps.</li>
+        <li><b>Wall stop is directional</b> — velocity is zeroed only when the touched wall is on the side you're pushing
+          into; a left wall doesn't freeze rightward escape. Returning <code>hitWall</code> lets the caller keep the run
+          cycle animating against a wall instead of snapping to idle.</li>
+      </ul>
+      <div class="callout tip"><b>Tip.</b> Because target speed is read live from <code>player.MaxGroundSpeed</code> every
+        call, sliding that one value in the <em>Feel</em> Lab changes both ground and air top speed instantly — there is no
+        separate air cap to forget.</div>
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> to give air its own top speed, add a <code>MaxAirSpeed</code> attribute and
+      branch <code>targetSpeed</code> on <code>airborne</code>. To add ice/momentum, swap the <code>NEUTRAL</code> branch's
+      decel for a friction term. Keep it returning <code>hitWall</code> — the running handler depends on that boolean.</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- spriteAnimations.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="game-player--spriteanimations">
+    <h3 class="file-name">src/game/entities/player/spriteAnimations.ts <span class="loc">40 LOC</span></h3>
+    <p class="file-role">
+      A pure data table — no logic, no imports. It maps each <em>state + facing</em> to a list of sprite-sheet tile
+      indices and a matching list of per-frame durations, exactly the shape <code>SpriteAnimator.ChangeState</code>
+      expects (<code>{ indicies, timing }</code>, see <em>Engine Rendering</em>). The player initializes with
+      <code>IDLE_RIGHT</code>, and each state handler calls <code>player.SpriteAnimator.ChangeState(SpriteAnimations.X)</code>
+      to swap clips. <code>indicies</code> keeps its typo on purpose — it matches the field name in the animator.
+    </p>
+
+    <img class="figure" src="docs/assets/randyRunning.png" alt="Randy running frames">
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const SpriteAnimations = { IDLE_LEFT, IDLE_RIGHT, RUN_LEFT, RUN_RIGHT, JUMP_LEFT, JUMP_RIGHT, FALL_LEFT, FALL_RIGHT }</code></h4>
+      <p>
+        Eight clips. Tile indices are 0-based, read left-to-right top-to-bottom on the 4×6 <code>randy</code> sheet (the
+        <code>4, 6</code> passed to the <code>SpriteAnimator</code> constructor). <code>timing[i]</code> is how many
+        seconds <code>indicies[i]</code> holds; the arrays are parallel and equal length.
+      </p>
+      <table class="tbl">
+        <thead><tr><th>Clip</th><th>indicies</th><th>timing (s)</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>IDLE_LEFT</code></td><td><code>[1, 2]</code></td><td><code>[5, 0.1]</code></td><td>Long hold then a quick blink — a 5-second breathing idle.</td></tr>
+          <tr><td><code>IDLE_RIGHT</code></td><td><code>[5, 6]</code></td><td><code>[0.1, 5]</code></td><td>Mirror of idle-left (blink-then-hold); the opening state.</td></tr>
+          <tr><td><code>RUN_LEFT</code></td><td><code>[8, 9, 10, 11]</code></td><td><code>[0.25, 0.25, 0.25, 0.25]</code></td><td>4-frame run cycle; base timing is reshaped live (below).</td></tr>
+          <tr><td><code>RUN_RIGHT</code></td><td><code>[12, 13, 14, 15]</code></td><td><code>[0.25, 0.25, 0.25, 0.25]</code></td><td>4-frame run cycle, facing right.</td></tr>
+          <tr><td><code>JUMP_LEFT</code></td><td><code>[17, 18]</code></td><td><code>[0.25, 0.25]</code></td><td>2-frame ascend pose.</td></tr>
+          <tr><td><code>JUMP_RIGHT</code></td><td><code>[21, 22]</code></td><td><code>[0.25, 0.25]</code></td><td>2-frame ascend pose, right.</td></tr>
+          <tr><td><code>FALL_LEFT</code></td><td><code>[17, 18]</code></td><td><code>[0.25, 0.25]</code></td><td>Reuses the jump frames — fall shares jump art.</td></tr>
+          <tr><td><code>FALL_RIGHT</code></td><td><code>[21, 22]</code></td><td><code>[0.25, 0.25]</code></td><td>Reuses jump-right frames.</td></tr>
+        </tbody>
+      </table>
+      <pre class="code"><code class="language-typescript">RUN_LEFT: {
+  indicies: [8, 9, 10, 11],
+  timing: [0.25, 0.25, 0.25, 0.25],
+},
+RUN_RIGHT: {
+  indicies: [12, 13, 14, 15],
+  timing: [0.25, 0.25, 0.25, 0.25],
+},</code></pre>
+      <div class="callout note"><b>Note (jump ≡ fall art).</b> <code>FALL_*</code> intentionally points at the same tiles
+        as <code>JUMP_*</code>. They are distinct entries so a future fall animation can diverge without touching the jump
+        handler — for now Randy holds the same pose through the whole arc.</div>
+      <div class="callout tip"><b>Tip (the 0.25 is a baseline, not the final speed).</b> The run handler doesn't play the
+        run cycle at a flat 0.25s/frame — it calls <code>SpriteAnimator.ChangeAnimationTiming(1 / (|NextTranslation.x| /
+        AnimationScalingFactor))</code> so the legs cycle faster as Randy moves faster and slow as he creeps. The table's
+        timing is just the unscaled reference; <code>AnimationScalingFactor</code> lives in <em>Feel</em>.</div>
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> add a clip by appending a <code>{ indicies, timing }</code> entry keyed by
+      <code>STATE_FACING</code> and pointing its handler at it via <code>ChangeState</code>. Keep the two arrays the same
+      length (the animator indexes them in lockstep). If you re-author the sheet, the only coupling is the <code>4, 6</code>
+      grid in <code>setSpriteAnimator</code> and these raw tile numbers — change both together.</p>
+  </article>
+</section>

@@ -1,0 +1,832 @@
+<section class="doc-section" id="game-player-states">
+  <header class="section-head">
+    <h2 class="section-title">Player States — the FSM bodies</h2>
+    <p class="section-blurb">
+      Five tiny pure-function handlers — one per <code>PlayerState</code> — are the
+      flesh on the bones of the generic <em>StateMachine</em>. Each runs once per
+      frame for the player's <em>current</em> state: it reads the per-entity input
+      snapshot and the shapecast contact flags, writes a desired
+      <code>NextTranslation</code>, picks a sprite, and — when a condition trips —
+      reassigns <code>player.State</code> to transition next frame. This is where
+      coyote-time, the jump buffer, variable jump height, apex-hang, and ladder
+      snapping actually live.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/game/entities/player/states/handlePlayerIdle.ts</span>
+      <span class="chip">src/game/entities/player/states/handlePlayerRunning.ts</span>
+      <span class="chip">src/game/entities/player/states/handlePlayerJumping.ts</span>
+      <span class="chip">src/game/entities/player/states/handlePlayerFalling.ts</span>
+      <span class="chip">src/game/entities/player/states/handlePlayerClimbing.ts</span>
+    </div>
+  </header>
+
+  <div class="callout note">
+    <b>How these get called.</b> Each handler is a plain
+    <code>(player: Player) =&gt; void</code> registered in the player's FSM map in
+    <code>initializePlayerAttributes()</code>. The generic
+    <code>StateMachine&lt;Player, PlayerState&gt;</code> (see
+    <em>FSM Architecture — StateMachine</em>) dispatches exactly one handler per
+    <code>fsm.Update()</code>, keyed on <code>player.State</code>. A handler that
+    reassigns <code>player.State</code> does <em>not</em> re-dispatch this frame —
+    the new state runs next frame. All the tuning numbers (<code>JumpPower</code>,
+    <code>RiseGravity</code>, <code>CoyoteTime</code>, …) come from the
+    <em>Feel (Attributes)</em> profiles; the handlers never hard-code feel.
+  </div>
+
+  <pre class="mermaid">
+stateDiagram-v2
+  [*] --> IDLE
+  IDLE --> RUNNING: isLeft or isRight
+  IDLE --> FALLING: not ground and vy &lt;= 0
+  IDLE --> JUMPING: isJump and BufferJumpAvailable
+  IDLE --> CLIMBING: ladderCore and up/down
+  RUNNING --> IDLE: slow and neutral input
+  RUNNING --> FALLING: not ground
+  RUNNING --> JUMPING: isJump and BufferJumpAvailable
+  RUNNING --> CLIMBING: ladderCore and up/down
+  JUMPING --> FALLING: ceiling or apex (vy &lt;= 0)
+  FALLING --> IDLE: ground and slow/neutral
+  FALLING --> RUNNING: ground and moving/input
+  FALLING --> JUMPING: coyote window
+  CLIMBING --> IDLE: leave ladder or reach top/bottom
+  </pre>
+
+  <div class="callout gotcha">
+    <b>Gotcha — the enum doc oversells.</b>
+    <code>playerStates.ts</code> comments claim <code>CLIMBING -&gt; JUMPING</code>
+    and <code>JUMPING -&gt; CLIMBING</code>. Read the bodies: neither handler
+    implements those edges. <code>CLIMBING</code> only ever exits to
+    <code>IDLE</code>; <code>JUMPING</code> only ever exits to <code>FALLING</code>.
+    The diagram above reflects the <em>code</em>, not the comment.
+  </div>
+
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-player-states--handleplayeridle">
+    <h3 class="file-name">src/game/entities/player/states/handlePlayerIdle.ts <span class="loc">104 LOC</span></h3>
+    <p class="file-role">
+      The resting state — standing still on the ground — and the engine's initial
+      state (<code>Player</code> seeds <code>State = PlayerStates.IDLE</code>). It is
+      also the grounded "hub": every grounded reset (coyote refill, early-jump latch
+      clear, buffer refill) lives here and in <em>Running</em>. Imports
+      <code>Player</code> (the host), <code>PlayerStates</code> (transition targets),
+      <code>SpriteAnimations</code> (the frame table) and <code>PlayerDirection</code>
+      (signed facing). No physics import — it nudges the body purely through
+      <code>player.NextTranslation</code>, which <code>Player.updateTranslation()</code>
+      later feeds to the kinematic character controller.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const handlePlayerIdle = (player: Player) =&gt; void</code></h4>
+      <p>
+        Runs while standing. The order of the four transition checks is deliberate:
+        a slope/edge guard, then fall, then run, then jump, then climb — and only if
+        none fire does the body do its grounded housekeeping and pick an idle sprite.
+      </p>
+
+      <p><b>1. The vertical-direction edge guard (not a transition).</b> Before any
+      state change, it catches the case where the body still carries upward/zero
+      vertical intent while the player presses a horizontal key:</p>
+      <pre class="code"><code class="language-typescript">if (
+  player.NextTranslation.y &gt;= 0 &amp;&amp;
+  (player.Input.isLeft || player.Input.isRight)
+) {
+  player.NextTranslation.y = -player.MaxFallSpeed;
+  return;
+}</code></pre>
+      <p>
+        It slams vertical velocity to terminal-fall (<code>-MaxFallSpeed</code>) and
+        <code>return</code>s — staying IDLE for one frame so the body is pressed firmly
+        down before the next frame re-evaluates ground contact. This prevents a
+        one-frame "float" when leaving a state with residual <code>y &gt;= 0</code>.
+      </p>
+
+      <p><b>2. Transition to FALLING</b> — walked off something while not rising:</p>
+      <pre class="code"><code class="language-typescript">if (!player.IsTouching.ground &amp;&amp; player.NextTranslation.y &lt;= 0) {
+  player.TimeFallWasEntered = player.Time.Elapsed;
+  player.State = PlayerStates.FALLING;
+  return;
+}</code></pre>
+      <p>
+        Stamping <code>TimeFallWasEntered</code> here is what arms <em>coyote time</em>
+        — the FALLING handler measures the coyote window against this timestamp.
+      </p>
+
+      <p><b>3. Transition to RUNNING</b> — any horizontal press:</p>
+      <pre class="code"><code class="language-typescript">if (player.Input.isLeft || player.Input.isRight) {
+  player.State = PlayerStates.RUNNING;
+  return;
+}</code></pre>
+
+      <p><b>4. Transition to JUMPING</b> — the buffered-jump launch:</p>
+      <pre class="code"><code class="language-typescript">if (player.Input.isJump &amp;&amp; player.BufferJumpAvailable) {
+  // Launch impulse + reset the early-end latch so every jump starts at full
+  // height (a buffered jump fired on landing skips the grounded reset below).
+  player.NextTranslation.y = player.JumpPower;
+  player.EndedJumpEarly = false;
+  player.TimeJumpWasEntered = player.Time.Elapsed;
+  player.State = PlayerStates.JUMPING;
+  return;
+}</code></pre>
+      <p>
+        Note the gate is <code>BufferJumpAvailable</code>, not raw "is grounded". The
+        grounded reset further down sets that flag true each frame the player is on
+        the ground and <em>not</em> holding jump, so a fresh press launches. Setting
+        <code>EndedJumpEarly = false</code> here matters because a buffered jump can
+        fire on the landing frame and skip the grounded reset below — the comment
+        spells out exactly that race.
+      </p>
+
+      <p><b>5. Transition to CLIMBING</b> — on a ladder core, pressing up/down, but
+      not pressing "off the end":</p>
+      <pre class="code"><code class="language-typescript">if (
+  player.IsTouching.ladderCore &amp;&amp;
+  (player.Input.isUp || player.Input.isDown) &amp;&amp;
+  !(player.IsTouching.ladderTop &amp;&amp; player.Input.isUp) &amp;&amp;
+  !(player.IsTouching.ladderBottom &amp;&amp; player.Input.isDown)
+) {
+  player.NextTranslation.x = 0;
+  player.NextTranslation.y = 0;
+  player.State = PlayerStates.CLIMBING;
+  return;
+}</code></pre>
+      <p>
+        The two negated clauses stop you from "grabbing" a ladder by pushing up at its
+        very top or down at its very bottom (you'd just walk off). The ladder flags
+        (<code>ladderCore/Top/Bottom</code>) are not shapecast here — they are pushed
+        in each frame by <code>GameDirector</code> via
+        <code>Player.UpdateLadderState()</code> from the <em>Ladder Sensor</em>. Zeroing
+        both axes freezes the body the instant it latches on.
+      </p>
+
+      <p><b>The grounded body (only reached if no transition fired):</b></p>
+      <pre class="code"><code class="language-typescript">// In a grounded state, give coyote and reset early jump gravity
+player.CoyoteAvailable = true;
+player.EndedJumpEarly = false;
+if (!player.Input.isJump) {
+  player.BufferJumpAvailable = true;
+}
+
+// Simple max gravity in non-vertical state to fix downward movement on slopes, maintain touching ground
+player.NextTranslation.y = -player.MaxFallSpeed;</code></pre>
+      <p>
+        This is the canonical grounded reset, mirrored verbatim in <em>Running</em>:
+        refill coyote, clear the early-end latch, and re-arm the buffer jump <em>only</em>
+        when jump is released (so holding jump can't auto-rebuffer). The constant
+        <code>-MaxFallSpeed</code> downward push keeps the kinematic controller's
+        snap-to-ground glued to slopes instead of micro-hopping.
+      </p>
+
+      <p><b>Sprite selection.</b> A <code>switch (player.Direction)</code> picks
+      <code>IDLE_LEFT</code>/<code>IDLE_RIGHT</code> directly for LEFT/RIGHT. The
+      <code>default</code> (NEUTRAL) branch is the interesting one — it inspects the
+      current sprite state to choose which idle orientation to settle into:</p>
+      <pre class="code"><code class="language-typescript">default:
+  const currentState = player.SpriteAnimator.State;
+  // If already in idle state, no need to change
+  if (
+    currentState === SpriteAnimations.IDLE_LEFT ||
+    currentState === SpriteAnimations.IDLE_RIGHT
+  ) {
+    break;
+  }
+  // Transitioned into idle state, match with correct idle orientation
+  if (
+    currentState === SpriteAnimations.RUN_LEFT ||
+    currentState === SpriteAnimations.FALL_LEFT
+  ) {
+    player.SpriteAnimator.ChangeState(SpriteAnimations.IDLE_LEFT);
+  } else if (
+    currentState === SpriteAnimations.RUN_RIGHT ||
+    currentState === SpriteAnimations.FALL_RIGHT
+  ) {
+    player.SpriteAnimator.ChangeState(SpriteAnimations.IDLE_RIGHT);
+  }
+  break;</code></pre>
+      <p>
+        With no horizontal input, <code>Direction</code> stays NEUTRAL, so the sprite
+        must <em>inherit</em> the last facing from whatever animation was playing —
+        a run/fall to the left settles to <code>IDLE_LEFT</code>, etc. Already-idle is
+        a no-op so the loop never restarts.
+      </p>
+    </div>
+
+    <pre class="mermaid">
+stateDiagram-v2
+  state "IDLE" as I
+  I --> FALLING: not ground and vy &lt;= 0
+  I --> RUNNING: isLeft or isRight
+  I --> JUMPING: isJump and BufferJumpAvailable
+  I --> CLIMBING: ladderCore and up/down (not off-end)
+  I --> I: grounded — refill coyote/buffer, vy = -MaxFallSpeed
+    </pre>
+
+    <div class="callout victory">
+      <b>Hard-won victory — buffered-jump full height.</b> Resetting
+      <code>EndedJumpEarly = false</code> at the launch site (not only in the grounded
+      reset) fixes a subtle bug: a jump buffered while still airborne fires on the
+      landing frame and would otherwise skip the grounded reset, inheriting a stale
+      "ended early" latch and peaking short. Every jump now starts un-cut.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> keep the transition checks ordered and
+    each terminated by <code>return</code> — they are early-exits, so a new check's
+    position decides its priority. The grounded reset block must stay <em>after</em>
+    all transitions; moving it above them would refill coyote/buffer on a frame you
+    intend to leave the ground. If you add a transition (e.g. a crouch), copy the
+    <code>return</code> discipline and decide deliberately where it sits relative to
+    jump and climb.</p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-player-states--handleplayerrunning">
+    <h3 class="file-name">src/game/entities/player/states/handlePlayerRunning.ts <span class="loc">126 LOC</span></h3>
+    <p class="file-role">
+      Horizontal locomotion on the ground. It shares IDLE's transition set and
+      grounded reset, but adds the real horizontal movement (delegated to
+      <code>applyHorizontalMovement</code>), speed-scaled animation timing, and a
+      run-off-the-edge special case. The only extra import over IDLE is
+      <code>applyHorizontalMovement</code> (the shared accel/decel + wall-stop).
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const handlePlayerRunning = (player: Player) =&gt; void</code></h4>
+
+      <p><b>1. Transition to FALLING</b> — left the ground:</p>
+      <pre class="code"><code class="language-typescript">if (!player.IsTouching.ground) {
+  if (player.IsTouching.edgePlatform) {
+    player.NextTranslation.y = 0;
+  }
+  player.TimeFallWasEntered = player.Time.Elapsed;
+  player.State = PlayerStates.FALLING;
+  return;
+}</code></pre>
+      <p>
+        Same coyote-arming timestamp as IDLE. The extra <code>edgePlatform</code> guard
+        zeroes vertical velocity at the lip of an edge platform so the transition into
+        FALLING starts from a clean <code>y = 0</code> rather than the residual
+        <code>-MaxFallSpeed</code> the grounded body would otherwise have left.
+      </p>
+
+      <p><b>2. Transition to IDLE</b> — effectively stopped and not steering:</p>
+      <pre class="code"><code class="language-typescript">const isMovingSlowly =
+  Math.abs(player.NextTranslation.x) &lt;= player.MaxGroundSpeed * 0.01;
+const isIdleInput =
+  player.Input.isNeitherLeftRight || player.Input.isLeftRightCombo;
+
+if (isMovingSlowly &amp;&amp; isIdleInput) {
+  player.NextTranslation.x = 0;
+  player.State = PlayerStates.IDLE;
+  return;
+}</code></pre>
+      <p>
+        It waits for the body to <em>decelerate</em> below 1% of top speed
+        (<code>MaxGroundSpeed * 0.01</code>) before handing back to IDLE — so releasing
+        the key doesn't snap to idle mid-slide; the run animation keeps playing while
+        <code>applyHorizontalMovement</code> bleeds off speed. <code>isLeftRightCombo</code>
+        (both held) counts as "no steering" too. The hard <code>x = 0</code> snaps the
+        last sub-1% creep to a dead stop.
+      </p>
+
+      <p><b>3. Transition to JUMPING</b> and <b>4. Transition to CLIMBING</b> are
+      character-for-character identical to IDLE (same buffered-launch block with the
+      <code>EndedJumpEarly = false</code> reset, same ladder grab with both axes
+      zeroed). They are duplicated rather than shared because each state owns its own
+      transition table.</p>
+
+      <p><b>Grounded body.</b> Same reset as IDLE:</p>
+      <pre class="code"><code class="language-typescript">player.CoyoteAvailable = true;
+player.EndedJumpEarly = false;
+if (!player.Input.isJump) {
+  player.BufferJumpAvailable = true;
+}</code></pre>
+
+      <p><b>Input &amp; animation.</b> LEFT/RIGHT set <code>Direction</code> and the
+      matching run sprite. The neutral branch keeps the run animation facing the last
+      direction by reading the current sprite state:</p>
+      <pre class="code"><code class="language-typescript">else if (isIdleInput) {
+  player.Direction = PlayerDirection.NEUTRAL;
+  const currentState = player.SpriteAnimator.State;
+  if (
+    currentState === SpriteAnimations.JUMP_LEFT ||
+    currentState === SpriteAnimations.FALL_LEFT
+  ) {
+    player.SpriteAnimator.ChangeState(SpriteAnimations.RUN_LEFT);
+  }
+  if (
+    currentState === SpriteAnimations.JUMP_RIGHT ||
+    currentState === SpriteAnimations.FALL_RIGHT
+  ) {
+    player.SpriteAnimator.ChangeState(SpriteAnimations.RUN_RIGHT);
+  }
+}</code></pre>
+      <p>
+        This covers the "just landed from a jump/fall while still pressing both keys
+        or neither" case — it converts a JUMP/FALL sprite into the correct-facing RUN
+        sprite so the decel slide animates as running.
+      </p>
+
+      <p><b>Speed-scaled animation timing.</b> The run anim plays faster the faster you
+      move:</p>
+      <pre class="code"><code class="language-typescript">player.SpriteAnimator.ChangeAnimationTiming(
+  1 / (Math.abs(player.NextTranslation.x) / player.AnimationScalingFactor)
+);</code></pre>
+      <p>
+        The comments spell out the math: the denominator scales the per-frame hold time
+        relative to horizontal speed; the <code>1 /</code> numerator inverts it so a
+        larger <code>|vx|</code> yields a <em>shorter</em> hold (faster animation).
+        <code>AnimationScalingFactor</code> (1.6 in the shared base feel) is the divisor
+        that tunes the overall pace.
+      </p>
+
+      <p><b>Gravity (Y axis).</b> The edge-platform exception again:</p>
+      <pre class="code"><code class="language-typescript">if (player.IsTouching.edgePlatform) {
+  // Exception to simple gravity when about to run off an edge
+  player.NextTranslation.y = 0;
+} else {
+  player.NextTranslation.y = -player.MaxFallSpeed;
+}</code></pre>
+      <p>
+        On a normal floor the constant downward push keeps ground contact on slopes;
+        on an edge platform it holds <code>y = 0</code> so the player can stand at the
+        very lip without the snap-down nudging them off.
+      </p>
+
+      <p><b>Movement (X axis) and the wall-animation trick.</b></p>
+      <pre class="code"><code class="language-typescript">if (applyHorizontalMovement(player)) {
+  // Play running animation even though hitting a wall ...
+  player.SpriteAnimator.ChangeAnimationTiming(
+    1 / (player.MaxGroundSpeed / player.AnimationScalingFactor)
+  );
+}</code></pre>
+      <p>
+        <code>applyHorizontalMovement</code> (no <code>airborne</code> flag, so ground
+        accel/decel) returns <code>true</code> when it stopped you dead on a wall.
+        Running uses that to re-time the animation as if at <em>full</em> speed — even
+        though <code>|vx|</code> just got zeroed by the wall — so the sprite keeps
+        "running into the wall" instead of freezing on the first frame. The author's
+        own comment admits this lives here only to avoid duplicating the input check
+        in the animation section above.
+      </p>
+    </div>
+
+    <pre class="mermaid">
+stateDiagram-v2
+  state "RUNNING" as R
+  R --> FALLING: not ground
+  R --> IDLE: slow and neutral input
+  R --> JUMPING: isJump and BufferJumpAvailable
+  R --> CLIMBING: ladderCore and up/down (not off-end)
+  R --> R: accel/decel via applyHorizontalMovement, speed-scaled anim
+    </pre>
+
+    <div class="callout note">
+      <b>Note — top speed is shared, control isn't.</b> See <em>applyHorizontalMovement</em>:
+      ground vs air use separate accel/decel constants but the same
+      <code>MaxGroundSpeed</code> ceiling, so air control can be tuned floatier/draggier
+      in the Feel Lab without changing how fast you can ultimately move.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> the IDLE threshold
+    (<code>MaxGroundSpeed * 0.01</code>) is the knob for "how stopped before idle";
+    raise it for a snappier stop, lower it for a longer slide. If you change the
+    grounded reset, change IDLE's identically — they are intentional twins. The two
+    <code>ChangeAnimationTiming</code> calls are a known mild duplication; consolidate
+    only if you also fold the wall-hit detection up into the animation block.</p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-player-states--handleplayerjumping">
+    <h3 class="file-name">src/game/entities/player/states/handlePlayerJumping.ts <span class="loc">93 LOC</span></h3>
+    <p class="file-role">
+      The rising half of the jump arc. Entered only from IDLE/RUNNING (buffered jump)
+      or FALLING (coyote jump) — in all three the launch site sets
+      <code>NextTranslation.y = player.JumpPower</code> and stamps
+      <code>TimeJumpWasEntered</code>. This handler does <em>not</em> set the impulse;
+      it spends it. It owns variable jump height (early-release), apex-hang, and the
+      ceiling/apex exits. Imports add <code>applyHorizontalMovement</code> for air
+      steering.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const handlePlayerJumping = (player: Player) =&gt; void</code></h4>
+
+      <p><b>1. Transition to FALLING — ceiling bonk:</b></p>
+      <pre class="code"><code class="language-typescript">if (player.IsTouching.ceiling &amp;&amp; player.NextTranslation.y &gt;= 0) {
+  player.NextTranslation.y = 0;
+  player.TimeFallWasEntered = player.Time.Elapsed;
+  player.State = PlayerStates.FALLING;
+  return;
+}</code></pre>
+      <p>
+        Hitting a ceiling while still moving up kills upward velocity and drops to
+        FALLING immediately (stamping the fall timestamp, though coyote won't matter
+        from a ceiling). The <code>y &gt;= 0</code> guard avoids re-triggering on a
+        ceiling brush while already descending.
+      </p>
+
+      <p><b>2. Transition to FALLING — the natural apex:</b></p>
+      <pre class="code"><code class="language-typescript">// Natural apex — rise gravity has decelerated the launch impulse to zero. The
+// peak emerges from physics now, not a fixed MaxJumpTime timer.
+if (player.NextTranslation.y &lt;= 0) {
+  player.TimeFallWasEntered = player.Time.Elapsed;
+  player.State = PlayerStates.FALLING;
+  return;
+}</code></pre>
+      <p>
+        This is the <em>only</em> way a jump ends upward travel: rise gravity (below)
+        bleeds <code>vy</code> down to zero and the very frame it crosses to
+        <code>&lt;= 0</code>, the state flips to FALLING. The comment is explicit that
+        the apex is emergent — there is no fixed jump-duration timer.
+        <b>Consequence:</b> FALLING is always entered at the apex with <code>vy &lt;= 0</code>,
+        which is why FALLING's old "early release" branch was dead code (it documents
+        this).
+      </p>
+
+      <p><b>Variable height — the early-end latch:</b></p>
+      <pre class="code"><code class="language-typescript">// Variable height — releasing jump past the MinJumpTime floor latches an
+// "early end", which boosts rise gravity below so the player peaks lower.
+if (
+  !player.Input.isJump &amp;&amp;
+  player.Time.Elapsed &gt; player.TimeJumpWasEntered + player.MinJumpTime
+) {
+  player.EndedJumpEarly = true;
+}</code></pre>
+      <p>
+        Releasing jump after the <code>MinJumpTime</code> floor (0.05s) sets the latch;
+        a tap shorter than that still gets the minimum arc. This does <em>not</em>
+        transition — it stays JUMPING and lets the apex check end it once the (now
+        heavier) rise gravity zeroes <code>vy</code>.
+      </p>
+
+      <p><b>Body — lock out coyote/buffer while airborne:</b></p>
+      <pre class="code"><code class="language-typescript">player.CoyoteAvailable = false;
+player.BufferJumpAvailable = false;</code></pre>
+      <p>
+        You can't coyote- or buffer-jump out of a jump; those refill only on the
+        ground (IDLE/RUNNING).
+      </p>
+
+      <p><b>Input &amp; animation.</b> LEFT/RIGHT set <code>Direction</code> and the
+      jump sprite. The neutral/combo branch converts an idle/run sprite into the
+      matching jump sprite so a jump from standstill still shows the jump pose facing
+      the right way.</p>
+
+      <p><b>The rise-gravity model (the heart of the feel):</b></p>
+      <pre class="code"><code class="language-typescript">let riseGravity = player.RiseGravity;
+if (player.EndedJumpEarly) {
+  riseGravity *= player.JumpEndedEarlyGravityModifier;
+} else if (Math.abs(player.NextTranslation.y) &lt; player.ApexHangThreshold) {
+  riseGravity *= player.ApexHangMult;
+}
+
+player.NextTranslation.y -= riseGravity * player.Time.Delta;</code></pre>
+      <p>
+        Three mutually exclusive regimes, in priority order:
+      </p>
+      <table class="tbl">
+        <thead><tr><th>Condition</th><th>Multiplier</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td><code>EndedJumpEarly</code></td><td><code>JumpEndedEarlyGravityModifier</code> (3)</td><td>Cut jump falls away fast — variable height</td></tr>
+          <tr><td><code>|vy| &lt; ApexHangThreshold</code> (4)</td><td><code>ApexHangMult</code> (0.5)</td><td>Held jump floats briefly at the top — apex hang</td></tr>
+          <tr><td>otherwise</td><td>1×</td><td>Plain <code>RiseGravity</code> deceleration</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The <code>else if</code> ordering is load-bearing: a cut jump gets <em>no</em>
+        hang (the comment: "The two are mutually exclusive — a cut jump gets no hang").
+        Decelerating per-<code>Delta</code> rather than per-frame keeps the arc
+        frame-rate independent.
+      </p>
+
+      <p><b>Movement (X axis):</b> <code>applyHorizontalMovement(player, true)</code> —
+      the <code>true</code> selects the air accel/decel constants.</p>
+    </div>
+
+    <pre class="mermaid">
+stateDiagram-v2
+  state "JUMPING" as J
+  [*] --> J: entry sets vy = JumpPower, stamps TimeJumpWasEntered
+  J --> FALLING: ceiling and vy &gt;= 0
+  J --> FALLING: apex (vy &lt;= 0)
+  J --> J: rise gravity (early-cut x3, apex-hang x0.5), air steer
+    </pre>
+
+    <div class="callout victory">
+      <b>Hard-won victory — physics-emergent apex.</b> The peak is no longer a fixed
+      <code>MaxJumpTime</code> timer; it's wherever <code>RiseGravity</code> brings
+      <code>vy</code> to zero. That made apex-hang and variable height fall out of one
+      gravity multiplier each, and it guarantees FALLING is always entered with
+      <code>vy &lt;= 0</code> — the invariant the FALLING handler relies on.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> all four jump-feel numbers
+    (<code>RiseGravity</code>, <code>JumpEndedEarlyGravityModifier</code>,
+    <code>ApexHangThreshold</code>, <code>ApexHangMult</code>, plus <code>JumpPower</code>
+    set at the launch sites) live in the Feel profiles — tune there, not here. Keep the
+    early-end check as <code>else if</code> against apex-hang; flattening them to two
+    <code>if</code>s would let a cut jump also hang. Don't add a duration timer — the
+    apex is meant to emerge from gravity.</p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-player-states--handleplayerfalling">
+    <h3 class="file-name">src/game/entities/player/states/handlePlayerFalling.ts <span class="loc">124 LOC</span></h3>
+    <p class="file-role">
+      The descending half — reached from the JUMPING apex/ceiling or from walking off
+      an edge (IDLE/RUNNING). It owns <em>coyote time</em> (jump shortly after leaving
+      ground) and the <em>jump buffer</em> bookkeeping (count/grant a jump queued just
+      before landing), plus terminal-velocity gravity. Adds <code>GameUtils</code> for
+      <code>MoveTowardsPoint</code> and <code>applyHorizontalMovement</code> for air
+      steering.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const handlePlayerFalling = (player: Player) =&gt; void</code></h4>
+
+      <p><b>1. Transition to IDLE or RUNNING — landing:</b></p>
+      <pre class="code"><code class="language-typescript">if (player.IsTouching.ground) {
+  if (
+    (player.Input.isNeitherLeftRight || player.Input.isLeftRightCombo) &amp;&amp;
+    Math.abs(player.NextTranslation.x) &lt; player.MaxGroundSpeed * 0.01
+  ) {
+    player.State = PlayerStates.IDLE;
+  } else {
+    player.State = PlayerStates.RUNNING;
+  }
+  // Reset gating mechanism for counting buffer jumps
+  player.WasBufferJumpUsed = false;
+  return;
+}</code></pre>
+      <p>
+        On touchdown it picks IDLE only if you're both not steering <em>and</em> already
+        slow (same 1%-of-top-speed test as Running); otherwise RUNNING so a moving
+        landing keeps its momentum and run animation. <code>WasBufferJumpUsed = false</code>
+        re-arms the buffer-jump <em>counter</em> gate for the next airborne stretch.
+      </p>
+
+      <p><b>2. Transition to JUMPING — coyote time:</b></p>
+      <pre class="code"><code class="language-typescript">if (
+  player.Input.isJump &amp;&amp;
+  player.CoyoteAvailable &amp;&amp;
+  player.Time.Elapsed &lt; player.TimeFallWasEntered + player.CoyoteTime
+) {
+  player.CoyoteCount += 1;
+  // Launch impulse + reset the early-end latch so every jump starts un-cut.
+  player.NextTranslation.y = player.JumpPower;
+  player.EndedJumpEarly = false;
+  player.CoyoteAvailable = false;
+  player.TimeJumpWasEntered = player.Time.Elapsed;
+  player.State = PlayerStates.JUMPING;
+  return;
+}</code></pre>
+      <p>
+        This is the whole of coyote time: if jump is pressed within
+        <code>CoyoteTime</code> (0.033s ≈ 2 frames) of leaving the ground — where
+        <code>TimeFallWasEntered</code> was stamped by IDLE/RUNNING — and the
+        single-use <code>CoyoteAvailable</code> flag (refilled only on the ground) is
+        still set, it launches a full JUMPING just as if grounded. It consumes the flag
+        (<code>CoyoteAvailable = false</code>), stamps the jump timer, resets the
+        early-end latch, and bumps a debug counter.
+      </p>
+
+      <p><b>Buffer-jump bookkeeping (only if not landing/coyote-ing):</b></p>
+      <pre class="code"><code class="language-typescript">// Check if ground is within buffer range
+if (player.GroundWithinBufferRange) {
+  // Give buffer jump
+  if (!player.Input.isJump) {
+    player.BufferJumpAvailable = true;
+  }
+}
+
+// Count buffer jumps
+if (
+  player.BufferJumpAvailable &amp;&amp;
+  player.Input.isJump &amp;&amp;
+  !player.WasBufferJumpUsed
+) {
+  player.WasBufferJumpUsed = true;
+  player.BufferJumpCount++;
+}</code></pre>
+      <p>
+        <code>GroundWithinBufferRange</code> is computed in
+        <code>Player.getShapeCastCollisions()</code> — true when a downward shapecast
+        finds ground within <code>BufferJumpRange</code> (1.5) while descending. When
+        ground is that close and jump is <em>released</em>, it pre-arms
+        <code>BufferJumpAvailable</code> so the very next IDLE/RUNNING frame (after
+        landing) launches instantly. The second block is purely the debug counter,
+        gated by <code>WasBufferJumpUsed</code> so one queued press counts once.
+      </p>
+      <div class="callout note">
+        <b>Note — where the buffered jump actually fires.</b> FALLING <em>arms</em> the
+        buffer; the launch itself happens in IDLE/RUNNING's
+        <code>isJump &amp;&amp; BufferJumpAvailable</code> block on the landing frame.
+        The two halves live in different states by design.
+      </div>
+
+      <p><b>Coyote expiry:</b></p>
+      <pre class="code"><code class="language-typescript">if (player.Time.Elapsed &gt;= player.TimeFallWasEntered + player.CoyoteTime) {
+  player.CoyoteAvailable = false;
+}</code></pre>
+      <p>
+        Once the window passes, the flag is cleared — which also gates gravity below.
+      </p>
+
+      <p><b>Input &amp; animation.</b> LEFT/RIGHT set facing + fall sprite; the
+      neutral/combo branch derives facing from the current sprite (idle/run/jump,
+      left vs right) and picks <code>FALL_LEFT</code>/<code>FALL_RIGHT</code> to match.</p>
+
+      <p><b>Gravity (Y axis) — terminal-velocity accel:</b></p>
+      <pre class="code"><code class="language-typescript">// Variable jump height now lives entirely in the JUMPING state ...
+// (The old early-release branch here was dead: FALLING is always entered at
+// the apex with y &lt;= 0, so its `y &gt; 0` guard never fired.)
+if (!player.CoyoteAvailable) {
+  player.NextTranslation.y = GameUtils.MoveTowardsPoint(
+    player.NextTranslation.y,
+    -player.MaxFallSpeed,
+    player.FallAcceleration * player.Time.Delta
+  );
+}</code></pre>
+      <p>
+        Gravity only applies <em>after</em> the coyote window closes
+        (<code>!CoyoteAvailable</code>) — during the 2-frame grace the player hangs so a
+        coyote jump launches from the same height they left. After that it
+        <code>MoveTowardsPoint</code>s <code>vy</code> toward <code>-MaxFallSpeed</code>
+        at <code>FallAcceleration</code> per <code>Delta</code>. The comment documents
+        that the historical early-release gravity branch was removed as dead code once
+        the apex invariant from JUMPING made <code>y &gt; 0</code> here impossible.
+      </p>
+
+      <p><b>Movement (X axis):</b> <code>applyHorizontalMovement(player, true)</code> —
+      air constants again.</p>
+    </div>
+
+    <pre class="mermaid">
+stateDiagram-v2
+  state "FALLING" as F
+  [*] --> F: entry stamps TimeFallWasEntered (arms coyote)
+  F --> IDLE: ground and slow/neutral
+  F --> RUNNING: ground and moving/input
+  F --> JUMPING: isJump and CoyoteAvailable within CoyoteTime
+  F --> F: arm/count buffer, expire coyote, accel toward -MaxFallSpeed
+    </pre>
+
+    <div class="callout gotcha">
+      <b>Gotcha — coyote gates gravity, not just the jump.</b> The
+      <code>if (!player.CoyoteAvailable)</code> wrapper around the fall accel means the
+      player genuinely floats (no downward accel) for the coyote window. If you ever
+      make coyote consume differently, remember it also pauses gravity — otherwise a
+      coyote jump would launch from a slightly-lower spot.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> coyote tuning is two numbers —
+    <code>CoyoteTime</code> (window) and the one-shot <code>CoyoteAvailable</code> flag
+    refilled in IDLE/RUNNING. Buffer tuning is <code>BufferJumpRange</code> (sensed in
+    <code>Player.getShapeCastCollisions</code>). Don't reintroduce a <code>y &gt; 0</code>
+    gravity branch here; the apex invariant guarantees it's unreachable.</p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-player-states--handleplayerclimbing">
+    <h3 class="file-name">src/game/entities/player/states/handlePlayerClimbing.ts <span class="loc">68 LOC</span></h3>
+    <p class="file-role">
+      Vertical movement on a ladder. The simplest handler: one exit (back to IDLE),
+      vertical accel/decel via <code>MoveTowardsPoint</code>, and the ladder-snap nudge
+      that pops you onto the top platform or off the bottom. Entered from IDLE/RUNNING's
+      ladder-grab block (which zeroes both axes on entry). Imports only
+      <code>PlayerStates</code>, <code>PlayerDirection</code> and <code>GameUtils</code>
+      — notably <em>no</em> <code>SpriteAnimations</code>, so climbing does not change
+      the sprite (it keeps whatever was last set).
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const handlePlayerClimbing = (player: Player) =&gt; void</code></h4>
+
+      <p><b>The exit helpers — "at an end and pressing toward/idle":</b></p>
+      <pre class="code"><code class="language-typescript">const atLadderBottom =
+  player.IsTouching.ladderBottom &amp;&amp;
+  (player.Input.isDown ||
+    player.Input.isNeitherUpDown ||
+    player.Input.isUpDownCombo);
+
+const atLadderTop =
+  player.IsTouching.ladderTop &amp;&amp;
+  (player.Input.isUp ||
+    player.Input.isNeitherUpDown ||
+    player.Input.isUpDownCombo);</code></pre>
+      <p>
+        You're "at the bottom" if the bottom sensor is touching <em>and</em> you're
+        pressing down, pressing nothing vertical, or pressing both (i.e. anything that
+        isn't actively climbing up). Symmetric at the top. The ladder flags come from
+        the <em>Ladder Sensor</em> via <code>Player.UpdateLadderState()</code>.
+      </p>
+
+      <p><b>1. Transition to IDLE — the only exit, with the ladder snap:</b></p>
+      <pre class="code"><code class="language-typescript">if (!player.IsTouching.ladderCore || atLadderBottom || atLadderTop) {
+  if (atLadderTop) {
+    player.NextTranslation.y = player.MaxClimbSpeed;
+  } else {
+    player.NextTranslation.y = -player.MaxClimbSpeed;
+  }
+  player.IsTouching.ground = true;
+  player.State = PlayerStates.IDLE;
+  return;
+}</code></pre>
+      <p>
+        Three triggers: you left the ladder core entirely, or you reached the bottom,
+        or the top. The <b>snap</b> is the <code>NextTranslation.y</code> nudge — at the
+        top it pushes <em>up</em> (<code>+MaxClimbSpeed</code>) to clear you onto the
+        platform; otherwise it pushes <em>down</em> (<code>-MaxClimbSpeed</code>) to seat
+        you on the ground below. Forcing <code>IsTouching.ground = true</code> the same
+        frame hands a clean grounded state to IDLE so it doesn't immediately bounce you
+        into FALLING. There is no JUMPING or FALLING exit from CLIMBING despite the enum
+        comment.
+      </p>
+
+      <p><b>Direction from input:</b></p>
+      <pre class="code"><code class="language-typescript">if (player.Input.isUp) {
+  player.Direction = PlayerDirection.UP;
+} else if (player.Input.isDown) {
+  player.Direction = PlayerDirection.DOWN;
+} else {
+  player.Direction = PlayerDirection.NEUTRAL;
+}</code></pre>
+      <p>
+        Here <code>Direction</code> is reused as a <em>vertical</em> sign
+        (<code>UP = +1</code>, <code>DOWN = -1</code>, <code>NEUTRAL = 0</code>) — the
+        same numeric enum the horizontal code uses for X, exploited for Y.
+      </p>
+
+      <p><b>Vertical movement:</b></p>
+      <pre class="code"><code class="language-typescript">let targetSpeed = 0;
+let acceleration = 0;
+
+if (
+  player.Direction === PlayerDirection.UP ||
+  player.Direction === PlayerDirection.DOWN
+) {
+  targetSpeed = player.Direction * player.MaxClimbSpeed;
+  acceleration = player.ClimbAcceleration * player.Time.Delta;
+} else {
+  targetSpeed = 0;
+  acceleration = player.ClimbDeceleration * player.Time.Delta;
+}
+
+player.NextTranslation.y = GameUtils.MoveTowardsPoint(
+  player.NextTranslation.y,
+  targetSpeed,
+  acceleration
+);</code></pre>
+      <p>
+        Pressing up/down accelerates toward <code>Direction * MaxClimbSpeed</code> at
+        <code>ClimbAcceleration</code>; releasing decelerates to a stop at the gentler
+        <code>ClimbDeceleration</code> (8 vs 30 in base feel) so you ease to rest on the
+        ladder rather than stopping dead. The signed-<code>Direction</code> trick makes
+        one <code>MoveTowardsPoint</code> handle both up and down. No X movement and no
+        gravity are applied — climbing fully overrides the normal physics.
+      </p>
+    </div>
+
+    <pre class="mermaid">
+stateDiagram-v2
+  state "CLIMBING" as C
+  [*] --> C: entry from IDLE/RUNNING, both axes zeroed
+  C --> IDLE: not ladderCore — snap down (-MaxClimbSpeed)
+  C --> IDLE: atLadderTop — snap up (+MaxClimbSpeed), ground = true
+  C --> IDLE: atLadderBottom — snap down, ground = true
+  C --> C: accel toward Direction*MaxClimbSpeed, else decel to 0
+    </pre>
+
+    <div class="callout victory">
+      <b>Hard-won victory — the top snap + forced ground.</b> Setting
+      <code>NextTranslation.y = +MaxClimbSpeed</code> and <code>IsTouching.ground = true</code>
+      together on a top exit is what makes dismounting a ladder land you cleanly on the
+      platform instead of flickering CLIMBING -&gt; FALLING -&gt; CLIMBING at the lip.
+    </div>
+
+    <div class="callout gotcha">
+      <b>Gotcha — no sprite update.</b> CLIMBING never calls
+      <code>SpriteAnimator.ChangeState</code> (it doesn't even import the table), so the
+      on-ladder pose is whatever was last set before grabbing. If you want a dedicated
+      climb animation, add a <code>climb</code> entry to <em>Sprite Animations</em> and
+      a <code>ChangeState</code> call here — mind the up/down/neutral facing.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> climb feel is three shared base-feel numbers
+    (<code>MaxClimbSpeed</code>, <code>ClimbAcceleration</code>,
+    <code>ClimbDeceleration</code>). The ladder geometry (top/core/bottom) is owned by the
+    <em>Ladder Sensor</em> and pushed in via <code>Player.UpdateLadderState()</code>, not
+    sensed here — fix mis-snapping at the edges there, not in this handler. Keep the
+    <code>IsTouching.ground = true</code> on exit or you'll reintroduce the lip flicker.</p>
+  </article>
+
+  <div class="callout tip">
+    <b>Tip — reading the whole player loop.</b> These handlers only write intent into
+    <code>player.NextTranslation</code> and flags. The actual move (kinematic
+    <code>computeColliderMovement</code>, snap-to-ground, two-sided contact dispatch) and
+    the shapecast contact sensing that fills <code>IsTouching</code> both happen in
+    <em>Player</em>'s <code>updateTranslation()</code> / <code>detectCollisions()</code>,
+    run right after <code>fsm.Update()</code> each frame. Cross-reference
+    <em>FSM Architecture — StateMachine</em> for the dispatch and
+    <em>Feel (Attributes)</em> for every number quoted above.
+  </div>
+</section>

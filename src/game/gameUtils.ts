@@ -1,119 +1,63 @@
-/* -------------------------------------------------------------------------- */
-/*                      GAME UTILITIES - BACKWARD COMPATIBLE                  */
-/* -------------------------------------------------------------------------- */
-/*
- * Backward-compatible GameUtils class that delegates to the new helper system.
- * 
- * NEW CODE SHOULD USE:
- * - helpers/mathHelpers.ts - Math utilities (moveTowards, lerp, random, etc.)
- * - helpers/physicsHelpers.ts - Physics utilities (getUserData, isColliderType, etc.)
- * - gameUtils functions - Game-specific logic (removeDestroyedObjects, etc.)
- *
- * This class exists for backward compatibility with existing code.
- * Gradually migrate to direct imports from helpers/ and gameUtils functions.
- */
-/* -------------------------------------------------------------------------- */
+// Game utilities facade — the single entry point for game-layer helpers; game code goes through here, not engine helpers directly.
 
 import RAPIER from "@dimforge/rapier2d-compat";
 import GameObject from "../engine/entities/gameObject";
 import GameSensor from "../engine/entities/gameSensor";
 
-// Import all helper functions
+// Import helper functions used by this facade
 import * as MathHelpers from "../engine/helpers/mathHelpers";
 import * as PhysicsHelpers from "../engine/helpers/physicsHelpers";
 
-/**
- * GameUtils class - Backward compatible static utility methods
- * 
- * @deprecated Prefer importing specific functions from helpers/ or gameUtils
- * 
- * @example
- * ```typescript
- * // OLD WAY (still works):
- * import GameUtils from './gameUtils';
- * const newValue = GameUtils.moveTowardsPoint(current, target, delta);
- * 
- * // NEW WAY (preferred):
- * import { moveTowards } from './helpers/mathHelpers';
- * const newValue = moveTowards(current, target, delta);
- * ```
- */
+// Static utility facade for game code.
 export default class GameUtils {
-  /* -------------------------------------------------------------------------- */
-  /*                           MATH HELPERS DELEGATION                          */
-  /* -------------------------------------------------------------------------- */
+  // Math helpers
+  public static MoveTowardsPoint = MathHelpers.moveTowards; // move a value toward a target by a max step
 
-  /**
-   * @deprecated Use `moveTowards` from helpers/mathHelpers instead
-   */
-  public static MoveTowardsPoint = MathHelpers.moveTowards;
+  public static CalculatePercentChance = MathHelpers.percentChance; // true with the given percent probability
 
-  /**
-   * @deprecated Use `radiansToDegrees` from helpers/mathHelpers instead
-   */
-  public static RadiansToDegrees = MathHelpers.radiansToDegrees;
+  // Physics helpers
+  public static IsColliderType = PhysicsHelpers.isColliderType; // does a collider match a given entity type
 
-  /**
-   * @deprecated Use `percentChance` from helpers/mathHelpers instead
-   */
-  public static CalculatePercentChance = MathHelpers.percentChance;
+  // Game-specific functions
 
-  /**
-   * @deprecated Use `randomRange` from helpers/mathHelpers instead
-   */
-  public static GetRandomNumber = MathHelpers.randomRange;
-
-  /* -------------------------------------------------------------------------- */
-  /*                         PHYSICS HELPERS DELEGATION                         */
-  /* -------------------------------------------------------------------------- */
-
-  /**
-   * @deprecated Use `getUserData` from helpers/physicsHelpers instead
-   */
-  public static GetDataFromPhysicsBody = PhysicsHelpers.getUserData;
-
-  /**
-   * @deprecated Use `getUserDataFromCollider` from helpers/physicsHelpers instead
-   */
-  public static GetDataFromCollider = PhysicsHelpers.getUserDataFromCollider;
-
-  /**
-   * @deprecated Use `isColliderType` from helpers/physicsHelpers instead
-   */
-  public static IsColliderType = PhysicsHelpers.isColliderType;
-
-  /* -------------------------------------------------------------------------- */
-  /*                         GAME-SPECIFIC FUNCTIONS                            */
-  /* -------------------------------------------------------------------------- */
-
-  /**
-   * Remove destroyed objects from an array
-   * 
-   * @param existingArray - Array of GameObjects to filter
-   * @returns New array containing only active objects
-   */
+  // Remove destroyed objects from an array
   public static RemoveDestroyedObjects<T extends GameObject>(
     existingArray: T[]
   ): T[] {
-    return existingArray.filter((object) => !object.IsBeingDestroyed);
+    const kept: T[] = [];
+    for (const object of existingArray) {
+      if (!object.IsBeingDestroyed) {
+        kept.push(object);
+      }
+    }
+    return kept;
   }
 
-  /**
-   * Check if a GameObject is fully inside a sensor
-   * 
-   * @param collider - The sensor collider
-   * @param gameObject - The GameObject to check
-   * @returns true if GameObject is fully inside
-   */
+  // Remove destroyed objects from an array IN PLACE (swap-remove), keeping the SAME
+  // array reference. Cheaper than rebuilding (no new array, no GC churn) and lets
+  // long-lived systems hold a stable reference — the director runs this every frame
+  // instead of a 5s wall-clock sweep, and its teardown list relies on the stable ref.
+  public static CompactDestroyedObjects<T extends GameObject>(arr: T[]): void {
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (arr[i].IsBeingDestroyed) {
+        arr[i] = arr[arr.length - 1];
+        arr.pop();
+      }
+    }
+  }
+
+  // Check if a GameObject is fully inside a sensor
   public static IsObjectFullyInsideSensor<
     T extends RAPIER.Collider,
     U extends GameObject
   >(collider: T, gameObject: U): boolean {
+    // object's left/right X edges
     const objectMinX =
       gameObject.CurrentTranslation.x - gameObject.CurrentSize.x / 2;
     const objectMaxX =
       gameObject.CurrentTranslation.x + gameObject.CurrentSize.x / 2;
 
+    // sensor collider's left/right X edges
     const colliderMinX =
       collider.translation().x -
       (collider.shape as RAPIER.Cuboid).halfExtents.x;
@@ -124,11 +68,7 @@ export default class GameUtils {
     return objectMinX > colliderMinX && objectMaxX < colliderMaxX;
   }
 
-  /**
-   * TEMPORARY: Check if player is intersecting with any sensor
-   * 
-   * @deprecated Will be removed once Player uses callbacks
-   */
+  // TEMPORARY: check if player is intersecting with any sensor; remove once Player uses callbacks
   public static IsAnySensorTriggered<T extends GameSensor>(
     gameSensors: T[]
   ): boolean {
@@ -153,11 +93,7 @@ export default class GameUtils {
     return false;
   }
 
-  /**
-   * TEMPORARY: Check if GameObject is fully inside any sensor
-   * 
-   * @deprecated Will be removed once Player uses callbacks
-   */
+  // TEMPORARY: check if GameObject is fully inside any sensor; remove once Player uses callbacks
   public static IsAnySensorTriggeredObjectFullyInside<
     T extends GameObject,
     U extends GameSensor

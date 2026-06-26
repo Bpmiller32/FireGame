@@ -3,15 +3,12 @@ import GameObjectType from "../../engine/types/gameObjectType";
 import GameSensor from "../../engine/entities/gameSensor";
 import EntityType from "../types/entityType";
 
-/**
- * Teleporter - Teleports objects to a destination when they enter.
- *
- * The "who triggers it and what happens" rule lives in the declarative contact
- * table (game/config/contactRules.ts): Player enters Teleporter -> teleport to
- * Destination. This class just owns the destination and the sensor.
- */
+// Teleporter - teleports objects to a destination when they enter.
+// The "who triggers it and what happens" rule lives in the declarative contact
+// table (game/config/contactRules.ts): Player enters Teleporter -> teleport to
+// Destination. This class just owns the destination and the sensor.
 export default class Teleporter extends GameSensor {
-  private positionData: RAPIER.Vector2;
+  private positionData: RAPIER.Vector2; // destination entrants are sent to
 
   constructor(
     size: { width: number; height: number },
@@ -39,11 +36,12 @@ export default class Teleporter extends GameSensor {
     this.createObjectGraphicsDebug("teal", 0.1);
   }
 
+  // Set where this teleporter sends whatever enters it.
   public SetTeleportPosition(x: number, y: number) {
     this.positionData = new RAPIER.Vector2(x, y);
   }
 
-  /** Where this teleporter sends whatever enters it. */
+  // Where this teleporter sends whatever enters it.
   public get Destination(): RAPIER.Vector2 {
     return this.positionData;
   }

@@ -1,7 +1,8 @@
+import * as THREE from "three";
 import dat from "dat.gui";
 import Stats from "stats.js";
-import CameraDebug from "./CameraDebug";
-import PhysicsDebug from "./PhysicsDebug";
+import CameraDebug from "./cameraDebug";
+import PhysicsDebug from "./physicsDebug";
 import GameObject from "../entities/gameObject";
 
 // Forward types to avoid circular imports — Camera/Physics all depend on
@@ -9,26 +10,14 @@ import GameObject from "../entities/gameObject";
 type Camera = any;
 type Physics = any;
 
-/**
- * A debug panel/overlay the game can plug in. The engine only knows this tiny
- * shape — it never names a concrete game debug module. The game registers its
- * own modules (player readouts, etc.) from its App entry.
- *
- * - init(ui): build dat.GUI folders when the panel is ready
- * - update(): optional per-frame work (most modules don't need it)
- * - destroy(): optional teardown (remove listeners, etc.)
- */
+// A debug panel/overlay the game plugs in; engine knows only this shape, never a concrete module.
+// Init(ui): build dat.GUI folders when ready. Destroy(): optional teardown.
 export interface DebugModule {
   Init?(ui: dat.GUI): void;
-  update?(): void;
   Destroy?(): void;
 }
 
-/**
- * A collision/sensor log sink the game can plug in. The engine Physics asks the
- * coordinator to log events; the coordinator forwards to whatever sink the game
- * registered (or no-ops if none). Keeps the engine free of game log formatting.
- */
+// A collision/sensor log sink the game plugs in; Physics forwards log events here, no-op if none registered.
 export interface CollisionLogSink {
   LogCollisions: boolean;
   LogSensors: boolean;
@@ -36,14 +25,8 @@ export interface CollisionLogSink {
   LogSensorEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit"): void;
 }
 
-/**
- * Debug coordinator. Owns the dat.GUI panel and Stats.js monitor.
- * Delegates all domain-specific behavior to focused sub-modules.
- *
- * Engine-generic sub-modules (Camera/Physics) are wired in the engine. Game
- * sub-modules are registered by the game layer via registerModule() — the
- * coordinator never imports them, so the engine names zero game concepts.
- */
+// Debug coordinator: owns the dat.GUI panel + Stats.js monitor, delegates to focused sub-modules.
+// Camera/Physics wired in-engine; game sub-modules register via RegisterModule() so engine names no game concepts.
 export default class Debug {
   public IsActive: boolean;
   public Ui?: dat.GUI;
@@ -75,10 +58,7 @@ export default class Debug {
 
   // ── Game module registration ────────────────────────────────────────────────
 
-  /**
-   * Register a game-provided debug module. If the panel is already active its
-   * init() runs immediately; otherwise registration is a no-op-ish store.
-   */
+  // Register a game-provided debug module; runs Init() now if the panel is already active, else just stores it.
   public RegisterModule(module: DebugModule) {
     this.modules.push(module);
     if (this.IsActive && this.Ui && module.Init) {
@@ -86,50 +66,61 @@ export default class Debug {
     }
   }
 
-  /**
-   * Register the game-provided collision/sensor log sink. Engine Physics routes
-   * its log calls here; with no sink registered, logging is a no-op.
-   */
+  // Register the game's collision/sensor log sink; Physics routes log calls here, no-op if none registered.
   public RegisterCollisionLogSink(sink: CollisionLogSink) {
     this.logSink = sink;
   }
 
   // ── Camera ────────────────────────────────────────────────────────────────
 
+  // Wire camera debug controls into the GUI panel
   public InitCameraDebug(camera: Camera) {
     this.camera.Init(this.Ui!, camera);
   }
 
+  // Refresh camera debug readouts each frame
   public UpdateCameraDebug(camera: Camera) {
     this.camera.Update(camera);
   }
 
   // ── Physics ───────────────────────────────────────────────────────────────
 
+  // Wire physics debug controls into the GUI panel
   public InitPhysicsDebug(physics: Physics) {
     this.physics.Init(this.Ui!, physics);
   }
 
+  // Refresh physics wireframes/readouts each frame
   public UpdatePhysicsDebug(physics: Physics) {
     this.physics.Update(physics);
   }
 
+  // Tear down the physics debug wireframes
   public DestroyPhysicsDebug() {
     this.physics.Destroy();
   }
 
+  // Inject the game's wireframe palette (entity-type -> color); engine forwards it opaquely to PhysicsDebug.
+  // Safe to call when inactive — PhysicsDebug only reads it while rendering, which only runs when active.
+  public SetPhysicsTypeColors(colors: Map<string, THREE.Color>) {
+    this.physics.SetTypeColors(colors);
+  }
+
   // ── Logging ───────────────────────────────────────────────────────────────
 
+  // Forward a collision log event to the game sink
   public LogCollisionEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit") {
     this.logSink?.LogCollisionEvent(obj1, obj2, eventType);
   }
 
+  // Forward a sensor log event to the game sink
   public LogSensorEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit") {
     this.logSink?.LogSensorEvent(obj1, obj2, eventType);
   }
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
+  // Tear down panel, stats monitor, and registered modules
   public Destroy() {
     this.Ui?.destroy();
     this.Stats?.dom.parentNode?.removeChild(this.Stats.dom);
@@ -140,10 +131,12 @@ export default class Debug {
 
   // ── Private ───────────────────────────────────────────────────────────────
 
+  // Build the dat.GUI control panel
   private initPanel() {
     this.Ui = new dat.GUI({ width: 300, hideable: false });
   }
 
+  // Build and mount the Stats.js FPS/MS monitor
   private initStats() {
     this.Stats = new Stats();
     this.Stats.dom.style.cssText =
@@ -158,7 +151,10 @@ export default class Debug {
 
     document.body.appendChild(this.Stats.dom);
 
-    const hasMemory = !!(performance as any).memory;
-    console.log("📊 Stats Monitor Active — FPS / MS" + (hasMemory ? " / MB" : " (no memory panel — Chrome flag required)"));
+    // Memory panel only exists behind a Chrome flag
+    const hasMemory = (performance as any).memory !== undefined;
+    let suffix = " (no memory panel — Chrome flag required)";
+    if (hasMemory) suffix = " / MB";
+    console.log("📊 Stats Monitor Active — FPS / MS" + suffix);
   }
 }

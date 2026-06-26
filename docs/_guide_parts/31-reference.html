@@ -1,0 +1,179 @@
+<section class="doc-section" id="reference">
+  <header class="section-head">
+    <h2 class="section-title">Reference — File Index, Event Catalog &amp; Decision Log</h2>
+    <p class="section-blurb">The fold-out reference card for the whole engine: every source file at a glance, every signal that crosses the <code>mitt</code> bus, and the Rosetta Stone for the <code>(C5)</code>/<code>(D3)</code>/<code>(D28)</code> decision codes scattered through the comments.</p>
+    <div class="file-chips"><span class="chip">all 63 source files</span><span class="chip">src/engine/events/eventBus.ts</span><span class="chip">decision log</span></div>
+  </header>
+
+  <!-- ============================ FILE INDEX ============================ -->
+  <article class="file-block" id="reference--file-index">
+    <h3 class="file-name">The complete file index <span class="loc">66 files · ~7,000 LOC</span></h3>
+    <p class="file-role">Every TypeScript / Vue source file, its layer, its size, and a one-line statement of what it does. The golden rule to keep in your head while reading: <b>anything under <code>src/engine/</code> never imports from <code>src/game/</code></b> — the arrows of dependency only ever point game&nbsp;→&nbsp;engine.</p>
+
+    <h4 style="color:#fff;margin:14px 0 4px;font-size:14px">Engine layer — <code>src/engine/</code> (game-agnostic, 28 files)</h4>
+    <table class="tbl">
+      <thead><tr><th>File</th><th>LOC</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>core/experience.ts</code></td><td>122</td><td>The <b>singleton</b> that constructs, owns and wires every engine subsystem; runs the per-frame <code>onTick</code>.</td></tr>
+        <tr><td><code>core/time.ts</code></td><td>45</td><td><code>requestAnimationFrame</code> loop; tracks delta/elapsed; emits <code>tick</code>.</td></tr>
+        <tr><td><code>core/sizes.ts</code></td><td>33</td><td>Tracks viewport width/height/pixelRatio; emits <code>resize</code>.</td></tr>
+        <tr><td><code>events/eventBus.ts</code></td><td>45</td><td>The typed <code>mitt</code> emitter + the engine/game event map (single source of event truth).</td></tr>
+        <tr><td><code>input/input.ts</code></td><td>290</td><td>Keyboard device; snapshots raw key state into a plain <code>InputState</code> intent bag each frame.</td></tr>
+        <tr><td><code>rendering/renderer.ts</code></td><td>58</td><td><code>THREE.WebGLRenderer</code> lifecycle: setup, per-frame draw, resize, dispose.</td></tr>
+        <tr><td><code>rendering/spriteAnimator.ts</code></td><td>139</td><td>Sprite-sheet flip-book animator: slices a sheet and drives UV offset/frame timing.</td></tr>
+        <tr><td><code>camera/camera.ts</code></td><td>332</td><td>Engine-pure follow camera; consumes a plain <code>CameraTarget</code> snapshot, never the Player (<b>C5</b>).</td></tr>
+        <tr><td><code>physics/physics.ts</code></td><td>237</td><td>The Rapier2D world: async WASM init, the stepped sim, and draining collision/sensor events into the contact table.</td></tr>
+        <tr><td><code>entities/gameObject.ts</code></td><td>435</td><td>Base entity: a rigid body + collider + THREE mesh kept in sync every frame; the engine's workhorse class.</td></tr>
+        <tr><td><code>entities/gameSensor.ts</code></td><td>38</td><td>Sensor-collider wrapper exposing continuous intersection state (the <b>D9</b> "fully inside" path leans on this).</td></tr>
+        <tr><td><code>entities/contactRegistry.ts</code></td><td>50</td><td>The generic <code>(typeA,typeB) → handler</code> contact table; dispatches two-sided, names no game concept.</td></tr>
+        <tr><td><code>entities/stateMachine.ts</code></td><td>17</td><td>The tiny generic FSM: a <code>state → handler</code> map; the host owns the current state.</td></tr>
+        <tr><td><code>resources/resourceLoader.ts</code></td><td>555</td><td>Boot asset loader (DRACO GLB + textures) <i>and</i> the GLB level parser that emits <code>LevelData</code>.</td></tr>
+        <tr><td><code>helpers/mathHelpers.ts</code></td><td>21</td><td>Pure math: <code>moveTowards</code>, <code>percentChance</code>, ranges/easing primitives.</td></tr>
+        <tr><td><code>helpers/physicsHelpers.ts</code></td><td>27</td><td>Rapier identity helpers: <code>getUserData</code>, <code>matchesType</code>, <code>isColliderType</code>.</td></tr>
+        <tr><td><code>debug/debug.ts</code></td><td>160</td><td>Debug coordinator: URL-hash gate, dat.gui + stats.js, and the module/sink/palette injection seams.</td></tr>
+        <tr><td><code>debug/cameraDebug.ts</code></td><td>167</td><td>dat.gui camera inspector / gizmos and manual-control wiring.</td></tr>
+        <tr><td><code>debug/physicsDebug.ts</code></td><td>179</td><td>Rapier debug wireframe overlay, colored via the game-injected type→color map (<b>D3</b>).</td></tr>
+        <tr><td><code>types/cameraTarget.ts</code></td><td>25</td><td><code>CameraTarget</code> snapshot + <code>CameraFollowState</code> enum (the <b>C5</b>/<b>D3</b>/<b>D15</b> decoupling shape).</td></tr>
+        <tr><td><code>types/contactPoints.ts</code></td><td>34</td><td>Contact-surface vocabulary (which side touched: top/bottom/left/right + points).</td></tr>
+        <tr><td><code>types/gameObjectType.ts</code></td><td>14</td><td>Collider-shape enum: <code>CUBE</code>/<code>SPHERE</code>/<code>CAPSULE</code> only (<b>D5</b> lean; slopes are rotated cubes).</td></tr>
+        <tr><td><code>types/inputState.ts</code></td><td>18</td><td>The plain per-frame input-intent bag the device fills and entities read.</td></tr>
+        <tr><td><code>types/inputSource.ts</code></td><td>10</td><td>The <code>InputSource</code> interface (one method, <code>CaptureInto</code>) — Player depends on this, not the concrete keyboard <code>Input</code>, so touch/gamepad/replay sources drop in.</td></tr>
+        <tr><td><code>types/levelData.ts</code></td><td>35</td><td>The parsed-level record shape the GLB parser produces and the factories consume.</td></tr>
+        <tr><td><code>types/playerDirection.ts</code></td><td>19</td><td><code>LEFT</code>/<code>RIGHT</code> facing enum.</td></tr>
+        <tr><td><code>types/playerStates.ts</code></td><td>24</td><td>The player FSM state enum: <code>IDLE</code>/<code>RUNNING</code>/<code>JUMPING</code>/<code>FALLING</code>/<code>CLIMBING</code>.</td></tr>
+        <tr><td><code>types/userData.ts</code></td><td>10</td><td>The collider <code>userData</code> shape: an entity-type tag + a back-reference to the owning object.</td></tr>
+      </tbody>
+    </table>
+
+    <h4 style="color:#fff;margin:18px 0 4px;font-size:14px">Game layer — <code>src/</code> &amp; <code>src/game/</code> (Donkey-Kong rules, 38 files)</h4>
+    <table class="tbl">
+      <thead><tr><th>File</th><th>LOC</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>main.ts</code></td><td>5</td><td>Vue entry point: <code>createApp(App).mount("#app")</code>.</td></tr>
+        <tr><td><code>App.vue</code></td><td>169</td><td>The Vue UI shell: boot wiring, the loading overlay, and the status/reset-button presentation.</td></tr>
+        <tr><td><code>game/gameDirector.ts</code></td><td>546</td><td>The conductor: owns entity arrays, the level pipeline, the spawner, and the game-state event handlers.</td></tr>
+        <tr><td><code>game/gameUtils.ts</code></td><td>108</td><td>Static helpers: <code>RemoveDestroyedObjects</code> and the sensor-triggered query predicates.</td></tr>
+        <tr><td><code>game/config/contactRules.ts</code></td><td>68</td><td>Registers the concrete contact reactions (Enemy→Player = gameOver, barrel→can, winFlag…) into the engine registry.</td></tr>
+        <tr><td><code>game/config/debugColors.ts</code></td><td>22</td><td>The <code>EntityType → wireframe color</code> palette injected into engine Debug (<b>D3</b>).</td></tr>
+        <tr><td><code>game/config/entityFactories.ts</code></td><td>219</td><td>The <code>EntityType → factory</code> map that builds each entity from a <code>LevelData</code> row.</td></tr>
+        <tr><td><code>game/config/inputBindings.ts</code></td><td>45</td><td>The F-key bindings → game events (reset, switchLevel, manual camera).</td></tr>
+        <tr><td><code>game/config/levelRegistry.ts</code></td><td>82</td><td><code>LEVEL_REGISTRY</code> rows + <code>FEEL_PROFILES</code> + <code>DEFAULT_LEVEL_INDEX</code>.</td></tr>
+        <tr><td><code>game/config/assetManifest.ts</code></td><td>21</td><td>The game's boot asset manifest (<code>randy</code>/<code>enemy</code>/<code>dkGraphicsData</code> URLs), handed to <code>Experience.Configure</code> so the engine names no game asset.</td></tr>
+        <tr><td><code>game/config/levelNodeTypes.ts</code></td><td>27</td><td>Level-node name token → game type, injected into the engine GLB parser via <code>Resources.RegisterLevelTypes</code> (replaced the old hand-synced <code>EntityType</code> mirror).</td></tr>
+        <tr><td><code>game/attributes/baseFeel.ts</code></td><td>39</td><td>The default movement "feel" attribute set (speeds, accel, jump, gravity, coyote, buffer…).</td></tr>
+        <tr><td><code>game/attributes/setCelesteAttributes.ts</code></td><td>47</td><td>Celeste-style feel overrides applied over the base.</td></tr>
+        <tr><td><code>game/attributes/setDkAttributes.ts</code></td><td>49</td><td>Donkey-Kong-style feel overrides applied over the base.</td></tr>
+        <tr><td><code>game/entities/player/player.ts</code></td><td>491</td><td>The player entity: body, FSM wiring, per-frame input snapshot, ladder state, teleport.</td></tr>
+        <tr><td><code>game/entities/player/applyHorizontalMovement.ts</code></td><td>47</td><td>The shared accel/decel/clamp horizontal-move helper the ground/air states call.</td></tr>
+        <tr><td><code>game/entities/player/spriteAnimations.ts</code></td><td>40</td><td>The per-state sprite-sheet animation config (which frames each state plays).</td></tr>
+        <tr><td><code>…/player/states/handlePlayerIdle.ts</code></td><td>104</td><td>Idle FSM state body + its transitions out.</td></tr>
+        <tr><td><code>…/player/states/handlePlayerRunning.ts</code></td><td>126</td><td>Running FSM state body + transitions.</td></tr>
+        <tr><td><code>…/player/states/handlePlayerJumping.ts</code></td><td>93</td><td>Jumping FSM state body (jump impulse, buffer) + transitions.</td></tr>
+        <tr><td><code>…/player/states/handlePlayerFalling.ts</code></td><td>124</td><td>Falling FSM state body (coyote time, landing) + transitions.</td></tr>
+        <tr><td><code>…/player/states/handlePlayerClimbing.ts</code></td><td>68</td><td>Climbing FSM state body (ladder snap, vertical move) + transitions.</td></tr>
+        <tr><td><code>game/entities/enemy/enemy.ts</code></td><td>331</td><td>The barrel enemy — normal &amp; crazy folded into one class, chosen at spawn (<b>D28</b>).</td></tr>
+        <tr><td><code>game/entities/enemy/enemyStates.ts</code></td><td>17</td><td>The barrel FSM state enum (rolling/descending/bouncing).</td></tr>
+        <tr><td><code>…/enemy/states/handleEnemyRolling.ts</code></td><td>31</td><td>Rolling-along-girders state body.</td></tr>
+        <tr><td><code>…/enemy/states/handleEnemyDescending.ts</code></td><td>21</td><td>Descending-a-ladder state body.</td></tr>
+        <tr><td><code>…/enemy/states/handleEnemyBouncing.ts</code></td><td>10</td><td>The crazy-barrel vertical-bounce state body.</td></tr>
+        <tr><td><code>game/entities/platform.ts</code></td><td>90</td><td>Solid / one-way platforms + walls; the per-frame one-way <code>enablePoint</code> toggle.</td></tr>
+        <tr><td><code>game/entities/cameraSensor.ts</code></td><td>57</td><td>A camera trigger zone that moves the camera toward a target on entry.</td></tr>
+        <tr><td><code>game/entities/ladderSensor.ts</code></td><td>44</td><td>Ladder top/core/bottom sensor with a climb <code>direction</code> (<b>D9</b> fully-inside).</td></tr>
+        <tr><td><code>game/entities/teleporter.ts</code></td><td>48</td><td>A teleport zone carrying a destination position.</td></tr>
+        <tr><td><code>game/entities/trashCan.ts</code></td><td>31</td><td>The oil can: holds the <code>IsOnFire</code> state a barrel ignites via the contact table.</td></tr>
+        <tr><td><code>game/entities/winFlag.ts</code></td><td>31</td><td>The win trigger — fires <code>gameWin</code> through the contact table (no per-frame shapecast).</td></tr>
+        <tr><td><code>game/debug/collisionLogger.ts</code></td><td>74</td><td>The game-owned collision-log sink registered into engine Debug.</td></tr>
+        <tr><td><code>game/debug/levelDebug.ts</code></td><td>30</td><td>The dat.gui level dropdown bound to <code>GameDirector.CurrentLevelName</code>.</td></tr>
+        <tr><td><code>game/debug/playerDebug.ts</code></td><td>396</td><td>The dat.gui live player inspector (every feel value + live readouts, <code>.listen()</code> reflected).</td></tr>
+        <tr><td><code>game/types/entityType.ts</code></td><td>29</td><td>The <code>EntityType</code> enum, mapped from GLB folder names by the parser.</td></tr>
+        <tr><td><code>game/types/gameCollisionGroups.ts</code></td><td>30</td><td>The Rapier membership/filter bitmask groups deciding which colliders may touch.</td></tr>
+      </tbody>
+    </table>
+    <p class="modify"><b>Modifying this:</b> when you add a file, place it on the correct side of the seam. If it would force an <code>import … from "../game/…"</code> inside <code>src/engine/</code>, stop — invert it instead (inject the game concept as data or a callback, the way <a href="#arch-contacts">contact rules</a> and the <a href="#engine-debug">debug palette</a> already do).</p>
+  </article>
+
+  <!-- ============================ EVENT CATALOG ============================ -->
+  <article class="file-block" id="reference--events">
+    <h3 class="file-name">The event catalog <span class="loc">14 signals</span></h3>
+    <p class="file-role">Every event that crosses the <code>mitt</code> bus, who fires it, who hears it, and its payload. The map is declared in <a href="#engine-events-input--eventbus"><code>eventBus.ts</code></a> as two halves — <code>EngineEventMap</code> (must never name a game concept) and <code>GameEventMap</code> — combined as <code>EngineEventMap &amp; GameEventMap</code>. Listeners are <b>global</b>, so naming discipline <i>is</i> the architecture here.</p>
+
+    <table class="tbl">
+      <thead><tr><th>Event</th><th>Payload</th><th>Emitted by</th><th>Listened by</th></tr></thead>
+      <tbody>
+        <tr><td><code>tick</code></td><td><code>void</code></td><td><code>Time</code> every RAF frame <span class="loc">time.ts:33</span></td><td><code>Experience.onTick</code> → physics/game/render <span class="loc">experience.ts:98</span></td></tr>
+        <tr><td><code>resize</code></td><td><code>void</code></td><td><code>Sizes</code> on window resize <span class="loc">sizes.ts:23</span></td><td><code>Experience.onResize</code> → Camera + Renderer <span class="loc">experience.ts:82</span></td></tr>
+        <tr><td><code>resourcesReady</code></td><td><code>void</code></td><td><code>ResourceLoader</code> when boot assets finish <span class="loc">resourceLoader.ts:118/140</span></td><td><code>GameDirector</code> → loads default level <span class="loc">gameDirector.ts:100</span>; loader self-<code>off</code>s <span class="loc">resourceLoader.ts:524</span></td></tr>
+        <tr><td><code>resourceLoadFailed</code></td><td><code>string</code> (resource name)</td><td><code>ResourceLoader</code> on a failed asset <span class="loc">resourceLoader.ts:129</span></td><td><i>reserved — no listener yet</i></td></tr>
+        <tr><td><code>loadingProgress</code></td><td><code>{ loaded, total, item }</code></td><td><code>ResourceLoader</code> per item <span class="loc">resourceLoader.ts:81/110/132</span></td><td><code>App.vue</code> → progress bar <span class="loc">App.vue:40</span></td></tr>
+        <tr><td><code>loadingStarted</code></td><td><code>void</code></td><td><code>GameDirector</code> around level loads <span class="loc">gameDirector.ts:389</span></td><td><code>App.vue</code> → show overlay <span class="loc">App.vue:31</span></td></tr>
+        <tr><td><code>loadingFinished</code></td><td><code>void</code></td><td><code>GameDirector</code> (in <code>finally</code>) <span class="loc">gameDirector.ts:444</span></td><td><code>App.vue</code> → hide overlay <span class="loc">App.vue:37</span></td></tr>
+        <tr><td><code>gameStart</code></td><td><code>void</code></td><td><code>GameDirector</code> on a successful load <span class="loc">gameDirector.ts:435</span></td><td><code>GameDirector</code> (unpause + spawn) <span class="loc">:106</span> &amp; <code>App.vue</code> (clear UI) <span class="loc">:102</span></td></tr>
+        <tr><td><code>gameOver</code></td><td><code>void</code></td><td><code>contactRules</code> — Enemy→Player <span class="loc">contactRules.ts:28</span></td><td><code>GameDirector</code> (pause + stop spawn) <span class="loc">:112</span> &amp; <code>App.vue</code> ("Game Over!") <span class="loc">:84</span></td></tr>
+        <tr><td><code>gameWin</code></td><td><code>void</code></td><td><code>contactRules</code> — winFlag <span class="loc">contactRules.ts:66</span></td><td><code>GameDirector</code> (freeze) <span class="loc">:119</span> &amp; <code>App.vue</code> ("Game Win!") <span class="loc">:76</span></td></tr>
+        <tr><td><code>gameReset</code></td><td><code>void</code></td><td><code>App.vue</code> reset button <span class="loc">:118</span> &amp; <code>inputBindings</code> (F-key) <span class="loc">:29</span></td><td><code>GameDirector</code> (<code>resetGameState</code>) <span class="loc">:125</span> &amp; <code>App.vue</code> (clear UI) <span class="loc">:92</span></td></tr>
+        <tr><td><code>switchLevel</code></td><td><code>void</code></td><td><code>inputBindings</code> (F2) <span class="loc">inputBindings.ts:35</span></td><td><code>GameDirector</code> → <code>switchToNextLevel</code> <span class="loc">gameDirector.ts:131</span></td></tr>
+        <tr><td><code>manualCameraControl</code></td><td><code>void</code></td><td><code>inputBindings</code> <span class="loc">inputBindings.ts:41</span></td><td><code>Camera</code> → toggle manual control <span class="loc">camera.ts:95</span></td></tr>
+        <tr><td><code>gameObjectRemoved</code></td><td><code>GameObject</code></td><td><code>contactRules</code> (consumed barrel) <span class="loc">:38</span>, <code>GameDirector</code> (unload/reset) <span class="loc">:281/356</span>, <code>Player</code> <span class="loc">:480</span></td><td><code>GameDirector</code> → <code>entity.Destroy()</code> <span class="loc">gameDirector.ts:136</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout victory"><b>Hard-won victory — listen before you emit.</b> Both <a href="#arch-overview--app"><code>App.vue</code></a> and <code>GameDirector</code> register their listeners <i>before</i> <code>Resources.StartLoading()</code> is called last. A fast boot could otherwise fire <code>resourcesReady</code>/<code>loadingFinished</code> before anyone was subscribed, leaving the loading overlay stuck or the game un-booted. Ordering is the whole trick.</div>
+    <div class="callout note"><b>Why a bus at all.</b> Because listeners are resolved by string, an emitter never holds a reference to its listener — that is exactly what lets the engine emit <code>tick</code> without importing <code>Experience</code>, and lets <code>contactRules</code> declare <code>gameOver</code> without the physics world knowing what "game over" means.</div>
+    <p class="modify"><b>Modifying this:</b> add new events to the correct half of the map in <code>eventBus.ts</code> (engine-pure vs game). Keep payloads plain data. Anything you <code>Emitter.on</code> inside a long-lived object must be paired with an <code>Emitter.off</code> in its <code>Destroy</code> (see <code>Experience</code>, <code>Camera</code>, <code>GameDirector</code>) or you leak listeners across level loads.</p>
+  </article>
+
+  <!-- ============================ DECISION LOG ============================ -->
+  <article class="file-block" id="reference--decisions">
+    <h3 class="file-name">The decision-log decoder <span class="loc">the Rosetta Stone</span></h3>
+    <p class="file-role">The comments carry terse tags like <code>(C5 decouple)</code> or <code>(D3)</code> that point at the author's private decision log. Each marks a deliberate, hard-won choice. Here is every code that appears in the source, every place it shows up, and the principle it encodes — so the comments stop being cryptic.</p>
+
+    <table class="tbl">
+      <thead><tr><th>Code</th><th>Principle</th><th>Appears at</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>C5</b></td>
+          <td><b>Camera decouple.</b> The engine <code>Camera</code> consumes a plain <code>CameraTarget</code> data snapshot each frame and reads <i>only</i> scalars from it — it never imports the game <code>Player</code> or <code>PlayerStates</code>. The game maps its Player → CameraTarget (PlayerState → CameraFollowState) in <code>cameraTargetFromPlayer</code>. A different game, or a multiplayer follow, just fills the snapshot differently.</td>
+          <td><code>cameraTarget.ts:1</code>, <code>gameDirector.ts:160,189</code>, <code>cameraTarget.ts:18</code></td>
+        </tr>
+        <tr>
+          <td><b>D3</b></td>
+          <td><b>The engine never names a game type.</b> Where the engine needs game knowledge it takes it as <i>injected data</i>: <code>PhysicsDebug</code> colors colliders from a game-supplied <code>EntityType → color</code> map; <code>CameraTarget</code> is plain data, not a Player; the enemy FSM lives game-side. Dependency inversion across the whole seam (also tracked as <code>ADR-0003</code>).</td>
+          <td><code>App.vue:58</code>, <code>physicsDebug.ts:29</code>, <code>cameraTarget.ts:2</code>, <code>enemyStates.ts:1</code></td>
+        </tr>
+        <tr>
+          <td><b>D5</b></td>
+          <td><b>Stay lean — prefer the boring primitive.</b> Two faces: (a) collider shapes are <code>CUBE</code>/<code>SPHERE</code>/<code>CAPSULE</code> only; slopes are built from rotated/overlapped cubes and the polyline/convex paths were purged; (b) re-entrancy is guarded with a single old-school boolean (<code>isLoading</code>) rather than a queue/lock library.</td>
+          <td><code>gameObjectType.ts:1</code>, <code>gameDirector.ts:382</code></td>
+        </tr>
+        <tr>
+          <td><b>D9</b></td>
+          <td><b>The "fully inside" ladder climb.</b> Grabbing/climbing a ladder requires the climber to be <i>fully inside</i> the ladder-core sensor, which depends on <i>continuous</i> intersection polling (not a one-shot enter event). Both the player and the barrel descend logic rely on it; it's why <code>GameSensor</code> exposes live intersection state.</td>
+          <td><code>ladderSensor.ts:8</code>, <code>gameSensor.ts:7</code>, <code>enemy.ts:265</code></td>
+        </tr>
+        <tr>
+          <td><b>D10</b></td>
+          <td><b>Per-entity input snapshot.</b> Each entity holds its own <code>InputState</code> snapshot, refreshed from the device once per frame, rather than every state handler reaching into the global input device. Decouples consumers from the keyboard and makes states trivially testable / AI-swappable.</td>
+          <td><code>player.ts:138</code></td>
+        </tr>
+        <tr>
+          <td><b>D15</b></td>
+          <td><b>Data-shape interfaces use camelCase fields.</b> Plain "bag of scalars" interfaces that cross the seam (like <code>CameraTarget</code>) are written as camelCase data shapes, distinguishing them from class-style APIs.</td>
+          <td><code>cameraTarget.ts:18</code></td>
+        </tr>
+        <tr>
+          <td><b>D28</b></td>
+          <td><b>Data-driven enemy — one class, two flavors.</b> The old separate <code>CrazyEnemy</code> class was folded into <code>Enemy</code>. Normal vs crazy barrels are now the <i>same</i> class, distinguished only by their starting FSM state and a <code>bounceDirection</code> drift chosen at spawn. This collapse is what let the contact table cleanly fix the barrel/enemy collision bug.</td>
+          <td><code>gameDirector.ts:49</code>, <code>enemy.ts:44</code></td>
+        </tr>
+        <tr>
+          <td><b>ADR-0003</b></td>
+          <td><b>Game-side state machines.</b> Architecture Decision Record backing <b>D3</b>: entity FSMs (player, enemy) live in the game layer and are built on the engine's generic <code>StateMachine</code> primitive — the engine supplies the mechanism, the game supplies the states.</td>
+          <td><code>enemyStates.ts:1</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip"><b>Reading the tags in context.</b> When you hit a <code>(C5)</code> or <code>(D3)</code> in a comment, it's the author flagging "this shape is deliberate, don't 'simplify' it back into a coupling." The cleanest demonstration of the whole philosophy is the <a href="#arch-contacts">contact table</a> + <a href="#engine-camera">camera</a> pair: physics fires a generic event, the game decides what it means, and neither side imports the other.</div>
+    <p class="modify"><b>Modifying this:</b> if you introduce a new deliberate constraint, give it the next code and a one-line note at the point of use — future-you (and this table) will thank you. If you're about to <i>violate</i> one of these (e.g. importing a game type into the engine), that's the signal to inject data instead.</p>
+  </article>
+</section>

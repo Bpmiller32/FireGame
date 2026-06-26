@@ -1,0 +1,479 @@
+<section class="doc-section" id="engine-events-input">
+  <header class="section-head">
+    <h2 class="section-title">Events &amp; Input — the mitt bus and the keyboard layer</h2>
+    <p class="section-blurb">
+      Two of the engine's smallest files carry an outsized share of its decoupling. <code>eventBus.ts</code> is a
+      single typed <code>mitt</code> emitter that lets any subsystem talk to any other without holding a reference —
+      the engine half of the map never names a game concept, the game half does. <code>input.ts</code> is the raw
+      keyboard device: it captures <code>keydown</code>/<code>keyup</code> into held-state booleans and snapshots them
+      into a plain <code>InputState</code> bag, so controllers read input as data instead of polling the live device.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/engine/events/eventBus.ts</span>
+      <span class="chip">src/engine/input/input.ts</span>
+      <span class="chip">src/engine/types/inputSource.ts</span>
+      <span class="chip">src/engine/types/inputState.ts</span>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <!-- eventBus.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-events-input--eventbus">
+    <h3 class="file-name">src/engine/events/eventBus.ts <span class="loc">45 LOC</span></h3>
+    <p class="file-role">
+      This file IS the application's single global event bus — one <code>mitt</code> emitter instance, exported as a
+      default named <code>Emitter</code>. Nobody constructs it; it is a module-level singleton created the first time
+      the module is imported, and every <code>import Emitter from ".../eventBus"</code> across the codebase resolves to
+      that same object. It imports exactly one thing — <code>GameObject</code> — and only so the
+      <code>gameObjectRemoved</code> event can carry a strongly-typed payload. Its entire job is to publish a typed
+      event map so that <code>Emitter.emit("tick")</code> and <code>Emitter.on("tick", fn)</code> are compile-checked:
+      a typo in an event name, or a payload of the wrong shape, is a build error rather than a silent no-op.
+    </p>
+
+    <div class="callout note">
+      <b>Note.</b> The map is deliberately split into two halves — <code>EngineEventMap</code> and
+      <code>GameEventMap</code> — that are then merged. This is the same engine/game seam that runs through the whole
+      project (see <em>Engine Core — Experience</em> and <em>Game Director</em>). The engine half is allowed to be
+      imported by a fresh project with no game; the game half is the Donkey-Kong vocabulary layered on top. Keeping
+      them as two named types documents which events a reusable engine may legitimately fire.
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">type EngineEventMap = { tick; resize; resourcesReady; resourceLoadFailed; loadingProgress }</code></h4>
+      <p>
+        The engine-pure events. Every value type here is the <em>payload</em> that travels with the event:
+        <code>void</code> means "no payload, this is a pure signal." None of these names mention a game concept, which
+        is the invariant that lets the engine layer stay game-agnostic.
+      </p>
+      <pre class="code"><code class="language-typescript">type EngineEventMap = {
+  tick: void;
+  resize: void;
+  resourcesReady: void;
+  resourceLoadFailed: string;
+
+  // Per-asset progress for the initial resource load (textures/models)...
+  // Engine-pure: `item` is a generic resource key, never a game concept.
+  loadingProgress: { loaded: number; total: number; item: string };
+};</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Event</th><th>Payload</th><th>Emitted by</th><th>Listened by</th></tr></thead>
+        <tbody>
+          <tr><td><code>tick</code></td><td><code>void</code></td><td><em>Time</em> (<code>time.ts</code>) once per <code>requestAnimationFrame</code></td><td><em>Experience</em> (<code>experience.ts:98</code>) — drives the whole frame</td></tr>
+          <tr><td><code>resize</code></td><td><code>void</code></td><td><em>Sizes</em> (<code>sizes.ts</code>) on window resize</td><td><em>Experience</em> (<code>experience.ts:82</code>) → calls <code>Camera.Resize()</code> + <code>Renderer.Resize()</code></td></tr>
+          <tr><td><code>resourcesReady</code></td><td><code>void</code></td><td><em>ResourceLoader</em> (<code>resourceLoader.ts:118,140</code>) when the last asset settles</td><td><em>GameDirector</em> (<code>gameDirector.ts:100</code>) — boots the game</td></tr>
+          <tr><td><code>resourceLoadFailed</code></td><td><code>string</code> (the failed asset's <code>name</code>)</td><td><em>ResourceLoader</em> (<code>resourceLoader.ts:129</code>)</td><td><em>no current listener</em> — the hook exists for a future error UI</td></tr>
+          <tr><td><code>loadingProgress</code></td><td><code>{ loaded, total, item }</code></td><td><em>ResourceLoader</em> (<code>resourceLoader.ts:81,110,132</code>)</td><td><em>App.vue</em> (<code>App.vue:40</code>) — drives the real progress bar</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <b>Tip.</b> <code>loadingProgress.item</code> is typed as <code>string</code>, a generic resource key, on purpose
+        — the comment in the source calls this out explicitly. The engine never knows it is loading "randy" or
+        "dkGraphicsData"; it only forwards the name it was handed. That is what keeps the progress event engine-pure.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">type GameEventMap = { gameObjectRemoved; gameStart; gameOver; gameWin; gameReset; switchLevel; manualCameraControl; loadingStarted; loadingFinished }</code></h4>
+      <p>
+        The game-specific vocabulary: flow control, level switching, and the loading-overlay bracket. The one payload
+        here is <code>gameObjectRemoved: GameObject</code> — the single reason this file imports <code>GameObject</code>.
+      </p>
+      <pre class="code"><code class="language-typescript">type GameEventMap = {
+  gameObjectRemoved: GameObject;
+
+  gameStart: void;
+  gameOver: void;
+  gameWin: void;
+  gameReset: void;
+
+  switchLevel: void;
+  manualCameraControl: void;
+
+  // Loading-screen signals... Emitted by GameDirector around level loads.
+  loadingStarted: void;
+  loadingFinished: void;
+};</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Event</th><th>Payload</th><th>Emitted by</th><th>Listened by</th></tr></thead>
+        <tbody>
+          <tr><td><code>gameObjectRemoved</code></td><td><code>GameObject</code></td><td><em>contactRules</em> (enemy→trashcan, <code>contactRules.ts:38</code>), <em>Player.Destroy</em> (<code>player.ts:480</code>), <em>GameDirector</em> teardown (<code>gameDirector.ts:281,356</code>)</td><td><em>GameDirector</em> (<code>gameDirector.ts:136</code>) — disposes the entity</td></tr>
+          <tr><td><code>gameStart</code></td><td><code>void</code></td><td><em>GameDirector</em> (<code>gameDirector.ts:435</code>)</td><td><em>App.vue</em> (<code>:102</code>) + <em>GameDirector</em> (<code>:106</code>)</td></tr>
+          <tr><td><code>gameOver</code></td><td><code>void</code></td><td><em>contactRules</em> enemy↔player (<code>contactRules.ts:28</code>)</td><td><em>App.vue</em> (<code>:84</code>) + <em>GameDirector</em> (<code>:112</code>)</td></tr>
+          <tr><td><code>gameWin</code></td><td><code>void</code></td><td><em>contactRules</em> winflag sensor (<code>contactRules.ts:66</code>)</td><td><em>App.vue</em> (<code>:76</code>) + <em>GameDirector</em> (<code>:119</code>)</td></tr>
+          <tr><td><code>gameReset</code></td><td><code>void</code></td><td><em>InputBindings</em> F1 (<code>inputBindings.ts:29</code>), <em>App.vue</em> button (<code>:118</code>)</td><td><em>App.vue</em> (<code>:92</code>) + <em>GameDirector</em> (<code>:125</code>)</td></tr>
+          <tr><td><code>switchLevel</code></td><td><code>void</code></td><td><em>InputBindings</em> F2 (<code>inputBindings.ts:35</code>)</td><td><em>GameDirector</em> (<code>:131</code>)</td></tr>
+          <tr><td><code>manualCameraControl</code></td><td><code>void</code></td><td><em>InputBindings</em> F3 (<code>inputBindings.ts:41</code>)</td><td><em>Camera</em> (<code>camera.ts:95</code>)</td></tr>
+          <tr><td><code>loadingStarted</code></td><td><code>void</code></td><td><em>GameDirector</em> (<code>gameDirector.ts:389</code>)</td><td><em>App.vue</em> (<code>:31</code>) — shows overlay</td></tr>
+          <tr><td><code>loadingFinished</code></td><td><code>void</code></td><td><em>GameDirector</em> (<code>gameDirector.ts:444</code>)</td><td><em>App.vue</em> (<code>:37</code>) — hides overlay</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">type AppEvents = EngineEventMap &amp; GameEventMap;</code></h4>
+      <p>
+        The full event surface is the intersection-type merge of both maps. As the source comment notes, the
+        <code>&amp;</code> here "just means all the keys from both maps" — for two object types with disjoint keys, the
+        TypeScript intersection is the union of their fields. <code>mitt&lt;AppEvents&gt;()</code> is then parameterised
+        on this combined map so both engine and game events are typed by the one emitter.
+      </p>
+      <pre class="code"><code class="language-typescript">type AppEvents = EngineEventMap &amp; GameEventMap;
+
+const Emitter = mitt&lt;AppEvents&gt;();
+
+export default Emitter;</code></pre>
+      <div class="callout gotcha">
+        <b>Gotcha.</b> <code>Emitter</code> is a true singleton because ES modules are evaluated once and cached. That is
+        the feature — every subsystem shares one bus — but it also means listeners <em>leak across the object lifecycle
+        unless explicitly removed</em>. Long-lived owners therefore store their handler refs and call
+        <code>Emitter.off(name, ref)</code> in their <code>Destroy()</code>: see <em>Experience</em>
+        (<code>experience.ts:103-104</code>), <em>Camera</em> (<code>camera.ts:329</code>), <em>ResourceLoader</em>
+        (<code>resourceLoader.ts:524</code>), and <em>GameDirector</em> (<code>gameDirector.ts:536-541</code>). An anonymous
+        inline listener cannot be removed by name — that is why these classes hoist the callback into a stored field.
+      </div>
+      <div class="callout note">
+        <b>Note.</b> One asymmetry worth remembering: <em>GameDirector.Destroy</em> calls <code>off</code> for
+        <code>resourcesReady</code>, <code>gameStart</code>, <code>gameOver</code>, <code>gameReset</code>,
+        <code>switchLevel</code>, and <code>gameObjectRemoved</code> — but <em>not</em> <code>gameWin</code>, and
+        <code>manualCameraControl</code> is owned/removed by <em>Camera</em> instead. If you add a new long-lived
+        listener, add the matching <code>off</code> in the same owner's teardown or it will accumulate across resets.
+      </div>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> to add an event, put it in the correct half of the map — engine-pure signals go in
+      <code>EngineEventMap</code> (no game words allowed), game-flow signals go in <code>GameEventMap</code>. Give it a
+      payload type, never leave it untyped; use <code>void</code> for a pure signal. Then emit with
+      <code>Emitter.emit("name", payload)</code> and subscribe with <code>Emitter.on("name", fn)</code>, and — if the
+      subscriber outlives a single load — store the handler ref and remove it in <code>Destroy()</code>. Do not add a
+      second emitter instance; the whole design depends on one shared bus.
+    </p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- input.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-events-input--input">
+    <h3 class="file-name">src/engine/input/input.ts <span class="loc">290 LOC</span></h3>
+    <p class="file-role">
+      This file IS the raw keyboard device. It is constructed once by <em>Experience</em> in <code>Configure()</code>
+      (<code>experience.ts:55</code>, <code>this.Input = new Input()</code>) and exposed as <code>Experience.Input</code>.
+      It imports the <code>InputState</code> type plus the <code>InputSource</code> interface it implements — it still
+      has no idea what a "player" or a "jump" <em>means</em>; it
+      only knows that certain physical keys are up or down right now. It registers two <code>window</code> listeners in
+      its constructor, exposes a pile of held-state booleans and combo helper methods, and offers one
+      snapshot method (<code>CaptureInto</code>) that copies the current intent into a plain data bag. Lifecycle:
+      <b>constructor</b> wires listeners; there is no per-frame <code>Update()</code> (the device is event-driven, not
+      polled); <b>Destroy()</b> unhooks the window listeners.
+    </p>
+
+    <div class="callout note">
+      <b>Note.</b> The engine <code>Input</code> exposes <em>only</em> held-state — booleans that are true for as long as
+      the key is down. It deliberately knows nothing about <em>press edges</em> (the false→true transition of a single
+      press) and nothing about game events. Edge detection and the mapping to game meaning live one layer up, in
+      <em>InputBindings</em> (see <em>Game Config — InputBindings</em>) and in the player state handlers.
+    </div>
+
+    <div class="callout note">
+      <b>Note (the InputSource seam).</b> <code>Input</code> now formally <code>implements InputSource</code> — a
+      one-method engine interface (<code>CaptureInto(state: InputState): void</code>,
+      <code>engine/types/inputSource.ts</code>) that names the capture seam. The payoff is at the consumer, not here:
+      <em>Player</em> types its <code>inputDevice</code> as <code>InputSource</code> rather than as the concrete
+      keyboard device, so a touch, gamepad, network, or replay source drops in just by implementing
+      <code>CaptureInto</code> — no entity edits, because nothing depends on the keyboard class.
+    </div>
+    <pre class="code"><code class="language-typescript">// engine/types/inputSource.ts — the one method Player actually depends on
+export default interface InputSource {
+  // Fill the given InputState snapshot from this source for the current frame.
+  CaptureInto(state: InputState): void;
+}
+
+// input.ts — the default (keyboard) implementation
+export default class Input implements InputSource { ... }</code></pre>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">interface Key { keyCode: string; isPressed: (pressed: boolean) =&gt; void; }</code></h4>
+      <p>
+        A private file-local interface describing one tracked key: its physical <code>keyCode</code> and a setter
+        callback that writes the matching held-state field. Using <code>KeyboardEvent.code</code> (e.g.
+        <code>"KeyW"</code>, <code>"Space"</code>, <code>"Backquote"</code>) rather than <code>.key</code> makes the
+        mapping <em>layout-independent</em>: W is the physical W slot regardless of QWERTY/AZERTY or the active locale.
+      </p>
+      <pre class="code"><code class="language-typescript">interface Key {
+  keyCode: string; // KeyboardEvent.code, layout-independent (e.g. "KeyW", "Space")
+  isPressed: (pressed: boolean) =&gt; void; // Input calls this when the key changes
+}</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">// fields: private held-state + public per-key flags + private keys[] table</code></h4>
+      <p>
+        Two tiers of state. The <b>private</b> booleans back the directional combo logic and are never read directly by
+        outside code — <code>isLeftKeyPressed</code>, <code>isRightKeyPressed</code>, <code>isUpKeyPressed</code>,
+        <code>isDownKeyPressed</code>, <code>isSpacebarPressed</code>. The <b>public</b> booleans are read directly by
+        debug/binding code that wants a single raw key — <code>IsWKeyPressed</code>/<code>IsAKeyPressed</code>/
+        <code>IsSKeyPressed</code>/<code>IsDKeyPressed</code> (camera fly, read by <em>CameraDebug</em>),
+        <code>IsQKeyPressed</code>/<code>IsEKeyPressed</code>, <code>Is1KeyPressed</code>/<code>Is2KeyPressed</code>,
+        <code>IsTildePressed</code>, and <code>IsF1Pressed</code>…<code>IsF4Pressed</code> (read by <em>InputBindings</em>).
+      </p>
+      <pre class="code"><code class="language-typescript">// private held-state, refined by the Is* combo checks below
+private isLeftKeyPressed: boolean;
+private isRightKeyPressed: boolean;
+private isUpKeyPressed: boolean;
+private isDownKeyPressed: boolean;
+private isSpacebarPressed: boolean;
+
+public IsWKeyPressed: boolean;  // ... A/S/D, Q/E, 1/2
+public IsTildePressed: boolean;
+public IsF1Pressed: boolean;    // ... F2/F3/F4
+
+private keys: Key[]; // key-code -> pressed-flag setter table</code></pre>
+      <div class="callout tip">
+        <b>Tip.</b> Why is left/right/up/down <em>private</em> but W/A/S/D <em>public</em>? The arrow keys feed the
+        combo-resolving methods (<code>IsLeft()</code>, <code>IsLeftRightCombo()</code> …) — outsiders are meant to ask
+        the <em>question</em> ("am I moving left?"), not read the raw flag, so the raw flag is hidden. The WASD/F-key
+        flags have no combo semantics; they are single raw keys, so they are exposed directly.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor()</code></h4>
+      <p>
+        No parameters. Zeroes every held-state and public flag to <code>false</code>, builds the <code>keys</code>
+        table mapping each tracked <code>keyCode</code> to the closure that sets its flag, then stores
+        <em>bound</em> listener references and registers them on <code>window</code>. The closures capture
+        <code>this</code>, which is why each one is an arrow function.
+      </p>
+      <pre class="code"><code class="language-typescript">this.keys = [
+  { keyCode: "ArrowLeft",  isPressed: (eventResult) =&gt; { this.isLeftKeyPressed = eventResult; } },
+  { keyCode: "ArrowRight", isPressed: (eventResult) =&gt; { this.isRightKeyPressed = eventResult; } },
+  // ... ArrowUp/ArrowDown, Space, KeyW/A/S/D, Digit1/2, KeyQ/E, Backquote, F1..F4
+];
+
+// Store bound references so they can be removed in destroy()
+this.onKeyDownListener = (event: KeyboardEvent) =&gt; this.onKeyDown(event.code);
+this.onKeyUpListener = (event: KeyboardEvent) =&gt; this.onKeyUp(event.code);
+
+window.addEventListener("keydown", this.onKeyDownListener, false);
+window.addEventListener("keyup", this.onKeyUpListener, false);</code></pre>
+      <div class="callout victory">
+        <b>Hard-won victory.</b> The two listeners are hoisted into <code>onKeyDownListener</code> /
+        <code>onKeyUpListener</code> fields <em>before</em> being registered, precisely so <code>Destroy()</code> can
+        pass the <em>same</em> function identity to <code>removeEventListener</code>. If the constructor had registered
+        an inline arrow (<code>window.addEventListener("keydown", e =&gt; this.onKeyDown(e.code))</code>), the listener
+        could never be removed — every engine teardown/rebuild would stack another live keyboard handler on
+        <code>window</code>, and stale <code>Input</code> instances would keep mutating after they were meant to be dead.
+      </div>
+      <div class="callout note">
+        <b>Note.</b> Listeners are bound to <code>window</code>, not the canvas, so input works regardless of focus
+        within the page. Only fifteen physical keys are tracked; everything else falls through both loops untouched.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private onKeyDown(keyName: string) / private onKeyUp(keyName: string)</code></h4>
+      <p>
+        The two raw event handlers. Each receives <code>event.code</code> (already unwrapped by the bound listener),
+        scans the <code>keys</code> table for a matching <code>keyCode</code>, and calls that entry's
+        <code>isPressed</code> setter with <code>true</code> (down) or <code>false</code> (up). A linear scan over ~15
+        entries per keystroke is trivially cheap and keeps the table the single source of truth for which keys exist.
+      </p>
+      <pre class="code"><code class="language-typescript">private onKeyDown(keyName: string) {
+  for (const key of this.keys) {
+    if (keyName === key.keyCode) {
+      key.isPressed(true);
+    }
+  }
+}</code></pre>
+      <p>
+        Line note: there is no <code>break</code> after a match — harmless because <code>keyCode</code> values are
+        unique, so at most one entry ever fires. Unrecognised keys simply complete the loop with no effect.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">IsLeft() / IsRight() / IsLeftRightCombo() / IsNeitherLeftRight()</code></h4>
+      <p>
+        The horizontal intent resolvers. These collapse the two raw arrow flags into four mutually-exclusive
+        questions. <code>IsLeft()</code> is true only when left is held <em>and right is not</em> — pressing both at
+        once is its own distinct state (<code>IsLeftRightCombo()</code>), not "left wins." This matters because the
+        player's running/jumping handlers treat "both pressed" and "neither pressed" the same way (decelerate), and
+        they need to distinguish that from a clean single direction.
+      </p>
+      <pre class="code"><code class="language-typescript">public IsLeft() {
+  if (this.isLeftKeyPressed &amp;&amp; !this.isRightKeyPressed) {
+    return true;
+  }
+  return false;
+}
+public IsLeftRightCombo() {
+  if (this.isLeftKeyPressed &amp;&amp; this.isRightKeyPressed) {
+    return true;
+  }
+  return false;
+}</code></pre>
+      <div class="callout tip">
+        <b>Tip.</b> The four methods partition the (left, right) truth table into exactly four cases —
+        <code>IsLeft</code>, <code>IsRight</code>, <code>IsLeftRightCombo</code>, <code>IsNeitherLeftRight</code> — so a
+        state handler can switch on intent without re-deriving the boolean algebra. <code>IsJump()</code> is the simple
+        odd one out: it just mirrors <code>isSpacebarPressed</code> with no combo logic.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">IsUp() / IsDown() / IsUpDownCombo() / IsNeitherUpDown() / IsJump()</code></h4>
+      <p>
+        The vertical equivalents, used for ladder climbing, plus the jump query. Same exclusive partitioning as the
+        horizontal set: <code>IsUp()</code> requires up held and down clear, etc. <code>IsJump()</code> returns the raw
+        spacebar held-state — edge handling (coyote time, jump buffering, variable jump height) is entirely the
+        player layer's job, not the device's.
+      </p>
+      <pre class="code"><code class="language-typescript">public IsUp() {
+  if (this.isUpKeyPressed &amp;&amp; !this.isDownKeyPressed) {
+    return true;
+  }
+  return false;
+}
+public IsJump() {
+  if (this.isSpacebarPressed) {
+    return true;
+  }
+  return false;
+}</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public CaptureInto(state: InputState): void</code></h4>
+      <p>
+        The decoupling seam. Given an existing <code>InputState</code> bag, it calls each of the nine intent methods
+        and writes the result into the matching field — <em>mutating the passed object in place</em>, never allocating
+        a new one. The <em>Player</em> calls this once per frame, before its state handlers read intent
+        (<code>player.ts:470</code>, <code>this.inputDevice.CaptureInto(this.Input)</code>).
+      </p>
+      <pre class="code"><code class="language-typescript">// Snapshot input intent into InputState (mutated in place so existing refs stay valid).
+// Per-entity input instead of the live device — the seam for network/replay/AI input.
+public CaptureInto(state: InputState): void {
+  state.isLeft = this.IsLeft();
+  state.isRight = this.IsRight();
+  state.isLeftRightCombo = this.IsLeftRightCombo();
+  state.isNeitherLeftRight = this.IsNeitherLeftRight();
+  state.isJump = this.IsJump();
+  state.isUp = this.IsUp();
+  state.isDown = this.IsDown();
+  state.isUpDownCombo = this.IsUpDownCombo();
+  state.isNeitherUpDown = this.IsNeitherUpDown();
+}</code></pre>
+      <div class="callout victory">
+        <b>Hard-won victory (D10 — input-as-data).</b> Mutating in place rather than returning a fresh object means any
+        reference already held to <code>player.Input</code> stays valid frame-to-frame — no churn, no dangling old
+        snapshots. More importantly, because the player reads a plain <code>InputState</code> bag rather than calling
+        the live device, the <em>source</em> of that bag can be swapped wholesale — a network packet, a replay buffer,
+        or an AI controller could fill the same fields and the movement code would not change a line. The player keeps
+        its own <code>inputDevice</code> ref separately (<code>player.ts:135</code>) purely to drive this one capture.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Destroy()</code></h4>
+      <p>
+        Removes both window listeners by passing the stored bound references. Called from
+        <em>Experience.Destroy</em> (<code>experience.ts:109</code>). No flags are reset — once destroyed the instance
+        is discarded, so the only thing that matters is detaching from <code>window</code> so no zombie handler keeps
+        firing.
+      </p>
+      <pre class="code"><code class="language-typescript">public Destroy() {
+  window.removeEventListener("keydown", this.onKeyDownListener);
+  window.removeEventListener("keyup", this.onKeyUpListener);
+}</code></pre>
+    </div>
+
+    <p class="file-role" style="margin-top:1.25rem"><b>How the keyboard becomes a game event each frame:</b></p>
+    <pre class="mermaid">sequenceDiagram
+  participant W as window
+  participant I as Input
+  participant IB as InputBindings
+  participant P as Player
+  participant E as Emitter
+  W->>I: keydown / keyup (event.code)
+  I->>I: keys[] match -> set held flag
+  Note over IB,P: each frame via Experience.OnGameUpdate
+  IB->>I: read IsF1Pressed / IsF2Pressed / IsF3Pressed
+  IB->>IB: edge = pressed && !wasPressed
+  IB->>E: emit("gameReset" / "switchLevel" / "manualCameraControl")
+  P->>I: CaptureInto(player.Input)
+  I-->>P: nine intent booleans written in place
+  P->>P: state handlers read player.Input.isLeft ...</pre>
+
+    <p class="modify">
+      <b>Modifying this:</b> to track a new key, add one entry to the <code>keys</code> table (a unique
+      <code>KeyboardEvent.code</code> plus a setter) and declare the backing field — public for a raw single key,
+      private if it participates in a new combo group. If it should produce game <em>intent</em> consumed by entities,
+      add a field to <code>InputState</code> and a line to <code>CaptureInto</code>; if it should fire a game
+      <em>event</em>, do the edge detection in <em>InputBindings</em>, not here. Resist adding edge or game logic to
+      this file — its value is that it stays a dumb, game-blind device.
+    </p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- inputState.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-events-input--inputstate">
+    <h3 class="file-name">src/engine/types/inputState.ts <span class="loc">18 LOC</span></h3>
+    <p class="file-role">
+      This file IS the data contract between the input device and whatever consumes intent. It is a pure interface —
+      no class, no runtime code — describing a flat bag of nine booleans. <em>Input.CaptureInto</em> writes it;
+      entity controllers read it. Nobody "owns" the type; instances are created by consumers (the <em>Player</em>
+      builds one in <code>initializePlayerAttributes</code>, <code>player.ts:140</code>) and then refilled each frame.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">export default interface InputState { isLeft; isRight; isLeftRightCombo; isNeitherLeftRight; isJump; isUp; isDown; isUpDownCombo; isNeitherUpDown }</code></h4>
+      <p>
+        Three logical groups: horizontal intent (4 booleans), the single jump intent, and vertical/ladder intent (4
+        booleans). The field names mirror the device's intent methods <em>exactly</em> — <code>IsLeft()</code> the
+        method becomes <code>isLeft</code> the field — so reading intent costs one property access and no parentheses.
+      </p>
+      <pre class="code"><code class="language-typescript">export default interface InputState {
+  // Horizontal intent (mutually-exclusive helpers mirror the input device)
+  isLeft: boolean;
+  isRight: boolean;
+  isLeftRightCombo: boolean;
+  isNeitherLeftRight: boolean;
+
+  // Jump intent
+  isJump: boolean;
+
+  // Vertical intent (ladders)
+  isUp: boolean;
+  isDown: boolean;
+  isUpDownCombo: boolean;
+  isNeitherUpDown: boolean;
+}</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Group</th><th>Filled from</th><th>Read by</th></tr></thead>
+        <tbody>
+          <tr><td><code>isLeft</code> / <code>isRight</code></td><td>horizontal</td><td><code>Input.IsLeft()</code> / <code>IsRight()</code></td><td>running / jumping / falling handlers (move)</td></tr>
+          <tr><td><code>isLeftRightCombo</code> / <code>isNeitherLeftRight</code></td><td>horizontal</td><td><code>IsLeftRightCombo()</code> / <code>IsNeitherLeftRight()</code></td><td>handlers (decelerate when both/neither)</td></tr>
+          <tr><td><code>isJump</code></td><td>jump</td><td><code>Input.IsJump()</code></td><td>idle/running (buffer jump), jumping/falling (variable height)</td></tr>
+          <tr><td><code>isUp</code> / <code>isDown</code></td><td>vertical</td><td><code>IsUp()</code> / <code>IsDown()</code></td><td>idle/running (mount ladder), climbing handler</td></tr>
+          <tr><td><code>isUpDownCombo</code> / <code>isNeitherUpDown</code></td><td>vertical</td><td><code>IsUpDownCombo()</code> / <code>IsNeitherUpDown()</code></td><td>climbing handler (hold position)</td></tr>
+        </tbody>
+      </table>
+      <div class="callout note">
+        <b>Note.</b> The source's own header comment spells out the rename rationale: a handler reads
+        <code>player.input.isLeft</code> where it used to call <code>player.input.isLeft()</code> — "same value, one
+        less pair of parens." The deeper win is that the consumer no longer touches the live device at all, which is
+        the input-as-data seam (D10) described under <code>CaptureInto</code> above.
+      </div>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> add a field here only for a piece of <em>intent</em> an entity reads (e.g. a "dash"
+      boolean). Keep it a flat, allocation-free bag of primitives — no methods, no nested objects — so
+      <code>CaptureInto</code> stays a straight line-per-field copy and the per-entity snapshot remains cheap to
+      mutate in place every frame. Whenever you add a field here, add the matching write in
+      <em>Input.CaptureInto</em>, or the field will silently stay at its initial value.
+    </p>
+  </article>
+</section>

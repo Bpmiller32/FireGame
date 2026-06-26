@@ -5,8 +5,8 @@ import Player from "./player/player";
 import EntityType from "../types/entityType";
 
 export default class Platform extends GameObject {
-  private isOneWayPlatform: boolean;
-  private oneWayEnablePoint: number;
+  private isOneWayPlatform: boolean; // true = pass-through-from-below platform
+  private oneWayEnablePoint: number; // Y above which a one-way platform turns solid
 
   // Named, typed metadata (replaces the old anonymous userData value0/1/3).
   public FloorLevel: number = 0;
@@ -19,36 +19,30 @@ export default class Platform extends GameObject {
     size: { width: number; height: number; depth: number },
     position: { x: number; y: number },
     rotation: number,
-    isOneWayPlatform: boolean = false,
-    verticies: number[] = []
+    isOneWayPlatform: boolean = false
   ) {
     super();
 
-    // Determine if the platform uses complex collider with vertices or a cube shape
-    const isComplexCollider = verticies.length > 0;
-    let objectType;
-
-    if (isComplexCollider) {
-      objectType = GameObjectType.POLYLINE;
-      this.setVertices(verticies);
-      this.oneWayEnablePoint = 0;
-    } else {
-      objectType = GameObjectType.CUBE;
-      this.oneWayEnablePoint = position.y;
-    }
+    // The Y above which a one-way platform becomes solid (= the platform's own
+    // height); the player passes up through it from below.
+    this.oneWayEnablePoint = position.y;
 
     // Determine platform's routing type
-    const objectName = isOneWayPlatform
-      ? EntityType.ONE_WAY_PLATFORM
-      : EntityType.PLATFORM;
+    let objectName: string = EntityType.PLATFORM;
+    if (isOneWayPlatform) objectName = EntityType.ONE_WAY_PLATFORM;
 
-    // Create the physics object based on the shape
-    this.createObjectPhysics(objectName, objectType, size, position, rotation);
+    // Cuboid collider — this is a cuboid/sphere engine (slopes = rotated cubes).
+    this.createObjectPhysics(
+      objectName,
+      GameObjectType.CUBE,
+      size,
+      position,
+      rotation
+    );
 
     // Handle one-way platform-specific properties
     this.isOneWayPlatform = isOneWayPlatform;
     this.SetType(objectName);
-    // this.createObjectGraphicsDebug(graphicsColor);
 
     // Set collision groups and masks
     this.setCollisionGroup(CollisionGroups.PLATFORM);
@@ -65,22 +59,22 @@ export default class Platform extends GameObject {
     this.IsEdge = (value ?? 0) > 0;
   }
 
-  // The enable-point Y for OneWay pass-through (needed for ComplexColliders)
+  // The enable-point Y for OneWay pass-through
   public SetOneWayEnablePoint(value: number) {
     this.oneWayEnablePoint = value;
   }
 
+  // Per-frame: toggle one-way pass-through from player Y/state.
   public Update(player: Player) {
     // Exit early if not a OneWayPlatform
     if (!this.isOneWayPlatform) {
       return;
     }
 
+    // Solid once the player's feet rise above the enable point; pass-through below.
     if (
-      player &&
-      this.isOneWayPlatform &&
       player.CurrentTranslation.y - player.CurrentSize.y / 2 >
-        this.oneWayEnablePoint
+      this.oneWayEnablePoint
     ) {
       this.IsOneWayActive = false;
     } else {

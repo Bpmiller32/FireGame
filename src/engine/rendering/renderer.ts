@@ -1,6 +1,4 @@
-/* -------------------------------------------------------------------------- */
-/*                 The webgl renderer, its settings and events                */
-/* -------------------------------------------------------------------------- */
+// The webgl renderer, its settings and events
 
 import * as THREE from "three";
 import Experience from "../core/experience";
@@ -14,7 +12,7 @@ export default class Renderer {
   private scene: THREE.Scene;
   private camera: Camera;
 
-  public Instance!: THREE.WebGLRenderer;
+  private Instance!: THREE.WebGLRenderer; // the raw THREE WebGL renderer
 
   constructor() {
     this.experience = Experience.GetInstance();
@@ -27,6 +25,7 @@ export default class Renderer {
     this.Resize();
   }
 
+  // build and configure the WebGL renderer
   private setInstance() {
     this.Instance = new THREE.WebGLRenderer({
       canvas: this.canvas,
@@ -41,11 +40,13 @@ export default class Renderer {
     this.Instance.setPixelRatio(this.sizes.PixelRatio);
   }
 
+  // resize renderer to the current window size
   public Resize() {
     this.Instance?.setSize(this.sizes.Width, this.sizes.Height);
     this.Instance?.setPixelRatio(this.sizes.PixelRatio);
   }
 
+  // render the scene through the active camera
   public Update() {
     this.Instance?.render(this.scene, this.camera.Instance);
   }

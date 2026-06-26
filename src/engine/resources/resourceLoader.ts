@@ -1,61 +1,54 @@
-/* -------------------------------------------------------------------------- */
-/*                    UNIFIED RESOURCE LOADER & LEVEL PARSER                   */
-/* -------------------------------------------------------------------------- */
-/*
- * This class is your ONE-STOP SHOP for loading all game resources:
- * - Textures (sprites, UI elements, etc.)
- * - 3D Models (GLTF/GLB format with DRACO compression)
- * - Level Data (GLB files exported from 3D tools like Shapr3D or Blockbench)
- * 
- * Everything needed to load and parse game assets is centralized here for 
- * simplicity and maintainability.
- */
-/* -------------------------------------------------------------------------- */
+// Unified resource loader & level parser: loads textures and GLB models, and parses GLB level files into LevelData.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { DRACOLoader } from "three/examples/jsm/Addons.js";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import Emitter from "../events/eventBus";
-import Resource from "../types/resource";
-import LevelData from "../../game/types/levelData";
+import LevelData from "../types/levelData";
 
-// Import your game assets (Vite handles the paths automatically)
-import dkGraphicsModel from "../../assets/models/dkGraphicsData.glb?url";
-import enemyModel from "../../assets/models/enemy.glb?url";
-import spriteSheet from "../../assets/textures/randySpriteSheet.png?url";
+// Type definitions
 
-/* -------------------------------------------------------------------------- */
-/*                            TYPE DEFINITIONS                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Internal representation of a parsed object from a GLB level file
- * Contains all data needed to create game objects (platforms, walls, etc.)
- */
+// Internal representation of a parsed object from a GLB level file.
+// Contains all data needed to create game objects (platforms, walls, etc.).
 interface ParsedLevelObject {
   name: string;                          // Object name from 3D software
   type: string;                          // Game object type (Platform, Wall, etc.)
-  position: [number, number, number];    // World position [x, y, z]
-  rotation: [number, number, number];    // Euler rotation [x, y, z]
-  width: number;                         // Object width
-  height: number;                        // Object height
-  depth: number;                         // Object depth
-  vertices?: number[][];                 // Optional vertices for complex shapes
-  extras?: Record<string, any>;          // Optional metadata from GLTF extras field
+  position: [number, number, number];    // game slots: [gameX, gameDepth, gameUp]
+  rotation: [number, number, number];    // game slots: [-, gameRotation(z), -]
+  width: number;                         // game horizontal extent (glTF X)
+  height: number;                        // game vertical extent (glTF Y)
+  depth: number;                         // game depth extent (glTF Z)
+  meta?: Record<string, string>;         // Metadata parsed from the mesh's texture name
 }
 
-/* -------------------------------------------------------------------------- */
-/*                          RESOURCE LOADER CLASS                             */
-/* -------------------------------------------------------------------------- */
+// Which Three.js loader an asset needs.
+type ResourceType = "texture" | "gltfModel";
+
+// One loadable asset, batch-loaded by ResourceLoader at startup. Exported so the
+// game can declare its asset manifest (see game/config/assetManifest.ts).
+export interface Resource {
+  name: string;       // unique key to fetch the loaded asset from Items
+  type: ResourceType; // picks the loader
+  path: string;       // public-relative path, absolute URL, or Vite-imported URL
+}
+
+// Resource loader class
 
 export default class ResourceLoader {
   // Asset loading
   private sources: Resource[];
   private gltfLoader: GLTFLoader;
   private textureLoader: THREE.TextureLoader;
-  public Items: { [key: string]: THREE.Object3D | THREE.Texture };
+  // A loaded gltfModel is stored as the whole GLTF object (its .scene is read by
+  // CreateObjectGraphics); a texture is stored as a THREE.Texture.
+  public Items: { [key: string]: GLTF | THREE.Texture };
   private toLoad: number;
   private loaded: number;
+
+  // Level-node type vocabulary, INJECTED by the game (RegisterLevelTypes). The
+  // engine's GLB parser is type-blind — it no longer mirrors EntityType by hand.
+  private levelTypes: Record<string, string> = {};
 
   constructor(sources: Resource[]) {
     this.sources = sources;
@@ -66,25 +59,38 @@ export default class ResourceLoader {
     // Set up GLTF loader with DRACO compression support
     // DRACO significantly reduces file sizes for 3D models
     this.gltfLoader = new GLTFLoader();
-    const dracoLoader = new DRACOLoader().setDecoderPath("/draco/gltf/");
+    // BASE_URL-relative so a sub-path deploy (e.g. GitHub Pages /FireGame/) still
+    // finds the decoder instead of 404-ing and silently breaking every GLB load.
+    const dracoLoader = new DRACOLoader().setDecoderPath(
+      import.meta.env.BASE_URL + "draco/gltf/"
+    );
     this.gltfLoader.setDRACOLoader(dracoLoader);
 
     // Set up Texture loader for images
     this.textureLoader = new THREE.TextureLoader();
 
-    // Start loading all resources immediately
-    this.startLoading();
+    // NOTE: loading is deliberately NOT kicked off here. The caller invokes
+    // StartLoading() only AFTER the "resourcesReady" listener (GameDirector) is
+    // subscribed — otherwise, if every asset resolves during the await window in
+    // Experience.Configure (RAPIER.init etc.), the completion event would fire
+    // into zero listeners and be lost (mitt does not buffer/replay), hanging the
+    // boot on the loading screen forever.
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                        ASSET LOADING (TEXTURES & MODELS)                   */
-  /* -------------------------------------------------------------------------- */
+  // Asset loading (textures & models)
 
-  /**
-   * Start loading all resources defined in sources array
-   * Emits "resourcesReady" event when all assets are loaded
-   */
-  private startLoading() {
+  // Start loading all resources defined in the sources array. Call this AFTER
+  // the "resourcesReady" listener is wired (see the constructor note). Emits
+  // "resourcesReady" once every asset has loaded or failed.
+  public StartLoading() {
+    // Seed a 0/total so a progress bar can appear immediately, before the first
+    // asset resolves.
+    Emitter.emit("loadingProgress", {
+      loaded: 0,
+      total: this.toLoad,
+      item: "",
+    });
+
     for (const source of this.sources) {
       // Get the file path of the asset
       const assetPath = this.getAssetPath(source);
@@ -100,14 +106,19 @@ export default class ResourceLoader {
     }
   }
 
-  /**
-   * Load a single resource (texture or 3D model)
-   */
+  // Load a single resource (texture or 3D model)
   private loadResource(source: Resource, path: string) {
     // Callback when resource successfully loads
-    const onLoad = (file: THREE.Object3D | THREE.Texture) => {
+    const onLoad = (file: GLTF | THREE.Texture) => {
       this.Items[source.name] = file;
       this.loaded++;
+
+      // Report progress so the loading screen can advance its bar.
+      Emitter.emit("loadingProgress", {
+        loaded: this.loaded,
+        total: this.toLoad,
+        item: source.name,
+      });
 
       // Check if all resources are loaded
       if (this.loaded === this.toLoad) {
@@ -124,6 +135,13 @@ export default class ResourceLoader {
       this.loaded++;
       Emitter.emit("resourceLoadFailed", source.name);
 
+      // Still advance the bar — a failed asset is "done" as far as progress goes.
+      Emitter.emit("loadingProgress", {
+        loaded: this.loaded,
+        total: this.toLoad,
+        item: source.name,
+      });
+
       // If this was the last outstanding resource, let the game start anyway.
       if (this.loaded === this.toLoad) {
         Emitter.emit("resourcesReady");
@@ -132,62 +150,40 @@ export default class ResourceLoader {
 
     // Load based on type
     if (source.type === "gltfModel") {
-      this.gltfLoader.load(path, onLoad as any, undefined, onError);
+      this.gltfLoader.load(path, onLoad, undefined, onError);
     } else if (source.type === "texture") {
-      this.textureLoader.load(path, onLoad as any, undefined, onError);
+      this.textureLoader.load(path, onLoad, undefined, onError);
     } else {
       console.warn(`⚠️ Unknown resource type for ${source.name}`);
     }
   }
 
-  /**
-   * Get the file path for an asset
-   * Uses imported URLs for bundled assets, or provided paths for public assets
-   */
+  // Get the file path for an asset.
+  // Uses imported URLs for bundled assets, or provided paths for public assets.
   private getAssetPath(source: Resource): string | undefined {
-    // Map of bundled assets (imported at top of file)
-    const assetPaths: { [key: string]: string } = {
-      dkGraphicsData: dkGraphicsModel,
-      enemy: enemyModel,
-      randy: spriteSheet,
-    };
-
-    // If we have a bundled asset, use its imported URL
-    if (source.name in assetPaths) {
-      return assetPaths[source.name];
+    // The game's manifest supplies the URL directly: a bundled (Vite ?url) asset
+    // already resolves to a full path; a public-folder asset just needs a leading
+    // slash. The engine no longer hardcodes any game asset.
+    if (!source.path) return undefined;
+    if (source.path.startsWith("/") || source.path.includes("://")) {
+      return source.path;
     }
-
-    // Otherwise use the provided path from public folder
-    // Ensure it starts with a forward slash for proper URL resolution
-    return source.path.startsWith("/") ? source.path : `/${source.path}`;
+    return `/${source.path}`;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                    LEVEL PARSING (GLB TO GAME DATA)                        */
-  /* -------------------------------------------------------------------------- */
+  // Level parsing (GLB to game data)
 
-  /**
-   * Parse a GLB file into LevelData format for your game
-   * 
-   * This is your main method for loading levels! It takes a GLB file exported 
-   * from tools like Shapr3D or Blockbench and converts it into the LevelData 
-   * format that your game understands.
-   * 
-   * @param glbPath - Path to GLB file. Can be:
-   *   - Public folder path: "/levels/MyLevel.glb"
-   *   - Imported URL: import MyLevel from "file.glb?url"
-   * 
-   * @returns Promise<LevelData> - Parsed level data ready for game use
-   * 
-   * @example
-   * // Load from public folder
-   * const level = await resourceLoader.parseLevel("/levels/TestLevel.glb");
-   * 
-   * @example
-   * // Load from imported file
-   * import MyLevelUrl from "../levels/MyLevel.glb?url";
-   * const level = await resourceLoader.parseLevel(MyLevelUrl);
-   */
+  // Inject the game's level-node type vocabulary (name token -> game type). Call
+  // before parsing any level (App.vue does, at boot). Keeps the engine parser from
+  // ever naming a game type.
+  public RegisterLevelTypes(types: Record<string, string>) {
+    this.levelTypes = types;
+  }
+
+  // Parse a GLB file (exported from BlockBench) into LevelData for the game.
+  // glbPath: any URL — here resolved by the level registry's levelUrl() (a hashed
+  // /assets/... URL), but a raw public-folder path or an imported `?url` works too.
+  // Returns the parsed LevelData ready for game use.
   public async ParseLevel(glbPath: string): Promise<LevelData> {
     // Load the GLB file
     const gltf = await this.loadGLB(glbPath);
@@ -201,10 +197,7 @@ export default class ResourceLoader {
     return levelData;
   }
 
-  /**
-   * Load a GLB file and return the GLTF data
-   * Private helper for parseLevel()
-   */
+  // Load a GLB file and return the GLTF data. Private helper for ParseLevel().
   private loadGLB(path: string): Promise<any> {
     return new Promise((resolve, reject) => {
       this.gltfLoader.load(
@@ -216,293 +209,295 @@ export default class ResourceLoader {
     });
   }
 
-  /**
-   * Recursively parse the 3D scene hierarchy
-   * 
-   * Walks through the scene tree and extracts all mesh objects.
-   * Uses folder paths and object names to determine game object types.
-   * 
-   * @param node - Three.js Object3D node to parse
-   * @param parentPath - Accumulated folder path (for type detection)
-   */
-  private parseScene(
-    node: THREE.Object3D,
-    parentPath: string = ""
-  ): ParsedLevelObject[] {
+  // Recursively parse the 3D scene hierarchy.
+  // Type comes from a node's NAME (its first "_"-token), not its folder path —
+  // editors like BlockBench flatten/rename the group hierarchy on glTF export, so
+  // the name is the one stable channel. A node whose name resolves to a known
+  // type becomes ONE game object built from its whole subtree's geometry, and we
+  // do NOT recurse into it. That single rule covers two export shapes:
+  //   - a normal single-material cube → one THREE.Mesh named e.g. "Platform";
+  //   - a MULTI-material cube (a metadata texture on only some faces) → Three
+  //     splits it into per-face primitive meshes under an (unnamed) GROUP that
+  //     keeps the "Platform" name. Reading the group name + merging the split
+  //     primitives recovers it as one collider — otherwise the unnamed pieces
+  //     (named "mesh_N") were silently skipped and the platform VANISHED.
+  // A leaf mesh whose name is NOT a known type is a genuinely mis-named cube and
+  // warns; structural (untyped) groups are just walked through.
+  // node: Three.js Object3D node to parse.
+  private parseScene(node: THREE.Object3D): ParsedLevelObject[] {
     const objects: ParsedLevelObject[] = [];
 
-    // Build current path for type detection (e.g., "Platforms/Floor1")
-    const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
-
-    // If this node has geometry, it's a game object we need to parse
-    if (node instanceof THREE.Mesh) {
-      const parsed = this.parseMeshObject(node, currentPath);
+    const type = this.lookupCanonicalType(node.name);
+    if (type) {
+      // Typed node: one game object for the whole subtree; do not recurse into it.
+      const parsed = this.parseTypedNode(node, type);
       if (parsed) {
         objects.push(parsed);
       }
+      return objects;
     }
 
-    // Recursively parse all children
+    // Untyped: a leaf mesh with an unrecognized name is a mis-named cube (warn);
+    // a structural group is just walked through.
+    if (node instanceof THREE.Mesh) {
+      this.warnUnknownType(node.name);
+      return objects;
+    }
+
     for (const child of node.children) {
-      objects.push(...this.parseScene(child, currentPath));
+      for (const childObj of this.parseScene(child)) objects.push(childObj);
     }
 
     return objects;
   }
 
-  /**
-   * Parse a single mesh object into game data
-   * Extracts position, rotation, size, and metadata
-   */
-  private parseMeshObject(
-    mesh: THREE.Mesh,
-    path: string
+  // Build ONE game-object row from a typed node and its subtree (position,
+  // rotation, size, metadata). The meshes are the node itself for a normal cube,
+  // or the per-face primitives of a multi-material cube — merged here into one.
+  private parseTypedNode(
+    node: THREE.Object3D,
+    type: string
   ): ParsedLevelObject | null {
-    // Determine what type of game object this is
-    const type = this.getObjectType(path);
-    
-    // Skip graphics-only objects (no physics/gameplay) and unknown-typed
-    // meshes (see getObjectType fallback) — neither becomes a game object.
-    if (type === "GraphicsObject" || type === "Unknown") {
+    // Graphics-only objects carry no physics/gameplay.
+    if (type === "GraphicsObject") {
       return null;
     }
 
-    // Extract world position
-    const position = new THREE.Vector3();
-    mesh.getWorldPosition(position);
-
-    // Extract world rotation
-    const rotation = new THREE.Euler();
-    mesh.getWorldQuaternion(new THREE.Quaternion()).normalize();
-    rotation.setFromQuaternion(mesh.quaternion);
-
-    // Calculate object dimensions from bounding box
-    const bbox = new THREE.Box3().setFromObject(mesh);
-    const size = new THREE.Vector3();
-    bbox.getSize(size);
-
-    // Read optional metadata from GLTF extras field
-    // (You can add custom properties in your 3D software)
-    const extras = (mesh.userData as any)?.gltfExtras || {};
-
-    // Build parsed object with all data
-    const parsedObject: ParsedLevelObject = {
-      name: mesh.name,
-      type: type,
-      // Store position/rotation as-is from Three.js (Y-up coordinate system)
-      position: [position.x, position.y, position.z],
-      rotation: [rotation.x, rotation.y, rotation.z],
-      // Store dimensions (adapt to your game's coordinate conventions)
-      width: size.x,
-      height: size.z,  // Your game uses Z as vertical axis
-      depth: size.y,   // Your game uses Y as depth axis
-      extras: extras,
-    };
-
-    // Extract vertices for complex shapes (line platforms, edge platforms)
-    if (type.includes("Line") || type.includes("Edge")) {
-      parsedObject.vertices = this.extractVertices(mesh);
+    // Collect every mesh in this node's subtree: the node itself for a normal
+    // single-material cube, or the per-face primitive meshes that Three split a
+    // MULTI-material cube into (see parseScene). They share the node's local
+    // frame, so they are merged back into the one cube below.
+    const meshes: THREE.Mesh[] = [];
+    node.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        meshes.push(child);
+      }
+    });
+    if (meshes.length === 0) {
+      return null;
     }
+
+    // Per-entity metadata rides on the cube's TEXTURE name(s). For a multi-
+    // material cube the metadata texture may sit on a single face, so scan every
+    // primitive and merge what is found.
+    const meta = this.readMeta(meshes);
+
+    // Decompose the node's full WORLD transform (parents included) into
+    // translation / rotation / scale, so a cube nested under translated or
+    // rotated groups still resolves correctly.
+    node.updateWorldMatrix(true, false);
+    const worldTranslation = new THREE.Vector3();
+    const worldQuaternion = new THREE.Quaternion();
+    const worldScale = new THREE.Vector3();
+    node.matrixWorld.decompose(worldTranslation, worldQuaternion, worldScale);
+
+    // Collider rotation from the WORLD quaternion. For a tilted cube (a slope)
+    // built in BlockBench's X×Y plane, the angle lands in rotation.z (rotation
+    // about glTF Z, which is the game's depth axis); it is remapped into the
+    // game-rotation slot below and the entity factory negates it. (Reading the
+    // LOCAL quaternion was the old bug — it ignored any parent-group rotation.)
+    const rotation = new THREE.Euler().setFromQuaternion(worldQuaternion);
+
+    // Combined LOCAL geometry box, unioned across every primitive (all share the
+    // node's local frame). Using the local extent (not a world AABB) keeps a
+    // rotated slope's size true instead of inflating it to its tilted envelope.
+    const localBox = new THREE.Box3();
+    for (const mesh of meshes) {
+      mesh.geometry.computeBoundingBox();
+      if (mesh.geometry.boundingBox) {
+        localBox.union(mesh.geometry.boundingBox);
+      }
+    }
+
+    // Size = the LOCAL geometry extent scaled by the world-scale MAGNITUDE. The
+    // extent (not a world AABB via setFromObject) keeps a rotated cube's size
+    // true instead of inflating it to its tilted envelope; abs() guards a
+    // mirrored element — whose decomposed scale is negative — from yielding a
+    // negative half-extent (a degenerate collider). Byte-identical to the old
+    // world-AABB for an axis-aligned, unmirrored cube.
+    const size = new THREE.Vector3();
+    localBox.getSize(size).multiply(
+      new THREE.Vector3(
+        Math.abs(worldScale.x),
+        Math.abs(worldScale.y),
+        Math.abs(worldScale.z)
+      )
+    );
+
+    // Position = the geometry's WORLD CENTER, not the node origin. BlockBench
+    // bakes pivot offsets into the vertices of stretched / multi-cube elements,
+    // so the node origin is often a corner; centering on the geometry makes the
+    // collider land exactly where the cube is drawn (WYSIWYG), and stays correct
+    // under rotation.
+    const position = new THREE.Vector3();
+    localBox.getCenter(position).applyMatrix4(node.matrixWorld);
+
+    // ── glTF → game AXIS TRANSLATION (the single place this happens) ─────────
+    // BlockBench/glTF and this 2D game share axes: gameX = glTF X (horizontal),
+    // gameUP = glTF Y (vertical), gameDEPTH = glTF Z (into-screen). So a platform
+    // you build along BlockBench's X (wide) × Y (tall) plane maps straight to the
+    // game's horizontal × vertical plane. (Previously the parser treated glTF Z
+    // as "up", forcing you to build along BlockBench's Z — that's the bug being
+    // fixed here.)
+    //
+    // The downstream readers (entity factories + setPlayerStart/setCameraStart)
+    // consume a fixed SLOT order, so we remap into it ONCE here:
+    //   position/rotation slots = [ gameX , gameDEPTH , gameUP ]
+    //     factories read slot[0]=x, slot[2]=up; setCameraStart reads slot[1]=depth.
+    //   size = width(gameX) / height(gameUP) / depth(gameDEPTH).
+    // A slope's angle is a rotation about glTF Z → it lands in slot[1]. We negate
+    // it so the factory's `-rotation[1]` nets to +rotation.z, making a BlockBench
+    // CCW rotation read as the SAME direction in-game (without the negation it
+    // came out mirrored). Single-axis slopes only; flip this sign if a slope ever
+    // tilts the wrong way.
+    const parsedObject: ParsedLevelObject = {
+      name: node.name,
+      type: type,
+      position: [position.x, position.z, position.y],
+      rotation: [rotation.x, -rotation.z, rotation.y],
+      width: size.x,   // game horizontal <- glTF X
+      height: size.y,  // game vertical   <- glTF Y
+      depth: size.z,   // game depth      <- glTF Z
+      meta,
+    };
 
     return parsedObject;
   }
 
-  /**
-   * Determine game object type from folder path OR object name
-   * 
-   * This method makes level creation flexible - you can use either:
-   * 1. Folder hierarchy (Shapr3D style): "Platforms/Floor1", "Walls/Left"
-   * 2. Object naming (Blockbench style): "platform-1", "wall-left"
-   * 
-   * The method checks both to maximize compatibility with different workflows.
-   */
-  private getObjectType(path: string): string {
-    const lowerPath = path.toLowerCase();
-    const lowerName = path.split("/").pop()?.toLowerCase() || "";
-
-    // ===== NAME-BASED DETECTION (Works with any 3D software) =====
-    
-    // Platforms (floors, ground)
-    if (lowerName.includes("platform") || lowerName.includes("floor") || lowerName.includes("ground")) {
-      return "Platform";
-    }
-    
-    // Walls (barriers, boundaries)
-    if (lowerName.includes("wall") || lowerName.includes("barrier")) {
-      return "Wall";
-    }
-    
-    // Special spawn points
-    if (lowerName.includes("player") || lowerName.includes("spawn")) {
-      return "PlayerStart";
-    }
-    if (lowerName.includes("camera_start") || lowerName.includes("camerastart")) {
-      return "CameraStart";
-    }
-    
-    // Ladder sensors (climbing areas)
-    if (lowerName.includes("ladder")) {
-      if (lowerName.includes("top")) return "LadderTopSensor";
-      if (lowerName.includes("core") || lowerName.includes("middle")) return "LadderCoreSensor";
-      if (lowerName.includes("bottom") || lowerName.includes("base")) return "LadderBottomSensor";
-      return "LadderCoreSensor"; // Default for generic "ladder" name
-    }
-    
-    // Interactive objects
-    if (lowerName.includes("trash") || lowerName.includes("can")) return "TrashCan";
-    if (lowerName.includes("teleporter") || lowerName.includes("portal")) return "Teleporter";
-    if (lowerName.includes("win") || lowerName.includes("flag") || lowerName.includes("goal")) return "WinFlag";
-    if (lowerName.includes("enemy")) return "Enemy";
-    if (lowerName.includes("sensor") || lowerName.includes("trigger")) return "CameraSensor";
-
-    // ===== FOLDER-BASED DETECTION (Shapr3D hierarchy) =====
-    // Useful when organizing complex levels with many objects
-    
-    if (lowerPath.includes("platforms/")) return "Platform";
-    if (lowerPath.includes("onewayplatforms/")) return "OneWayPlatform";
-    if (lowerPath.includes("walls/")) return "Wall";
-    
-    if (lowerPath.includes("ladders/top/")) return "LadderTopSensor";
-    if (lowerPath.includes("ladders/core/")) return "LadderCoreSensor";
-    if (lowerPath.includes("ladders/bottom/")) return "LadderBottomSensor";
-    
-    if (lowerPath.includes("sensors/cameras/")) return "CameraSensor";
-    if (lowerPath.includes("graphics/")) return "GraphicsObject";
-
-    // ===== FALLBACK: Unknown Type =====
-    // If we can't determine the type, warn and skip it. Returning "Platform"
-    // here used to spawn an invisible solid wall the player would hit for no
-    // visible reason — skipping (like GraphicsObject) is far less surprising.
-    console.warn(`⚠️ Unknown object type for: "${path}"`);
-    console.warn(`💡 Tip: Name objects clearly like: "platform-1", "wall-left", "player-start"`);
-    return "Unknown"; // Skipped in parseMeshObject (see GraphicsObject)
+  // Read the metadata-carrying texture name off a mesh.
+  // Collision geometry and graphics are separate layers, so a collision mesh's
+  // texture is a free data carrier: its NAME (e.g. "floor=1 oneway=8") encodes
+  // per-entity metadata. Three.js copies the glTF texture name verbatim onto
+  // material.map.name (it does NOT sanitize it the way it does node names), so
+  // "=", ".", "_" and spaces all survive. Returns "" when the mesh has no
+  // textured material.
+  private readTextureName(mesh: THREE.Mesh): string {
+    let material = mesh.material;
+    if (Array.isArray(mesh.material)) material = mesh.material[0];
+    const map = (material as THREE.MeshStandardMaterial | undefined)?.map;
+    const name = map?.name ?? "";
+    // Drop a trailing image-file extension. A texture that inherited its image's
+    // filename (e.g. "edge=1.png" instead of "edge=1") would otherwise parse the
+    // value as "1.png" — not-a-number — so the flag would silently read as 0.
+    return name.replace(/\.(png|jpe?g|webp|gif|bmp|tga)$/i, "");
   }
 
-  /**
-   * Extract vertices from mesh geometry
-   * Used for line platforms and edge platforms that need custom collision shapes
-   */
-  private extractVertices(mesh: THREE.Mesh): number[][] | undefined {
-    const geometry = mesh.geometry;
-    if (!geometry.attributes.position) return undefined;
-
-    const positions = geometry.attributes.position;
-    const vertices: number[][] = [];
-
-    // Extract vertex positions
-    // (You may need more sophisticated logic for complex shapes)
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      const z = positions.getZ(i); // Z is vertical in your game
-      vertices.push([x, z]);
+  // Merge the metadata from every textured primitive of a (possibly multi-material)
+  // cube into one key->value bag. Untextured faces contribute nothing; on a key
+  // conflict the later face wins.
+  private readMeta(meshes: THREE.Mesh[]): Record<string, string> {
+    const meta: Record<string, string> = {};
+    for (const mesh of meshes) {
+      const textureName = this.readTextureName(mesh);
+      if (!textureName) continue;
+      Object.assign(meta, this.parseMetadata(textureName));
     }
-
-    return vertices.length > 0 ? vertices : undefined;
+    return meta;
   }
 
-  /**
-   * Convert parsed objects to LevelData format
-   * 
-   * This creates the final data structure that your game expects.
-   * LevelData is a dictionary mapping object names to their properties.
-   */
+  // Parse a metadata texture name into a key->value map.
+  // Format: `key=value` tokens separated by whitespace, comma, OR semicolon —
+  // e.g. "floor=1 edge=1 oneway=8", "floor=1,edge=1", or "floor=1;edge=1". (All
+  // three work, so authors use whatever their editor lets them type in a texture
+  // name.) A bare token (no "=") is a flag and maps to "1" (so "edge" ==
+  // "edge=1"). Multi-number values use "_" between components (e.g. "cam=3.5_2_-1")
+  // — "_" is NOT a token separator, so those stay intact.
+  // Values stay as strings here and are emitted as a generic `meta` bag; per-type
+  // interpretation (numbers, "_"-separated coord lists) happens GAME-side in the
+  // entity factories. Keys are lower-cased. The engine never reads a game key.
+  private parseMetadata(textureName: string): Record<string, string> {
+    const meta: Record<string, string> = {};
+    if (!textureName) return meta;
+
+    for (const token of textureName.trim().split(/[\s,;]+/)) {
+      if (!token) continue;
+      const eq = token.indexOf("=");
+      if (eq === -1) {
+        meta[token.toLowerCase()] = "1"; // bare flag
+      } else {
+        meta[token.slice(0, eq).toLowerCase()] = token.slice(eq + 1);
+      }
+    }
+
+    return meta;
+  }
+
+  // Resolve a node's game object type from its NAME (exact canonical-token match,
+  // case-insensitive): the first "_"-token, lower-cased, looked up in the
+  // game-injected levelTypes map (so "OneWayPlatform", "OneWayPlatform_2", and
+  // Three's auto-deduped "OneWayPlatform_1" all resolve to the same type, and
+  // OneWayPlatform stays distinct from Platform). Returns undefined for a name that
+  // is not a known type (a structural group, or a mis-named cube) — the caller
+  // decides whether to recurse into it or warn. The vocabulary now lives in the
+  // GAME (config/levelNodeTypes.ts), injected via RegisterLevelTypes — the engine
+  // no longer holds a hand-synced mirror of EntityType.
+  private lookupCanonicalType(name: string): string | undefined {
+    const token = name.split("_")[0].toLowerCase();
+    return this.levelTypes[token];
+  }
+
+  // Warn that a leaf mesh's name did not resolve to a known type, so it was
+  // skipped — far less surprising than the old fallback that spawned an invisible
+  // solid platform. Lists the valid type names.
+  private warnUnknownType(name: string): void {
+    const token = name.split("_")[0].toLowerCase();
+    const seen: string[] = [];
+    for (const v of Object.values(this.levelTypes)) {
+      if (!seen.includes(v)) seen.push(v);
+    }
+    const validTypes = seen.join(", ");
+    console.warn(
+      `⚠️ Unknown object type for mesh "${name}" (token "${token}") — skipped.`
+    );
+    console.warn(
+      `💡 Name the cube by its type (case-insensitive), optional "_suffix" for a 2nd instance. Valid: ${validTypes}`
+    );
+  }
+
+  // Convert parsed objects to LevelData format.
+  // This creates the final data structure that your game expects. LevelData is a
+  // dictionary mapping object names to their properties.
   private convertToLevelData(parsedObjects: ParsedLevelObject[]): LevelData {
     const levelData: LevelData = {};
 
     for (const obj of parsedObjects) {
-      // Build the data structure matching your existing game format
-      levelData[obj.name] = {
-        vertices: obj.vertices || [],
+      // The dictionary key must be unique per cube or the loser is silently
+      // DROPPED. GLTFLoader dedups duplicate node names, but its counter is
+      // per-base-name, so a hand-suffixed cube ("Platform_2") collides with a
+      // plain cube whose name auto-deduped to the same string (the 3rd "Platform"
+      // -> "Platform_2"). Disambiguate with a "#n" suffix so every cube survives;
+      // the suffix is only the map key (entities are matched by type, not name).
+      let key = obj.name;
+      for (let n = 2; key in levelData; n++) {
+        key = `${obj.name}#${n}`;
+      }
+      if (key !== obj.name) {
+        console.warn(
+          `⚠️ Duplicate cube name "${obj.name}" (GLTFLoader name-dedup collision) — kept as "${key}" so it isn't dropped. Use distinct names to silence.`
+        );
+      }
+
+      // Pass the parsed texture-name metadata straight through as a generic bag.
+      // The game-side entity factories interpret the keys per type — the engine
+      // parser deliberately does NOT know any game-specific key (floor/cam/etc.).
+      levelData[key] = {
         width: obj.width,
         height: obj.height,
         depth: obj.depth,
         position: obj.position,
         rotation: obj.rotation,
         type: obj.type,
-        // Extract metadata from GLTF extras field with sensible defaults
-        // These value0-3 fields store game-specific data like floor levels,
-        // ladder directions, camera targets, etc.
-        value0: this.getMetadataValue(obj, "value0", 0),
-        value1: this.getMetadataValue(obj, "value1", 0),
-        value2: this.getMetadataValue(obj, "value2", 0),
-        value3: this.getMetadataValue(obj, "value3", 0),
+        meta: obj.meta ?? {},
       };
     }
 
     return levelData;
   }
 
-  /**
-   * Get metadata value from GLTF extras field
-   * 
-   * Maps semantic metadata names to the generic value0-3 fields.
-   * This allows you to use friendly names in your 3D software like "floorLevel"
-   * instead of remembering which value index to use.
-   * 
-   * @example
-   * In Blockbench/Shapr3D extras:
-   * { "floorLevel": 2, "isEdge": true }
-   * 
-   * Gets mapped to:
-   * { value0: 2, value1: 1, value2: 0, value3: 0 }
-   */
-  private getMetadataValue(
-    obj: ParsedLevelObject,
-    key: string,
-    defaultValue: number
-  ): number {
-    if (!obj.extras) return defaultValue;
+  // Cleanup
 
-    // Map metadata based on object type
-    // Each object type has different meaningful metadata fields
-    switch (obj.type) {
-      case "Platform":
-      case "OneWayPlatform":
-        // value0 = floor level (for multi-story games)
-        if (key === "value0") return obj.extras.floorLevel ?? defaultValue;
-        // value1 = is edge platform (1 = yes, 0 = no)
-        if (key === "value1") return obj.extras.isEdge ? 1 : 0;
-        // value2 = one-way platform enable point (Y position where it becomes solid)
-        if (key === "value2") return obj.extras.enablePoint ?? defaultValue;
-        break;
-
-      case "LadderTopSensor":
-      case "LadderCoreSensor":
-      case "LadderBottomSensor":
-        // value0 = direction (-1 for left, 1 for right, 0 for neutral)
-        if (key === "value0") return obj.extras.direction ?? defaultValue;
-        break;
-
-      case "CameraSensor":
-        // value0, value1, value2 = camera target position [x, y, z]
-        if (key === "value0" && obj.extras.target?.[0] !== undefined)
-          return obj.extras.target[0];
-        if (key === "value1" && obj.extras.target?.[1] !== undefined)
-          return obj.extras.target[1];
-        if (key === "value2" && obj.extras.target?.[2] !== undefined)
-          return obj.extras.target[2];
-        break;
-
-      case "Teleporter":
-        // value0, value1 = destination position [x, y]
-        if (key === "value0" && obj.extras.destination?.[0] !== undefined)
-          return obj.extras.destination[0];
-        if (key === "value1" && obj.extras.destination?.[1] !== undefined)
-          return obj.extras.destination[1];
-        break;
-    }
-
-    return defaultValue;
-  }
-
-  /* -------------------------------------------------------------------------- */
-  /*                              CLEANUP                                       */
-  /* -------------------------------------------------------------------------- */
-
-  /**
-   * Clean up all loaded resources and free memory
-   * Call this when destroying the game or switching to a new level
-   */
+  // Clean up all loaded resources and free memory.
+  // Call this when destroying the game or switching to a new level.
   public Destroy() {
     // Remove event listeners
     Emitter.off("resourcesReady");
@@ -514,33 +509,26 @@ export default class ResourceLoader {
       if (item instanceof THREE.Texture) {
         // Free GPU texture memory
         item.dispose();
-      } else if (item instanceof THREE.Object3D) {
-        // Three.js Object3D (Group, Mesh, etc.) — traverse and dispose all children
-        item.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry?.dispose();
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat: THREE.Material) => mat.dispose());
-            } else {
-              child.material?.dispose();
-            }
-          }
-        });
       } else if (item && typeof item === "object" && "scene" in item) {
         // GLTF object — stored via gltfLoader which returns { scene, animations, ... }
         // The items type doesn't capture this but the loader stores GLTF objects directly
         const gltf = item as { scene: THREE.Object3D };
-        gltf.scene.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry?.dispose();
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat: THREE.Material) => mat.dispose());
-            } else {
-              child.material?.dispose();
-            }
-          }
-        });
+        this.disposeObject3D(gltf.scene);
       }
     }
+  }
+
+  // Recursively dispose every mesh's geometry + material(s) under a root object.
+  private disposeObject3D(root: THREE.Object3D) {
+    root.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry?.dispose();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat: THREE.Material) => mat.dispose());
+        } else {
+          child.material?.dispose();
+        }
+      }
+    });
   }
 }

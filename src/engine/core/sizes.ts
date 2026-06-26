@@ -1,6 +1,4 @@
-/* -------------------------------------------------------------------------- */
-/*    Used to pass all window/dom element sizes to Element and its children   */
-/* -------------------------------------------------------------------------- */
+// Used to pass all window/dom element sizes to Element and its children
 
 import Emitter from "../events/eventBus";
 
@@ -9,8 +7,9 @@ export default class Sizes {
   public Height: number;
   public PixelRatio: number;
 
-  private onResize: () => void;
+  private onResize: () => void; // stored handler so we can remove it later
 
+  // capture initial size and register the resize listener
   constructor() {
     this.Width = window.innerWidth;
     this.Height = window.innerHeight;
@@ -27,6 +26,7 @@ export default class Sizes {
     window.addEventListener("resize", this.onResize);
   }
 
+  // stop listening for window resize
   public Destroy() {
     window.removeEventListener("resize", this.onResize);
   }

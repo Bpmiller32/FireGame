@@ -1,0 +1,375 @@
+<section class="doc-section" id="engine-physics">
+  <header class="section-head">
+    <h2 class="section-title">Physics — the Rapier2D world</h2>
+    <p class="section-blurb">
+      <code>Physics</code> wraps a single Rapier2D rigid-body world: it boots the WASM solver, steps it on a fixed timestep, and — the heart of the engine — drains Rapier's per-step <em>collision event queue</em>, resolves each colliding collider back to the owning <code>GameObject</code>, and fans the event out two ways: to the object's own override callbacks AND into the declarative <code>ContactRegistry</code> contact table. It is the engine half of the contact-table system; the game half lives in <em>Config: contactRules</em>. <code>ContactPoints</code> is the tiny per-surface boolean vocabulary the gameplay layer reads off all of this.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/engine/physics/physics.ts</span>
+      <span class="chip">src/engine/types/contactPoints.ts</span>
+    </div>
+  </header>
+
+  <!-- ============================================================= -->
+  <!-- physics.ts                                                    -->
+  <!-- ============================================================= -->
+  <article class="file-block" id="engine-physics--physics">
+    <h3 class="file-name">src/engine/physics/physics.ts <span class="loc">237 LOC</span></h3>
+
+    <p class="file-role">
+      This file <b>is</b> the engine's physics subsystem: one <code>RAPIER.World</code>, one <code>RAPIER.EventQueue</code>, a registry mapping collider handles back to game objects, and the dispatch logic that turns raw Rapier events into engine-level callbacks and contact-rule firings. It is owned by the singleton <em>Core: Experience</em>, which does <code>this.Physics = new Physics()</code> and then <code>await this.Physics.Configure()</code> inside its own async <code>Configure()</code> (see <em>Core: Experience</em>), and which drives <code>Physics.Update()</code> first on every <code>tick</code>. Its imports tell the whole story of its job:
+    </p>
+    <ul>
+      <li><code>RAPIER from "@dimforge/rapier2d-compat"</code> — the WASM-backed physics engine. The <em>compat</em> build is chosen deliberately: it bundles the WASM and exposes <code>RAPIER.init()</code> so the world can be created after an <code>await</code> instead of needing a separate fetch/instantiate step.</li>
+      <li><code>Experience</code> — the singleton back-reference, used to reach <code>Scene</code> (where debug meshes live), <code>Time.Delta</code> (the timestep), and <code>Debug</code>.</li>
+      <li><code>GameObject</code> — the type the registry resolves collider handles to; the dispatcher reads its <code>OnCollisionEnter/Exit</code>, <code>OnSensorEnter/Exit</code> hooks and <code>IsBeingDestroyed</code> flag (see <em>Entities: GameObject</em>).</li>
+      <li><code>ContactRegistry</code> — the generic, game-blind contact-rule table this class instantiates and dispatches into (see <em>Entities: ContactRegistry</em>).</li>
+      <li><code>Debug</code> — optional; only wired when the debug panel is active.</li>
+    </ul>
+    <p class="file-role">
+      Lifecycle is the engine's standard four-phase shape, but with the constructor replaced by an <b>async</b> <code>Configure()</code> because WASM init cannot be awaited in a real constructor: <code>new Physics()</code> does nothing, <code>Configure()</code> builds the world, <code>Update()</code> steps + drains every frame, <code>Destroy()</code> frees the WASM world.
+    </p>
+
+    <pre class="mermaid">
+sequenceDiagram
+    participant T as Time (tick)
+    participant E as Experience.onTick
+    participant P as Physics.Update
+    participant W as RAPIER.World
+    participant Q as EventQueue
+    participant R as ContactRegistry
+    T->>E: Emitter.emit("tick")
+    loop 0..N fixed 1/60s steps
+        E->>P: Physics.Update()
+        P->>W: timestep = Time.Delta (fixed 1/60)
+        P->>W: World.step(EventQueue)
+        W->>Q: queue collision + sensor events
+        P->>Q: drainCollisionEvents(cb)
+        Q-->>P: (handle1, handle2, started)
+        P->>P: resolve handles to GameObjects
+        P->>P: call OnCollision/OnSensor hooks
+        P->>R: Contacts.Dispatch(phase, a, b)
+    end
+    </pre>
+
+    <!-- ---- Fields ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private experience; private debug?; public Scene; public World; public EventQueue; public IsPaused; public Contacts; private gameObjectRegistry</code></h4>
+      <p>The instance state. Note the <code>!</code> definite-assignment on the public handles — they are filled in <code>Configure()</code>, not the constructor, so TypeScript is told "trust me, these exist by use time."</p>
+      <pre class="code"><code class="language-typescript">private experience!: Experience; // engine singleton back-reference
+private debug?: Debug; // optional debug overlay helper
+public Scene!: THREE.Scene; // Three.js scene physics meshes bind to
+
+public World!: RAPIER.World; // Rapier 2d physics world
+public EventQueue!: RAPIER.EventQueue; // per-step collision event buffer
+public IsPaused!: boolean; // when true, Update() skips the step
+
+// Declarative "when an A contacts a B, run this" table. The game fills it; the
+// engine just dispatches contact events into it (see handleCollisionEvents).
+public Contacts!: ContactRegistry;
+
+// GameObject registration system - maps collider handles to GameObjects
+private gameObjectRegistry!: Map&lt;number, GameObject&gt;;</code></pre>
+      <p>Line-level notes:</p>
+      <ul>
+        <li><code>World</code> and <code>EventQueue</code> are <b>public</b> because game-side entities reach through <code>Physics.World</code> to create bodies/colliders (e.g. <em>Entities: GameObject</em>'s <code>createObjectPhysics</code> calls <code>this.Physics.World.createRigidBody(...)</code>), and <em>Debug: PhysicsDebug</em> walks <code>World.forEachCollider</code> to draw wireframes.</li>
+        <li><code>Contacts</code> is public so the game can populate it once at startup — <em>Config: contactRules</em> receives <code>experience.Physics.Contacts</code> and calls <code>.Add(...)</code> on it.</li>
+        <li><code>gameObjectRegistry</code> is the crux of event resolution: Rapier hands you only opaque numeric <em>collider handles</em> in events; this map turns a handle back into the rich <code>GameObject</code>. It is keyed by <b>collider</b> handle, not body handle, because one rigid body may carry several colliders.</li>
+      </ul>
+    </div>
+
+    <!-- ---- Configure ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public async Configure(): Promise&lt;void&gt;</code></h4>
+      <p>The real, async constructor. No parameters; returns a promise the caller (<em>Core: Experience</em>) <code>await</code>s so nothing touches <code>World</code> before the WASM is live. Body, in order:</p>
+      <pre class="code"><code class="language-typescript">this.experience = Experience.GetInstance();
+this.Scene = this.experience.Scene;
+
+await RAPIER.init();
+this.World = new RAPIER.World({ x: 0.0, y: -9.81 });
+this.EventQueue = new RAPIER.EventQueue(true);
+this.IsPaused = false;
+
+// Initialize the declarative contact-rule table (game fills it at startup)
+this.Contacts = new ContactRegistry();
+
+// Initialize GameObject registry for collision event mapping
+this.gameObjectRegistry = new Map&lt;number, GameObject&gt;();
+
+// Debug
+if (this.experience.Debug.IsActive) {
+  this.debug = this.experience.Debug;
+  this.debug.InitPhysicsDebug(this);
+}</code></pre>
+      <ul>
+        <li><code>await RAPIER.init()</code> — loads/instantiates the Rapier WASM module. Everything below depends on it; this single line is why the whole method (and <em>Experience.Configure</em>) must be async.</li>
+        <li><code>new RAPIER.World({ x: 0.0, y: -9.81 })</code> — gravity vector. Negative-Y is "down" in this engine's world space (a standard 2D screen-up convention), at roughly Earth gravity. This is the only place gravity is set; tweak the constant to make the whole game feel heavier/floatier (though most "feel" lives in <em>Attributes: baseFeel</em> via the character controller, not raw gravity).</li>
+        <li><code>new RAPIER.EventQueue(true)</code> — the boolean is Rapier's <b>autoDrain</b> flag: the queue auto-clears between steps so stale events from a prior frame never leak into the next. We rely on this and never manually clear it.</li>
+        <li><code>this.Contacts = new ContactRegistry()</code> — created empty here; the engine never adds rules. The game injects them post-configure.</li>
+        <li>The debug block is the seam to <em>Debug: PhysicsDebug</em>: only when <code>Debug.IsActive</code> do we keep a <code>debug</code> reference and call <code>InitPhysicsDebug(this)</code>, which hands <code>this</code> (the live Physics) to PhysicsDebug so it can read <code>Scene</code> and <code>World</code>.</li>
+      </ul>
+      <div class="callout victory"><b>Hard-won victory — async over constructor.</b> Rapier's WASM cannot be initialized synchronously. By making the entry point <code>async Configure()</code> instead of a constructor, and having <em>Experience</em> <code>await this.Physics.Configure()</code> <em>before</em> wiring the <code>tick</code> handler, we guarantee no frame ever runs <code>World.step()</code> against an uninitialized solver. This is why <code>new Physics()</code> is a no-op.</div>
+      <div class="callout gotcha"><b>Gotcha — ordering.</b> <code>this.experience = Experience.GetInstance()</code> must run first, and <code>this.Scene</code> is read from it immediately, so <em>Experience</em> must have set its <code>Scene</code> before calling <code>Physics.Configure()</code>. It does: <code>this.Scene = new THREE.Scene()</code> is assigned a few lines before <code>this.Physics.Configure()</code> in <em>Experience.Configure</em>.</div>
+    </div>
+
+    <!-- ---- RegisterGameObject ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public RegisterGameObject(gameObject: GameObject): void</code></h4>
+      <p>Records every collider of a game object's rigid body into <code>gameObjectRegistry</code> so future events can be resolved. Called by <em>Entities: GameObject</em> at the end of <code>createObjectPhysics</code> (after the body + collider exist).</p>
+      <pre class="code"><code class="language-typescript">if (!gameObject.PhysicsBody) {
+  console.warn("Cannot register GameObject without a physics body");
+  return;
+}
+
+// Register all colliders for this rigid body
+const numColliders = gameObject.PhysicsBody.numColliders();
+for (let i = 0; i &lt; numColliders; i++) {
+  const collider = gameObject.PhysicsBody.collider(i);
+  this.gameObjectRegistry.set(collider.handle, gameObject);
+}</code></pre>
+      <p>Loops over <em>all</em> colliders, not just collider 0, so a multi-collider body (e.g. a sensor collider plus a solid collider) maps every handle to the same owner. The guard returns early (with a warning) if there is no body — registration is meaningless without one.</p>
+    </div>
+
+    <!-- ---- UnregisterGameObject ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public UnregisterGameObject(gameObject: GameObject): void</code></h4>
+      <p>The mirror of registration: deletes every collider handle of the body from the map. Called by <em>Entities: GameObject</em> inside <code>Destroy()</code>, <b>before</b> <code>World.removeRigidBody()</code> — the colliders must still exist to enumerate their handles.</p>
+      <pre class="code"><code class="language-typescript">if (!gameObject.PhysicsBody) {
+  return;
+}
+
+const numColliders = gameObject.PhysicsBody.numColliders();
+for (let i = 0; i &lt; numColliders; i++) {
+  const collider = gameObject.PhysicsBody.collider(i);
+  this.gameObjectRegistry.delete(collider.handle);
+}</code></pre>
+      <div class="callout gotcha"><b>Gotcha — unregister before removeRigidBody.</b> <code>World.removeRigidBody()</code> destroys the colliders, after which <code>numColliders()</code>/<code>collider(i)</code> can no longer give you the handles to delete. <em>GameObject.Destroy</em> calls <code>UnregisterGameObject(this)</code> first, then removes the body — reverse that order and you leak stale handles in the map.</div>
+    </div>
+
+    <!-- ---- getGameObject ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private getGameObject(colliderHandle: number): GameObject | undefined</code></h4>
+      <p>The internal one-line lookup used by the event dispatcher: <code>return this.gameObjectRegistry.get(colliderHandle);</code>. Returns <code>undefined</code> for any handle that was never registered (e.g. a body created directly against <code>World</code> without going through <code>RegisterGameObject</code>) — the dispatcher treats that as "skip."</p>
+    </div>
+
+    <!-- ---- GetGameObjectFromCollider ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public GetGameObjectFromCollider(collider: RAPIER.Collider): GameObject | undefined</code></h4>
+      <p>The <em>public</em> sibling of <code>getGameObject</code> — same map lookup, but takes a <code>RAPIER.Collider</code> object and reads its <code>.handle</code>. It exists for one specific, subtle case the comment spells out:</p>
+      <pre class="code"><code class="language-typescript">// Resolve a collider to its owning GameObject (or undefined if unregistered).
+// Lets a kinematic character controller feed its OWN contacts into the contact
+// registry: a kinematic body keeps a skin gap from solids it moves into, so
+// Rapier emits no collision event for it as the mover — but the controller's
+// computed collisions still report what it touched. The game can resolve those
+// to GameObjects and Dispatch them, so the same contact rules fire either way.
+public GetGameObjectFromCollider(
+  collider: RAPIER.Collider
+): GameObject | undefined {
+  return this.gameObjectRegistry.get(collider.handle);
+}</code></pre>
+      <div class="callout victory"><b>Hard-won victory — kinematic mover gets no event.</b> The player uses a Rapier <em>kinematic character controller</em>, which moves with a skin gap and resolves penetration itself. Because it never actually overlaps the solids it slides against, Rapier's <code>EventQueue</code> emits no collision event with the player as the mover. The controller's <code>computedCollision(i)</code> list still reports what it touched, though — so the player can call <code>GetGameObjectFromCollider(hit.collider)</code> and <code>Contacts.Dispatch(...)</code> manually, and a rule like "enemy touches player → game over" fires whether the <em>enemy</em> rolled into the player (a real event) or the <em>player</em> walked into the enemy (a computed collision). Same table, both directions. See <em>Architecture: Collisions</em>.</div>
+    </div>
+
+    <!-- ---- handleCollisionEvents ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private handleCollisionEvents(): void</code></h4>
+      <p>The engine's contact-dispatch core, called once per step from <code>Update()</code>. It drains the <code>EventQueue</code> and, for each event, resolves both colliders to game objects, decides sensor-vs-solid, fires the two objects' override hooks, and dispatches the matching declarative contact rules. There is <b>no</b> hard-coded "if player and enemy…" anywhere — that knowledge lives entirely in the game's <code>ContactRegistry</code> rules.</p>
+      <p>The drain callback signature is Rapier's: <code>(handle1, handle2, started)</code> — two collider handles and a boolean that is <code>true</code> for "contact began" and <code>false</code> for "contact ended."</p>
+      <pre class="code"><code class="language-typescript">this.EventQueue.drainCollisionEvents((handle1, handle2, started) =&gt; {
+  const collider1 = this.World.getCollider(handle1);
+  const collider2 = this.World.getCollider(handle2);
+
+  // Skip if colliders don't exist
+  if (!collider1 || !collider2) {
+    return;
+  }
+
+  const gameObject1 = this.getGameObject(handle1);
+  const gameObject2 = this.getGameObject(handle2);
+
+  // Skip if either GameObject is not registered or is being destroyed
+  if (
+    !gameObject1 ||
+    !gameObject2 ||
+    gameObject1.IsBeingDestroyed ||
+    gameObject2.IsBeingDestroyed
+  ) {
+    return;
+  }</code></pre>
+      <p>Two guard layers before any dispatch:</p>
+      <ul>
+        <li><b>Colliders still alive</b> — <code>World.getCollider(handle)</code> returns falsy if that collider was removed earlier in the same drain (e.g. a contact rule destroyed one body, and a later event still references it). Skipping avoids touching a freed handle.</li>
+        <li><b>Both registered and neither dying</b> — an unregistered handle resolves to <code>undefined</code>; a <code>GameObject.IsBeingDestroyed === true</code> means it is mid-teardown.</li>
+      </ul>
+      <div class="callout victory"><b>Hard-won victory — the <code>IsBeingDestroyed</code> guard.</b> <em>GameObject.Destroy</em> sets <code>this.IsBeingDestroyed = true</code> as its very first line, before removing the body. Combined with the check here, this prevents the classic bug where a contact handler runs against a half-torn-down object (mesh disposed, body removed) and dereferences something undefined. It is the exact mechanism behind commit <code>b0436b4</code>'s "finally fix barrel/enemy bug." It also means dispatch is naturally re-entrancy-safe: a rule that destroys a body during the drain can't trigger a follow-up event against the corpse.</div>
+      <p>Next, route sensor vs. solid:</p>
+      <pre class="code"><code class="language-typescript">// Check if either collider is a sensor to route to appropriate callbacks
+const isSensor1 = collider1.isSensor();
+const isSensor2 = collider2.isSensor();
+const isSensorEvent = isSensor1 || isSensor2;
+
+if (isSensorEvent) {
+  // This is a sensor intersection event
+  if (started) {
+    if (isSensor1 &amp;&amp; gameObject1.OnSensorEnter) {
+      gameObject1.OnSensorEnter(gameObject2);
+    }
+    if (isSensor2 &amp;&amp; gameObject2.OnSensorEnter) {
+      gameObject2.OnSensorEnter(gameObject1);
+    }
+    // Fire any matching declarative contact rules (two-sided internally)
+    this.Contacts.Dispatch("sensorEnter", gameObject1, gameObject2);
+
+    if (this.debug &amp;&amp; this.debug.LogSensors) {
+      this.debug.LogSensorEvent(gameObject1, gameObject2, "enter");
+    }
+  } else {
+    // ... mirror: OnSensorExit + Dispatch("sensorExit", ...) + LogSensorEvent(..., "exit")
+  }
+} else {
+  // This is a solid collision event
+  if (started) {
+    if (gameObject1.OnCollisionEnter) gameObject1.OnCollisionEnter(gameObject2);
+    if (gameObject2.OnCollisionEnter) gameObject2.OnCollisionEnter(gameObject1);
+    this.Contacts.Dispatch("enter", gameObject1, gameObject2);
+    // ... LogCollisionEvent(..., "enter")
+  } else {
+    // ... OnCollisionExit + Dispatch("exit", ...) + LogCollisionEvent(..., "exit")
+  }
+}</code></pre>
+      <p>Line-level reasoning for the routing:</p>
+      <ul>
+        <li><b>Sensor detection is a property of the collider, not a separate event stream.</b> In Rapier a sensor collider produces <em>collision</em> events (when armed with <code>ActiveEvents.COLLISION_EVENTS</code>), not a distinct intersection channel — so this one drain loop handles both, and <code>collider.isSensor()</code> is the discriminator. If <em>either</em> collider is a sensor, the whole event is treated as a sensor/intersection event.</li>
+        <li><b>The override hooks are one-sided, gated on the sensor flag.</b> For sensor events, only the side that <em>is</em> the sensor gets its <code>OnSensorEnter/Exit</code> called (<code>isSensor1 &amp;&amp; gameObject1.OnSensorEnter</code>) — the object passing through a trigger should not receive a "you are a sensor" callback. For solid events both sides are notified symmetrically. Every hook is optional (the <code>?</code> on the method) so the <code>if (…OnCollisionEnter)</code> presence-check is mandatory.</li>
+        <li><b>The four phase strings — <code>"enter"</code>, <code>"exit"</code>, <code>"sensorEnter"</code>, <code>"sensorExit"</code> — are the bridge to the contact table.</b> They match exactly the <code>ContactPhase</code> union in <em>Entities: ContactRegistry</em>. <code>Contacts.Dispatch(phase, gameObject1, gameObject2)</code> is two-sided <em>internally</em>: the registry tests each rule as both <code>(a,b)</code> and <code>(b,a)</code>, so dispatch passes the raw pair in handle order and lets the table sort out direction. That's why a rule fires no matter which body Rapier listed first.</li>
+        <li><b>Logging is opt-in and game-owned.</b> <code>this.debug.LogSensors</code> / <code>LogCollisions</code> are getters that delegate to a game-registered <em>CollisionLogSink</em> (see <em>Debug: Debug</em>), so the engine forwards log events without knowing the concrete logger. Off by default; toggled in the debug GUI.</li>
+      </ul>
+      <div class="callout note"><b>Note — enter/exit only, no "stay."</b> Rapier's collision events fire on transition, not per-frame. There is no "still touching" event. The gameplay layer that needs continuous "am I on the ground right now" state does <em>not</em> get it from here — it recomputes per frame from the kinematic controller and writes <code>ContactPoints</code> booleans (the second file in this section). <em>GameObject.enablePhysicsEvents</em> even documents this: "Physics only dispatches enter/exit (no per-frame 'stay')."</div>
+      <div class="callout gotcha"><b>Gotcha — events only fire if the collider is armed.</b> A collider emits nothing unless <code>setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS)</code> was called on it. <em>GameObject</em> arms this automatically for any entity that defines an <code>OnCollision*/OnSensor*</code> callback (<code>enablePhysicsEvents</code>), and exposes <code>enableContactEvents()</code> for entities that only want the declarative table. If a contact rule "isn't firing," check the collider is armed before suspecting this dispatcher.</div>
+    </div>
+
+    <!-- ---- SetPaused ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public SetPaused(paused: boolean): void</code></h4>
+      <p>Sets <code>this.IsPaused = paused</code>. That's all it does — and that minimalism is the point.</p>
+      <pre class="code"><code class="language-typescript">// Pause or resume the physics simulation. The game decides WHEN to call this
+// (e.g. on game over / reset); the engine just obeys — it names no game events.
+public SetPaused(paused: boolean): void {
+  this.IsPaused = paused;
+}</code></pre>
+      <div class="callout note"><b>Note — decoupling seam.</b> The engine deliberately does <em>not</em> subscribe to <code>"gameOver"</code>/<code>"gameWin"</code> on the event bus. The game's <em>GameDirector</em> decides when to pause and calls <code>SetPaused(true)</code>; the engine stays ignorant of game concepts. <code>IsPaused</code> is public for reads (e.g. UI), <code>SetPaused</code> is the intent-revealing setter.</div>
+    </div>
+
+    <!-- ---- Update ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Update(): void</code></h4>
+      <p>The per-step advance. <em>Experience</em>'s <code>onTick</code> now runs a fixed-step accumulator: it calls <code>Physics.Update()</code> 0..N times per frame — once per accumulated <code>1/60</code>s step, each time before that step's <code>OnGameUpdate</code> — and runs <code>Renderer.Update</code> once at the end of the frame. So game logic and rendering always see a freshly-stepped world.</p>
+      <pre class="code"><code class="language-typescript">if (this.IsPaused) {
+  return;
+}
+
+// Time.Delta is the FIXED simulation timestep (set by the frame loop), so each
+// physics step is constant and reproducible. No clamp needed — the frame loop
+// bounds how often we step (the old Math.min(..., 0.1) was dead code anyway,
+// since Time.Delta was already capped well below 0.1).
+this.World.timestep = this.experience.Time.Delta;
+this.World.step(this.EventQueue);
+
+// Process collision and sensor events
+this.handleCollisionEvents();
+
+// Run debug physics logic if needed
+if (this.debug) {
+  this.debug.UpdatePhysicsDebug(this);
+}</code></pre>
+      <ul>
+        <li><b>Pause short-circuit</b> — when paused, the world is not stepped and no events are drained, freezing the simulation while the render loop still runs.</li>
+        <li><b>Fixed timestep <code>this.World.timestep = this.experience.Time.Delta</code></b> — <code>Time.Delta</code> is no longer the raw frame delta; it is the <b>fixed</b> simulation step (<code>1/60</code>s) that <em>Core: Experience</em>'s accumulator assigns immediately before each <code>Update()</code>. Every step is the same constant size, so the simulation is frame-rate-independent and reproducible. The old <code>Math.min(Time.Delta, 0.1)</code> cap was deleted as dead code: the accumulator can only ever feed this a constant <code>1/60</code>, and the wall-clock catch-up is bounded upstream — <em>Core: Time</em> clamps <code>FrameDelta</code> (the value that drives the accumulator, <em>not</em> the integration step) to <code>1/30</code>. A single giant step can no longer reach Rapier, so nothing tunnels through walls on a frame hitch.</li>
+        <li><b><code>World.step(this.EventQueue)</code></b> — advances the solver and fills the (auto-drained) queue with this step's collision/sensor transitions. Passing the queue is what makes events available to the very next line.</li>
+        <li><b><code>handleCollisionEvents()</code> runs immediately after the step</b>, in the same frame, so callbacks and contact rules act on the just-resolved positions.</li>
+        <li><b>Debug last</b> — <code>UpdatePhysicsDebug(this)</code> rebuilds the collider wireframe and refreshes object counts (see <em>Debug: PhysicsDebug</em>), only if a debug ref was captured in <code>Configure</code>.</li>
+      </ul>
+      <div class="callout gotcha"><b>Gotcha — never set <code>Time.Delta</code> to 0.</b> A zero timestep stalls the solver, so <em>Core: Time</em> flags the field "Never 0." In practice the frame loop always assigns <code>Delta = Time.FixedTimestep</code> (<code>1/60</code>) before each step, and the constructor seeds it to the same value, so this line never receives 0 — but preserve that invariant if you ever touch the loop.</div>
+      <div class="callout victory"><b>Hard-won victory — a true fixed timestep.</b> This used to be a variable (clamped real-delta) step. It is now a genuine accumulator-based fixed timestep: <em>Core: Experience</em>'s <code>onTick</code> accumulates <code>FrameDelta</code> and runs <code>Physics.Update()</code> (with the matching <code>OnGameUpdate</code>) in 0..N constant <code>1/60</code>s steps per frame, rendering once, while Rapier always receives exactly that fixed step. The payoff is a simulation that is frame-rate-independent and reproducible — identical inputs play out identically on a 60Hz and a 144Hz display.</div>
+    </div>
+
+    <!-- ---- Destroy ---- -->
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Destroy(): void</code></h4>
+      <p>Tears down the WASM world and the debug wireframe. Called by <em>Experience.Destroy</em> in its "camera then physics then renderer then resources" order.</p>
+      <pre class="code"><code class="language-typescript">// Dispose of the Rapier world (guarded so a Destroy after a half-failed
+// Configure — e.g. RAPIER.init() threw before World was built — doesn't cascade).
+this.World?.free();
+
+// Tear down the debug wireframe (PhysicsDebug owns its own mesh)
+if (this.debug) {
+  this.debug.DestroyPhysicsDebug();
+}</code></pre>
+      <ul>
+        <li><code>World?.free()</code> releases the WASM memory backing every body, collider, and joint in one call — there is no per-body cleanup loop here because individual entities free their own bodies during their <code>Destroy()</code>; this is the final sweep of whatever remains. The <code>?.</code> is deliberate: if <code>Configure()</code> aborted before <code>World</code> was built (e.g. <code>RAPIER.init()</code> threw), <code>World</code> is still <code>undefined</code>, and the optional chain makes <code>Destroy()</code> a safe no-op instead of throwing a second error on top of the first.</li>
+        <li><code>DestroyPhysicsDebug()</code> removes and disposes the wireframe <code>LineSegments</code> mesh, which PhysicsDebug owns (Physics itself holds no debug mesh).</li>
+      </ul>
+      <div class="callout note"><b>Note — teardown survives a half-failed boot.</b> Guarding with <code>this.World?.free()</code> is part of the engine's broader teardown hygiene: <em>Core: Experience</em> now resets its singleton and uses optional chaining when tearing down subsystems, so a <code>Configure()</code> that died partway through can still be cleanly <code>Destroy()</code>ed and retried. Physics holds up its end of that contract — never assume <code>World</code> exists just because <code>Destroy()</code> was called.</div>
+    </div>
+
+    <div class="callout warning"><b>Warning — contact-force events are not used here.</b> Rapier's <code>EventQueue</code> can also surface <em>contact-force</em> events via <code>drainContactForceEvents</code> (impulse magnitudes between solids). This engine never drains them — only <code>drainCollisionEvents</code> is called — because the gameplay only needs enter/exit transitions and trigger overlaps, not force magnitudes. If you ever want "hard landing" damage scaled by impact force, that is where you'd add a second drain pass; today it does not exist, so don't expect a force-events code path.</div>
+
+    <p class="modify"><b>Modifying this:</b> To add a new <em>kind</em> of contact behavior, you almost never touch this file — add a rule to <em>Config: contactRules</em> (game data) or an <code>OnCollision*/OnSensor*</code> override on the entity. Touch <code>handleCollisionEvents</code> only to change the dispatch <em>mechanism</em> itself (e.g. add a <code>drainContactForceEvents</code> pass, or a new phase string — which must also be added to <code>ContactPhase</code> in <em>Entities: ContactRegistry</em>). To change global feel, edit the gravity vector in <code>Configure</code> or the fixed step (<code>Time.FixedTimestep</code>) that <em>Core: Time</em> defines. Keep this class game-blind: if you find yourself importing an <code>EntityType</code> or checking a specific name here, the logic belongs in the game layer instead.</p>
+  </article>
+
+  <!-- ============================================================= -->
+  <!-- contactPoints.ts                                              -->
+  <!-- ============================================================= -->
+  <article class="file-block" id="engine-physics--contactpoints">
+    <h3 class="file-name">src/engine/types/contactPoints.ts <span class="loc">34 LOC</span></h3>
+
+    <p class="file-role">
+      A pure TypeScript <code>interface</code> — no runtime code — describing the set of surfaces a character can be touching <em>right now</em>, as eight booleans. It is the engine's contribution to the per-frame "where am I?" vocabulary; the engine defines the shape, the <em>game</em> owns an instance and decides what each flag means for gameplay. Concretely, <em>Player</em> (game layer) declares <code>public IsTouching!: ContactPoints</code> and rebuilds it every frame: the player's kinematic-controller collision pass writes <code>ground/ceiling/leftSide/rightSide/edgePlatform</code>, and the ladder sensor writes <code>ladderCore/ladderTop/ladderBottom</code>. Player state handlers (<em>Player states: Idle/Running/Jumping/Falling/Climbing</em>) read these to decide transitions, and <em>PlayerDebug</em> binds them into the dat.GUI as live checkboxes.
+    </p>
+
+    <div class="callout note"><b>Note — this is the "stay" state the event queue won't give you.</b> Because Rapier only emits enter/exit transitions (see <code>handleCollisionEvents</code> above), continuous "still on the ground" information has to be recomputed each frame. <code>ContactPoints</code> is that recomputed snapshot — the bridge between raw physics events and the gameplay state machine. It is reset to all-false and refilled every tick, so reading a stale value across frames is never a concern.</div>
+
+    <table class="tbl">
+      <thead>
+        <tr><th>Field</th><th>Group</th><th>Meaning (from the doc comments)</th><th>Set by</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>ground</code></td><td>Basic direction</td><td>Touching the ground; enables jumping, resets coyote time, drives the idle/run animation state.</td><td>Player collision pass</td></tr>
+        <tr><td><code>ceiling</code></td><td>Basic direction</td><td>Touching a ceiling; cancels upward velocity, prevents jumping through ceilings.</td><td>Player collision pass</td></tr>
+        <tr><td><code>leftSide</code></td><td>Basic direction</td><td>Touching a wall on the left; blocks leftward movement, can enable wall slide.</td><td>Player collision pass</td></tr>
+        <tr><td><code>rightSide</code></td><td>Basic direction</td><td>Touching a wall on the right; blocks rightward movement, can enable wall slide.</td><td>Player collision pass</td></tr>
+        <tr><td><code>edgePlatform</code></td><td>Special platform</td><td>Standing on an edge platform; allows edge-specific animations/mechanics.</td><td>Player collision pass (reads <code>Platform.IsEdge</code>)</td></tr>
+        <tr><td><code>ladderCore</code></td><td>Ladder zone</td><td>Inside the climbable body of a ladder; can climb up/down with directional input.</td><td>Ladder sensor</td></tr>
+        <tr><td><code>ladderTop</code></td><td>Ladder zone</td><td>At the top of a ladder; transition from climbing to standing on the platform above.</td><td>Ladder sensor</td></tr>
+        <tr><td><code>ladderBottom</code></td><td>Ladder zone</td><td>At the bottom of a ladder; transition from climbing to standing on the ground below.</td><td>Ladder sensor</td></tr>
+      </tbody>
+    </table>
+
+    <pre class="code"><code class="language-typescript">export default interface ContactPoints {
+  // ===== BASIC COLLISION DIRECTIONS =====
+  ground: boolean;
+  ceiling: boolean;
+  leftSide: boolean;
+  rightSide: boolean;
+
+  // ===== SPECIAL PLATFORM TYPES =====
+  edgePlatform: boolean;
+
+  // ===== LADDER COLLISION ZONES =====
+  ladderCore: boolean;
+  ladderTop: boolean;
+  ladderBottom: boolean;
+}</code></pre>
+
+    <p>Why these eight, and why split this way:</p>
+    <ul>
+      <li><b>Four cardinal directions</b> are the minimum a 2D platformer needs: ground (jump gating + coyote time), ceiling (head-bonk velocity cancel), and the two walls (movement blocking / wall slide). They come from the player's own per-frame collision query, not from the contact table — this is "self" state, not "who hit me."</li>
+      <li><b><code>edgePlatform</code></b> is separated out because an edge tile is still "ground," but unlocks edge-specific behavior; the player sets it by resolving the ground collider to its <code>Platform</code> and reading <code>platform.IsEdge</code>.</li>
+      <li><b>The three ladder zones</b> exist because a ladder is not one trigger but three overlapping sensors — a tall <em>core</em> for climbing plus thin <em>top</em>/<em>bottom</em> bands for the hand-off to standing. The state machine combines them, e.g. "in core, and not (at top while pressing up) and not (at bottom while pressing down)" to decide whether to enter the climbing state (see <em>Player states: Running/Idle/Climbing</em>). These three are written by the <em>LadderSensor</em>'s sensor callbacks — the engine-side sensor events from this section's <code>handleCollisionEvents</code> flowing through to gameplay booleans.</li>
+    </ul>
+
+    <div class="callout tip"><b>Tip — naming convention.</b> The fields stay <code>camelCase</code> deliberately (unlike the PascalCase public API elsewhere) because they mirror "real types" the way Rapier's own <code>x/y/z</code> vectors do; <em>PlayerDebug</em> notes this exact rationale where it binds them into the GUI.</div>
+
+    <p class="modify"><b>Modifying this:</b> Add a boolean here whenever the player needs a new persistent "am I touching X?" surface (e.g. <code>onSlope</code>, <code>inWater</code>). Then do two things or the flag is dead: (1) reset it to <code>false</code> in the player's per-frame reset block, and (2) set it <code>true</code> from whatever detects it — a collision pass or a sensor callback. Because this is just a type, adding a field is free at runtime; the cost is the gameplay code that must populate and read it. Keep it boolean and surface-oriented — numeric per-instance data does <em>not</em> belong here (per <em>Types: userData</em>, that lives as typed fields on entity classes).</p>
+  </article>
+</section>

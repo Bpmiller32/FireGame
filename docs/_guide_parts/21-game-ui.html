@@ -1,0 +1,334 @@
+<section class="doc-section" id="game-ui">
+  <header class="section-head">
+    <h2 class="section-title">App.vue — the Vue UI shell &amp; wiring</h2>
+    <p class="section-blurb">
+      <code class="language-html">App.vue</code> is the single Vue component in the app and the one place where the engine Singleton and the entire game layer are assembled. It owns <em>presentation</em> — the loading overlay, a status line, a Reset button, and the WebGL canvas — while the game only ever <em>signals</em> through the event bus. Every line of its <code class="language-typescript">&lt;script setup&gt;</code> is a deliberate ordering decision: listeners come up before the engine, and asset loading is kicked off dead last.
+    </p>
+    <div class="file-chips"><span class="chip">src/App.vue</span></div>
+  </header>
+
+  <article class="file-block" id="game-ui--app">
+    <h3 class="file-name">src/App.vue <span class="loc">188 LOC</span></h3>
+    <p class="file-role">
+      This is the root component mounted by <a href="#arch-overview"><code class="language-typescript">main.ts</code></a> via <code class="language-typescript">createApp(App).mount('#app')</code> — there is no router and no other component, so <code class="language-html">App.vue</code> <em>is</em> the application shell. Its job is threefold: (1) hold two DOM refs (the canvas and a status paragraph), (2) own the loading-overlay and game-status reactive state, and (3) inside a single <code class="language-typescript">onMounted</code> hook, wire the engine <a href="#engine-core"><code class="language-typescript">Experience</code></a> Singleton to the game's <a href="#game-director"><code class="language-typescript">GameDirector</code></a>, contact rules, debug sinks, input bindings, and the sim/render update hooks — plus a symmetric <code class="language-typescript">onUnmounted</code> that tears the whole graph down. It is intentionally the <em>only</em> file that knows about both the engine and the game by name — the seam where the two halves are bolted together. Everything else talks through the <a href="#engine-events-input--eventbus"><code class="language-typescript">Emitter</code></a> bus.
+    </p>
+
+    <h4 class="member-sig"><code class="language-typescript">import { onMounted, onUnmounted, ref } from "vue";  // + Experience, Emitter, GameDirector, InputBindings, registerContactRules, CollisionLogger, LevelDebug, DEBUG_TYPE_COLORS, GAME_ASSETS, LEVEL_NODE_TYPES</code></h4>
+    <p>
+      The import list reads like a wiring manifest. From the engine: <code class="language-typescript">Experience</code> (the Singleton it boots) and <code class="language-typescript">Emitter</code> (the bus it listens on). From the game: <code class="language-typescript">GameDirector</code> (the central controller it constructs), <code class="language-typescript">InputBindings</code> (F-key → game-event mapper), <code class="language-typescript">registerContactRules</code> (declares the collision table into the engine), <code class="language-typescript">CollisionLogger</code> + <code class="language-typescript">LevelDebug</code> (game-owned debug plug-ins), <code class="language-typescript">DEBUG_TYPE_COLORS</code> (the wireframe palette), and the two newest seam pieces — <code class="language-typescript">GAME_ASSETS</code> (the boot asset manifest handed to <code class="language-typescript">Configure</code>) and <code class="language-typescript">LEVEL_NODE_TYPES</code> (the level-node→<code class="language-typescript">EntityType</code> vocabulary injected into the engine's GLB parser). The fact that <em>only this file</em> imports from both <code class="language-typescript">./engine</code> and <code class="language-typescript">./game</code> is the whole decoupling story in one glance — and the engine no longer hardcodes a single game asset path or level-node name.
+    </p>
+    <pre class="code"><code class="language-typescript">import { onMounted, onUnmounted, ref } from "vue";
+import Experience from "./engine/core/experience.ts";
+import Emitter from "./engine/events/eventBus.ts";
+import GameDirector from "./game/gameDirector.ts";
+import InputBindings from "./game/config/inputBindings.ts";
+import registerContactRules from "./game/config/contactRules.ts";
+import CollisionLogger from "./game/debug/collisionLogger.ts";
+import LevelDebug from "./game/debug/levelDebug.ts";
+import DEBUG_TYPE_COLORS from "./game/config/debugColors.ts";
+import GAME_ASSETS from "./game/config/assetManifest.ts";
+import LEVEL_NODE_TYPES from "./game/config/levelNodeTypes.ts";</code></pre>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const webglRef = ref&lt;HTMLCanvasElement | null&gt;(null);  const statusRef = ref&lt;HTMLElement | null&gt;(null);  const isResetButtonVisible = ref&lt;boolean | null&gt;(null);</code></h4>
+      <p>
+        Three template refs / reactive flags. <code class="language-typescript">webglRef</code> is bound to the <code class="language-html">&lt;canvas&gt;</code> via <code class="language-html">ref="webglRef"</code>; its <code class="language-typescript">.value</code> is <code class="language-typescript">null</code> until the DOM mounts, which is exactly why <code class="language-typescript">Experience.Configure(webglRef.value, GAME_ASSETS)</code> lives inside <code class="language-typescript">onMounted</code> (line 48) and not at module scope. <code class="language-typescript">statusRef</code> points at the status paragraph whose <code class="language-typescript">.innerText</code> the win/over/reset handlers write directly. <code class="language-typescript">isResetButtonVisible</code> drives the <code class="language-html">v-if</code> on the Reset button — it starts <code class="language-typescript">null</code> (falsy → hidden) and flips true on win/over.
+      </p>
+      <pre class="code"><code class="language-typescript">const webglRef = ref&lt;HTMLCanvasElement | null&gt;(null);
+const statusRef = ref&lt;HTMLElement | null&gt;(null);
+
+const isResetButtonVisible = ref&lt;boolean | null&gt;(null);</code></pre>
+      <div class="callout note"><b>Note.</b> The status text is poked imperatively through <code class="language-typescript">statusRef.value.innerText</code> rather than a reactive string bound with <code class="language-html">{{ }}</code>. It works because there's exactly one writer per state and the DOM node is guaranteed present inside the handlers; each writer guards with <code class="language-typescript">if (statusRef.value)</code>.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const isLoading = ref(true);  const loadProgress = ref&lt;{ loaded: number; total: number; item: string } | null&gt;(null);</code></h4>
+      <p>
+        The loading-overlay state, and the most carefully-reasoned pair of refs in the file. <code class="language-typescript">isLoading</code> starts <code class="language-typescript">true</code> so the overlay covers the screen <em>before any code runs</em> — the boot asset load is already underway visually by the time Vue paints. <code class="language-typescript">loadProgress</code> is the per-item count that drives a real progress bar; it is deliberately <code class="language-typescript">null</code> except during the initial multi-asset boot load.
+      </p>
+      <pre class="code"><code class="language-typescript">// Loading screen: starts up so it covers initial asset loading, then the engine/
+// game emit loadingStarted/loadingFinished around every level (GLB) load. The
+// presentation layer (Vue) owns the overlay; the game just signals via events.
+// `loadProgress` drives a real bar during the initial multi-asset load
+// (loadingProgress events); it's cleared for level loads (a single GLB parse has
+// no per-item count) so the overlay falls back to a plain "Loading…".
+const isLoading = ref(true);
+const loadProgress = ref&lt;{ loaded: number; total: number; item: string } | null&gt;(
+  null
+);</code></pre>
+      <p>
+        The shape <code class="language-typescript">{ loaded, total, item }</code> matches the engine's <code class="language-typescript">loadingProgress</code> event payload exactly (see <a href="#engine-events-input--eventbus"><code class="language-typescript">eventBus.ts</code></a>'s <code class="language-typescript">EngineEventMap</code> and <a href="#engine-resources"><code class="language-typescript">ResourceLoader.StartLoading</code></a>, which emits a seed <code class="language-typescript">{ loaded: 0, total, item: "" }</code> and then advances <code class="language-typescript">loaded</code> per asset). Two distinct loads share this one overlay: the multi-asset <em>boot</em> load (textures + GLB models, which has a per-item count → progress bar) and a per-<em>level</em> GLB load (a single opaque parse, no count → spinner).
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">let webglExperience: Experience | null = null;  let gameDirector: GameDirector | null = null;  // + seven named handlers</code></h4>
+      <p>
+        New to this batch: the engine Singleton and the game director are lifted to <em>script scope</em> (not buried as <code class="language-typescript">const</code>s inside <code class="language-typescript">onMounted</code>) so the new <code class="language-typescript">onUnmounted</code> hook can reach them and tear them down on an HMR reload or route change. Inside <code class="language-typescript">onMounted</code> they're assigned to these refs <em>and</em> captured in non-null locals (<code class="language-typescript">exp</code>, <code class="language-typescript">director</code>) used for the rest of the wiring.
+      </p>
+      <pre class="code"><code class="language-typescript">// Engine/game instances — script-scoped so onUnmounted can tear them down (HMR /
+// route change). Inside onMounted they're used via non-null locals.
+let webglExperience: Experience | null = null;
+let gameDirector: GameDirector | null = null;</code></pre>
+      <p>
+        Sitting beside them are seven <em>named</em> event-handler consts — <code class="language-typescript">onLoadingStarted</code>, <code class="language-typescript">onLoadingFinished</code>, <code class="language-typescript">onLoadingProgress</code>, <code class="language-typescript">onGameWin</code>, <code class="language-typescript">onGameOver</code>, <code class="language-typescript">onGameReset</code>, <code class="language-typescript">onGameStart</code>. Naming them is what lets <code class="language-typescript">onUnmounted</code> remove <em>exactly</em> these from the shared bus by reference: a bare <code class="language-typescript">Emitter.off("gameWin")</code> would wipe every module's <code class="language-typescript">gameWin</code> listener, and anonymous handlers can't be removed at all (they'd double-register on hot-reload and fire twice). Their bodies appear in steps 1 and 7 below.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">onMounted(async () =&gt; { ... });</code></h4>
+      <p>
+        The entire boot-and-wire sequence. It is <code class="language-typescript">async</code> because <code class="language-typescript">Experience.Configure</code> awaits Rapier init. The ordering inside is not incidental — it encodes two hard-won "listener exists before the event can fire" guarantees. The flow:
+      </p>
+      <pre class="mermaid">sequenceDiagram
+  participant V as "App.vue onMounted"
+  participant E as "Experience (Singleton)"
+  participant G as GameDirector
+  participant R as ResourceLoader
+  V->>V: "Emitter.on(loadingStarted / Finished / Progress)  [FIRST]"
+  V->>E: GetInstance()
+  V->>E: "await Configure(webglRef.value, GAME_ASSETS)"
+  V->>R: "Resources.RegisterLevelTypes(LEVEL_NODE_TYPES)"
+  V->>E: "registerContactRules(Physics.Contacts)"
+  V->>E: "Debug.RegisterCollisionLogSink(new CollisionLogger())"
+  V->>E: "Debug.SetPhysicsTypeColors(DEBUG_TYPE_COLORS)"
+  V->>G: "new GameDirector()  (subscribes resourcesReady, gameStart...)"
+  V->>V: "new InputBindings(Input)"
+  V->>E: "Debug.RegisterModule(new LevelDebug(director))"
+  V->>E: "OnGameUpdate = () => { inputBindings.Update(); director.Update() }  [per sim step]"
+  V->>E: "OnRenderUpdate = (alpha) => director.RenderUpdate(alpha)  [per frame]"
+  V->>V: "Emitter.on(gameWin / gameOver / gameReset / gameStart)"
+  V->>R: "Resources.StartLoading()  [LAST]"
+  R-->>G: "resourcesReady -> loadLevelByIndex(DEFAULT)"</pre>
+
+      <p><b>Step 1 — loading listeners FIRST (lines 67–71).</b> The three loading handlers are <em>named</em> consts at script scope (shown here with their bodies); <code class="language-typescript">onMounted</code> registers them by reference before <code class="language-typescript">Configure</code> is even called:</p>
+      <pre class="code"><code class="language-typescript">// Named handlers at script scope so onUnmounted can off EXACTLY these:
+const onLoadingStarted = () =&gt; {
+  isLoading.value = true;
+  loadProgress.value = null; // level loads are a single GLB parse — no per-item bar
+};
+const onLoadingFinished = () =&gt; {
+  isLoading.value = false;
+};
+const onLoadingProgress = (p: { loaded: number; total: number; item: string }) =&gt; {
+  loadProgress.value = p;
+};
+
+// ...inside onMounted, FIRST — before Configure — so a fast boot load can't fire
+// loadingFinished before we're listening:
+Emitter.on("loadingStarted", onLoadingStarted);
+Emitter.on("loadingFinished", onLoadingFinished);
+Emitter.on("loadingProgress", onLoadingProgress);</code></pre>
+      <p>
+        <code class="language-typescript">loadingStarted</code> raises the overlay and <em>clears</em> <code class="language-typescript">loadProgress</code> (so per-level loads show the plain spinner, since a single GLB parse reports no item count). <code class="language-typescript">loadingFinished</code> drops the overlay. <code class="language-typescript">loadingProgress</code> stores the latest count, which makes the bar appear. These are emitted by <a href="#game-director"><code class="language-typescript">GameDirector.loadLevelByIndex</code></a> (the <code class="language-typescript">loadingStarted</code>/<code class="language-typescript">loadingFinished</code> bracket, the latter in its <code class="language-typescript">finally</code>) and by <a href="#engine-resources"><code class="language-typescript">ResourceLoader</code></a> (the <code class="language-typescript">loadingProgress</code> stream). App.vue never emits any of them — it is a pure consumer here.
+      </p>
+      <div class="callout victory"><b>Hard-won victory — listeners before <code class="language-typescript">Configure</code>.</b> <code class="language-typescript">Configure</code> awaits async init; if the boot assets happened to resolve inside that await window and someone emitted <code class="language-typescript">loadingFinished</code> before these handlers were attached, the overlay would never lift (mitt does not buffer or replay). Subscribing first makes the race impossible. The same logic, one step larger, governs <code class="language-typescript">StartLoading()</code> being last.</div>
+
+      <p><b>Step 2 — boot the engine Singleton (lines 74–78).</b></p>
+      <pre class="code"><code class="language-typescript">// Non-null local for use here; the script-scoped ref is for onUnmounted.
+const exp = Experience.GetInstance();
+webglExperience = exp;
+
+// The game supplies its own asset manifest; the engine names none of these.
+await exp.Configure(webglRef.value, GAME_ASSETS);</code></pre>
+      <p>
+        <code class="language-typescript">GetInstance()</code> returns the lazily-created <a href="#engine-core"><code class="language-typescript">Experience</code></a> Singleton; <code class="language-typescript">Configure</code> is its real (async) constructor — it builds <code class="language-typescript">Debug</code>, <code class="language-typescript">Sizes</code>, <code class="language-typescript">Time</code>, <code class="language-typescript">Input</code>, <code class="language-typescript">Resources</code>, the Three.js <code class="language-typescript">Scene</code>, <code class="language-typescript">Camera</code>, <code class="language-typescript">Renderer</code>, and awaits <code class="language-typescript">Physics.Configure()</code> (Rapier init), then subscribes the engine's <code class="language-typescript">resize</code> and <code class="language-typescript">tick</code> handlers. Note the second argument: <code class="language-typescript">Configure(canvas, resources)</code> now takes the game's <code class="language-typescript">GAME_ASSETS</code> manifest and feeds it straight into the <a href="#engine-resources"><code class="language-typescript">ResourceLoader</code></a> it constructs — the engine no longer hardcodes a randy/enemy/dkGraphicsData import list, so <code class="language-typescript">engine/</code> ships without naming a single game asset. Passing <code class="language-typescript">webglRef.value</code> is the reason this whole block is inside <code class="language-typescript">onMounted</code>: the canvas element only exists once Vue has mounted the DOM. The instance is also stashed in the script-scoped <code class="language-typescript">webglExperience</code> ref (via the <code class="language-typescript">exp</code> local) so <code class="language-typescript">onUnmounted</code> can later call its <code class="language-typescript">Destroy()</code>.</p>
+      <div class="callout victory"><b>Reusability win — the manifest is injected, not baked in.</b> <code class="language-typescript">GAME_ASSETS</code> (see <a href="#game-config"><code class="language-typescript">assetManifest.ts</code></a>) is a plain <code class="language-typescript">Resource[]</code> the game owns; the engine just loads whatever it's handed. The same engine can boot a different game by passing a different manifest — the old hardcoded <code class="language-typescript">?url</code> imports inside <code class="language-typescript">resourceLoader.ts</code> are gone.</div>
+
+      <p><b>Step 3 — the game declares its rules into the engine (lines 82–88).</b> Four injections, each pushing a game concept into an engine subsystem that names nothing game-specific:</p>
+      <pre class="code"><code class="language-typescript">exp.Resources.RegisterLevelTypes(LEVEL_NODE_TYPES);
+
+registerContactRules(exp.Physics.Contacts);
+exp.Debug.RegisterCollisionLogSink(new CollisionLogger());
+exp.Debug.SetPhysicsTypeColors(DEBUG_TYPE_COLORS);</code></pre>
+      <p>
+        <code class="language-typescript">RegisterLevelTypes(LEVEL_NODE_TYPES)</code> (see <a href="#game-config"><code class="language-typescript">levelNodeTypes.ts</code></a>) hands the engine's GLB parser the game's level-node-name→<code class="language-typescript">EntityType</code> vocabulary, so the engine can classify the nodes it finds in a level file without ever mirroring the game's <code class="language-typescript">EntityType</code> enum — it must run before <code class="language-typescript">StartLoading()</code> kicks off the first level load. <code class="language-typescript">registerContactRules</code> (see <a href="#game-config"><code class="language-typescript">contactRules.ts</code></a>) populates the engine's <code class="language-typescript">Physics.Contacts</code> registry with this game's six cross-entity rules (Enemy↔Player = <code class="language-typescript">gameOver</code>, Enemy↔TrashCan, Teleporter, CameraSensor, WinFlag) — the engine dispatches physics contacts into the table but never names a game concept. <code class="language-typescript">RegisterCollisionLogSink(new CollisionLogger())</code> hands the engine <a href="#engine-debug"><code class="language-typescript">Debug</code></a> coordinator a game-owned formatter implementing the <code class="language-typescript">CollisionLogSink</code> interface; Physics routes enter/exit log calls to it (no-op when no sink). <code class="language-typescript">SetPhysicsTypeColors(DEBUG_TYPE_COLORS)</code> injects the entity-type→color map (see <a href="#game-config"><code class="language-typescript">debugColors.ts</code></a>) which <code class="language-typescript">PhysicsDebug</code> consults to tint each collider's wireframe.
+      </p>
+      <div class="callout victory"><b>Decision code D3 — the engine never names a type.</b> The injection comment above these calls is tagged <code class="language-typescript">(D3)</code>. The wireframe palette is keyed by game <code class="language-typescript">EntityType</code> strings, but the engine's <code class="language-typescript">PhysicsDebug</code> must not import the game's enum. So the game <em>injects</em> the <code class="language-typescript">Map&lt;string, THREE.Color&gt;</code> and the engine looks each collider's <code class="language-typescript">userData.type</code> up in it opaquely, falling back to gray for unlisted types. D3 prevents the engine layer from ever depending on a game-defined name — the bug it forestalls is a circular/leaky dependency that would make <code class="language-typescript">engine/</code> un-reusable.</div>
+
+      <p><b>Step 4 — construct the game (lines 92–94), built AFTER <code class="language-typescript">Configure</code>.</b></p>
+      <pre class="code"><code class="language-typescript">const director = new GameDirector();
+gameDirector = director;
+const inputBindings = new InputBindings(exp.Input);</code></pre>
+      <p>
+        <a href="#game-director"><code class="language-typescript">GameDirector</code></a>'s constructor calls <code class="language-typescript">Experience.GetInstance()</code> and caches <code class="language-typescript">Scene</code>, <code class="language-typescript">Time</code>, <code class="language-typescript">Camera</code>, <code class="language-typescript">Resources</code> — so it <em>must</em> run after <code class="language-typescript">Configure</code> has created those subsystems. Critically, its constructor also runs <code class="language-typescript">setupEventHandlers()</code>, which subscribes the <code class="language-typescript">resourcesReady</code> listener that boots the default level. That subscription is the reason <code class="language-typescript">StartLoading()</code> is deferred to the very end. <a href="#game-config"><code class="language-typescript">InputBindings</code></a> takes the engine <code class="language-typescript">Input</code> device and converts F-key press <em>edges</em> into game events (F1→<code class="language-typescript">gameReset</code>, F2→<code class="language-typescript">switchLevel</code>, F3→<code class="language-typescript">manualCameraControl</code>). The director is also captured in the script-scoped <code class="language-typescript">gameDirector</code> ref so <code class="language-typescript">onUnmounted</code> can call its <code class="language-typescript">Destroy()</code>.
+      </p>
+
+      <p><b>Step 5 — register the debug level dropdown (line 97).</b></p>
+      <pre class="code"><code class="language-typescript">// Debug level select (dat.gui) — no-op store when debug is inactive.
+exp.Debug.RegisterModule(new LevelDebug(director));</code></pre>
+      <p>
+        <a href="#game-debug-types"><code class="language-typescript">LevelDebug</code></a> is a <code class="language-typescript">DebugModule</code> that adds a dat.GUI "🗺️ Level" folder bound directly to <code class="language-typescript">GameDirector.CurrentLevelName</code>. It is passed the director so its dropdown can call <code class="language-typescript">LoadLevelByName</code>. Per <a href="#engine-debug"><code class="language-typescript">Debug.RegisterModule</code></a>, when debug is inactive the module is merely stored (its <code class="language-typescript">Init</code> never runs); when active the folder is built immediately. App.vue doesn't branch on debug state — it always registers, and the engine decides.
+      </p>
+
+      <p><b>Step 6 — the sim and render hooks (lines 99–107).</b> Two late-bound seams now, not one: <code class="language-typescript">OnGameUpdate</code> runs once per fixed sim step, <code class="language-typescript">OnRenderUpdate</code> once per rendered frame.</p>
+      <pre class="code"><code class="language-typescript">exp.OnGameUpdate = () =&gt; {
+  inputBindings.Update();
+  director.Update();
+};
+exp.OnRenderUpdate = (alpha: number) =&gt; {
+  director.RenderUpdate(alpha);
+};</code></pre>
+      <p>
+        These are the late-bound seams that keep the engine free of game names. <a href="#engine-core"><code class="language-typescript">Experience</code></a>'s <code class="language-typescript">onTick</code> now runs a fixed-step simulation loop: it calls <code class="language-typescript">this.OnGameUpdate?.()</code> once per fixed step (so the sim rate is decoupled from frame rate), then — after the loop — computes an interpolation factor <code class="language-typescript">alpha = accumulator / dt</code> and calls <code class="language-typescript">this.OnRenderUpdate?.(alpha)</code> exactly once per frame, just before <code class="language-typescript">Renderer.Update()</code>. The split maps cleanly onto the director: <a href="#game-director"><code class="language-typescript">Update()</code></a> is the SIM pass (input edges, player, enemies, spawn, ladder), while <code class="language-typescript">RenderUpdate(alpha)</code> is the per-frame pass that interpolates each body's graphics between its previous and current sim positions and then moves the camera to follow the interpolated player. Order inside <code class="language-typescript">OnGameUpdate</code> still matters: <code class="language-typescript">inputBindings.Update()</code> runs first so an F-key press this step (e.g. F1→<code class="language-typescript">gameReset</code>) is emitted before <code class="language-typescript">director.Update()</code> ticks the player/enemies.
+      </p>
+      <div class="callout note"><b>Note.</b> App.vue assigns both hooks but never calls them. The engine's <code class="language-typescript">Time</code> "tick" event drives the loop; App.vue only supplies the two function bodies. This is the inversion that lets <code class="language-typescript">engine/core/experience.ts</code> ship without importing a single game file.</div>
+      <div class="callout victory"><b>Why two hooks — smooth motion at any frame rate.</b> Splitting a per-step <code class="language-typescript">OnGameUpdate</code> from a per-frame <code class="language-typescript">OnRenderUpdate(alpha)</code> is what lets physics tick at a fixed rate while rendering interpolates <em>between</em> steps — a rolling barrel slides smoothly instead of snapping a step at a time. App.vue's only job here is to wire the right pass to each hook; the interpolation math lives in <a href="#game-director"><code class="language-typescript">GameDirector.RenderUpdate</code></a> and the engine loop.</div>
+
+      <p><b>Step 7 — game-status handlers (defined at script scope, registered here — lines 48–64, 109–112).</b> Four more <em>named</em> handlers translate game-flow events into UI changes; <code class="language-typescript">onMounted</code> subscribes them by reference (so <code class="language-typescript">onUnmounted</code> can later off exactly these):</p>
+      <pre class="code"><code class="language-typescript">const onGameWin = () =&gt; {
+  if (statusRef.value) statusRef.value.innerText = "Game Win!";
+  isResetButtonVisible.value = true;
+};
+const onGameOver = () =&gt; {
+  if (statusRef.value) statusRef.value.innerText = "Game Over!";
+  isResetButtonVisible.value = true;
+};
+const onGameReset = () =&gt; {
+  if (statusRef.value) statusRef.value.innerText = "";
+  isResetButtonVisible.value = false;
+};
+// A (re)start — boot or a level switch — clears any lingering game-over/win UI.
+const onGameStart = () =&gt; {
+  if (statusRef.value) statusRef.value.innerText = "";
+  isResetButtonVisible.value = false;
+};
+
+// ...inside onMounted, after the update hooks:
+Emitter.on("gameWin", onGameWin);
+Emitter.on("gameOver", onGameOver);
+Emitter.on("gameReset", onGameReset);
+Emitter.on("gameStart", onGameStart);</code></pre>
+      <p>
+        <code class="language-typescript">gameWin</code> and <code class="language-typescript">gameOver</code> write the banner and reveal the Reset button. <code class="language-typescript">gameReset</code> and <code class="language-typescript">gameStart</code> both clear the banner and hide the button — the difference is semantic: <code class="language-typescript">gameReset</code> is the player re-arming the current level, while <code class="language-typescript">gameStart</code> fires on every successful level load (boot, F2 switch, debug select — emitted from <a href="#game-director"><code class="language-typescript">GameDirector.loadLevelByIndex</code></a> on success). Listening to <code class="language-typescript">gameStart</code> is what stops a fresh level from inheriting the previous level's "Game Over!" text. None of these events originates here; they come from <a href="#game-config"><code class="language-typescript">contactRules.ts</code></a> (<code class="language-typescript">gameOver</code>/<code class="language-typescript">gameWin</code>), <code class="language-typescript">GameDirector</code> (<code class="language-typescript">gameStart</code>), and <code class="language-typescript">InputBindings</code>/the Reset button (<code class="language-typescript">gameReset</code>).
+      </p>
+
+      <p><b>Step 8 — kick off asset loading LAST (line 116).</b></p>
+      <pre class="code"><code class="language-typescript">// Kick off asset loading LAST — everything that listens for the boot
+// ("resourcesReady" → GameDirector) and per-asset progress is now wired.
+exp.Resources.StartLoading();</code></pre>
+      <div class="callout victory"><b>Hard-won victory — <code class="language-typescript">StartLoading()</code> dead last.</b> <a href="#engine-resources"><code class="language-typescript">ResourceLoader</code></a> deliberately does <em>not</em> auto-start in its constructor (its own comment explains why). If loading began before <code class="language-typescript">GameDirector</code> existed, a fast load could emit <code class="language-typescript">resourcesReady</code> into zero listeners — mitt drops it — and the boot would hang on the loading screen forever. By starting only after the director (resourcesReady) and the progress listeners (step 1) are all subscribed, the completion event is guaranteed to land. This is the macro version of the step-1 race fix.</div>
+      <div class="callout gotcha"><b>Gotcha — ordering is load-bearing top to bottom.</b> Moving any of these calls is dangerous: listeners must precede <code class="language-typescript">Configure</code>; <code class="language-typescript">RegisterLevelTypes</code> must follow <code class="language-typescript">Configure</code> (it reaches into <code class="language-typescript">Resources</code>) yet precede <code class="language-typescript">StartLoading</code> (the first level load needs the vocabulary in place); <code class="language-typescript">GameDirector</code> must follow <code class="language-typescript">Configure</code> (it reads subsystems) yet precede <code class="language-typescript">StartLoading</code> (it owns the resourcesReady listener); the update hooks (<code class="language-typescript">OnGameUpdate</code>/<code class="language-typescript">OnRenderUpdate</code>) can be assigned any time before the first tick fires but are placed after the game objects exist. Treat <code class="language-typescript">onMounted</code> as a fixed recipe.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const handleButtonClicked = () =&gt; { ... };</code></h4>
+      <p>
+        The Reset button's <code class="language-html">@click</code> handler. It emits <code class="language-typescript">gameReset</code> (which <a href="#game-director"><code class="language-typescript">GameDirector</code></a> listens for to unpause physics and call <code class="language-typescript">resetGameState()</code>), then also clears the status text and hides itself locally.
+      </p>
+      <pre class="code"><code class="language-typescript">// Reset button: clear win/over status and re-arm the game
+const handleButtonClicked = () =&gt; {
+  Emitter.emit("gameReset");
+
+  if (statusRef.value) {
+    statusRef.value.innerText = "";
+  }
+
+  isResetButtonVisible.value = false;
+};</code></pre>
+      <p>
+        Note the slight redundancy: emitting <code class="language-typescript">gameReset</code> already triggers the <code class="language-typescript">gameReset</code> handler from step 7, which clears the same status and button. Doing it inline as well is harmless and makes the click feel instant regardless of listener order. This is the <em>only</em> event App.vue emits.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const barWidth = () =&gt; string;</code></h4>
+      <p>
+        Computes the progress-bar fill percentage as a CSS width string. Returns <code class="language-typescript">"0%"</code> when there is no progress payload or <code class="language-typescript">total</code> is zero (guarding a divide-by-zero / NaN), otherwise <code class="language-typescript">loaded / total * 100 + "%"</code>.
+      </p>
+      <pre class="code"><code class="language-typescript">// Loading-bar fill percent from loaded/total (empty -> 0%)
+const barWidth = () =&gt; {
+  if (!loadProgress.value || !loadProgress.value.total) return "0%";
+  return (loadProgress.value.loaded / loadProgress.value.total) * 100 + "%";
+};</code></pre>
+      <p>
+        It is a plain function (not a <code class="language-typescript">computed</code>), called from the template's <code class="language-typescript">:style</code> binding; Vue re-invokes it whenever <code class="language-typescript">loadProgress</code> changes because it reads that ref. The empty guard is what shows a 0%-wide bar the instant <code class="language-typescript">StartLoading</code> emits its seed <code class="language-typescript">{ loaded: 0, total }</code> event.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-html">&lt;template&gt; — canvas, status/reset, loading overlay</code></h4>
+      <p>
+        The template is three sibling blocks: an absolutely-positioned overlay div (title, status, Reset), the canvas, and the loading overlay. Vue owns all of this presentation; the game never touches the DOM.
+      </p>
+      <pre class="code"><code class="language-html">&lt;div class="absolute w-full h-full"&gt;
+  &lt;p class="text-white"&gt;firePlatformerEngine&lt;/p&gt;
+  &lt;p ref="statusRef" class="text-white"&gt;&lt;/p&gt;
+  &lt;button
+    v-if="isResetButtonVisible"
+    @click="handleButtonClicked"
+    class="text-green-500 mt-2 ml-2 px-3 py-1 border rounded-md"
+  &gt;
+    Reset
+  &lt;/button&gt;
+&lt;/div&gt;
+&lt;canvas ref="webglRef" class=""&gt;&lt;/canvas&gt;</code></pre>
+      <p>
+        The first <code class="language-html">&lt;p&gt;</code> is a static title; the second carries <code class="language-html">ref="statusRef"</code> and is written imperatively by the handlers. The Reset button is gated by <code class="language-html">v-if="isResetButtonVisible"</code> so it only exists in the DOM after win/over. The <code class="language-html">&lt;canvas ref="webglRef"&gt;</code> is the surface handed to <code class="language-typescript">Experience.Configure</code> — its <code class="language-typescript">class</code> is empty because the engine's <code class="language-typescript">Sizes</code>/<code class="language-typescript">Renderer</code> drive its dimensions.
+      </p>
+      <pre class="code"><code class="language-html">&lt;!-- Loading overlay — covers the canvas during any level/asset load: progress bar while initial assets load, plain "Loading…" while a level GLB parses. --&gt;
+&lt;div
+  v-if="isLoading"
+  class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black z-50"
+&gt;
+  &lt;template v-if="loadProgress"&gt;
+    &lt;p class="text-white text-sm tracking-widest"&gt;
+      Loading {{ loadProgress.loaded }} / {{ loadProgress.total }}
+      &lt;span v-if="loadProgress.item"&gt; · {{ loadProgress.item }}&lt;/span&gt;
+    &lt;/p&gt;
+    &lt;div class="w-64 h-2 rounded bg-white/20"&gt;
+      &lt;div
+        class="h-full rounded bg-white transition-all duration-150"
+        :style="{ width: barWidth() }"
+      &gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+  &lt;p v-else class="text-white text-2xl tracking-widest animate-pulse"&gt;
+    Loading…
+  &lt;/p&gt;
+&lt;/div&gt;</code></pre>
+      <p>
+        The overlay is gated by <code class="language-html">v-if="isLoading"</code> (a full-screen black <code class="language-html">z-50</code> layer over the canvas). Inside, a <code class="language-html">v-if="loadProgress"</code> / <code class="language-html">v-else</code> picks the presentation: when a count exists (boot load) it renders <em>"Loading N / total · item"</em> plus the filled bar driven by <code class="language-typescript">:style="{ width: barWidth() }"</code>; otherwise (a per-level GLB parse, where <code class="language-typescript">loadProgress</code> was nulled by the <code class="language-typescript">loadingStarted</code> handler) it shows the pulsing <em>"Loading…"</em> spinner text. The <code class="language-html">item</code> suffix is itself gated by <code class="language-html">v-if="loadProgress.item"</code> so the seed <code class="language-typescript">item: ""</code> event doesn't render a dangling separator.
+      </p>
+    </div>
+
+    <h4 class="member-sig"><code class="language-typescript">Event surface — what App.vue listens to vs. emits</code></h4>
+    <table class="tbl">
+      <thead><tr><th>Event</th><th>Direction</th><th>Effect / source</th></tr></thead>
+      <tbody>
+        <tr><td><code class="language-typescript">loadingStarted</code></td><td>listen</td><td>raise overlay, null <code class="language-typescript">loadProgress</code> → spinner. From <code class="language-typescript">GameDirector.loadLevelByIndex</code>.</td></tr>
+        <tr><td><code class="language-typescript">loadingFinished</code></td><td>listen</td><td>drop overlay. From <code class="language-typescript">GameDirector.loadLevelByIndex</code> (finally).</td></tr>
+        <tr><td><code class="language-typescript">loadingProgress</code></td><td>listen</td><td>store count → show/advance bar. From <code class="language-typescript">ResourceLoader</code>.</td></tr>
+        <tr><td><code class="language-typescript">gameWin</code></td><td>listen</td><td>banner "Game Win!" + show Reset. From <code class="language-typescript">contactRules</code> (WinFlag).</td></tr>
+        <tr><td><code class="language-typescript">gameOver</code></td><td>listen</td><td>banner "Game Over!" + show Reset. From <code class="language-typescript">contactRules</code> (Enemy↔Player).</td></tr>
+        <tr><td><code class="language-typescript">gameReset</code></td><td>listen &amp; <b>emit</b></td><td>clear banner + hide Reset (listen); Reset button emits it.</td></tr>
+        <tr><td><code class="language-typescript">gameStart</code></td><td>listen</td><td>clear stale banner/button on every level load. From <code class="language-typescript">GameDirector</code>.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">onUnmounted(() =&gt; { ... });</code></h4>
+      <p>
+        The teardown hook, symmetric with the <code class="language-typescript">onMounted</code> recipe. It removes <em>exactly</em> the seven named listeners this component registered — by reference, so it can't disturb other modules sharing the bus — then destroys the game and the engine, in that order. This is the path that finally exercises the engine subsystems' <code class="language-typescript">Destroy()</code> at all; it fires on an HMR reload or, if App.vue ever became a mounted/unmounted child, on a route change.
+      </p>
+      <pre class="code"><code class="language-typescript">onUnmounted(() =&gt; {
+  Emitter.off("loadingStarted", onLoadingStarted);
+  Emitter.off("loadingFinished", onLoadingFinished);
+  Emitter.off("loadingProgress", onLoadingProgress);
+  Emitter.off("gameWin", onGameWin);
+  Emitter.off("gameOver", onGameOver);
+  Emitter.off("gameReset", onGameReset);
+  Emitter.off("gameStart", onGameStart);
+
+  gameDirector?.Destroy();
+  webglExperience?.Destroy();
+});</code></pre>
+      <p>
+        Order matters: <code class="language-typescript">gameDirector?.Destroy()</code> runs before <code class="language-typescript">webglExperience?.Destroy()</code> so the director can off its own bus handlers and unload its level data while the engine subsystems it borrows still exist; only then does the engine tear down its own loop, renderer, and physics world. The optional chaining (<code class="language-typescript">?.</code>) guards the case where a half-failed <code class="language-typescript">Configure</code> left one of the script-scoped refs <code class="language-typescript">null</code>.
+      </p>
+      <div class="callout victory"><b>Hard-won victory — symmetric teardown, no leaks.</b> Naming the handlers (script scope) and offing each by reference is what makes a clean unmount possible: a bare <code class="language-typescript">Emitter.off("gameWin")</code> would wipe <em>every</em> module's <code class="language-typescript">gameWin</code> listener, and the old anonymous handlers couldn't be removed at all — they'd survive a hot-reload and double-fire on the next mount. Pairing every <code class="language-typescript">Emitter.on</code> in <code class="language-typescript">onMounted</code> with an <code class="language-typescript">Emitter.off</code> here, plus <code class="language-typescript">gameDirector.Destroy()</code> + <code class="language-typescript">webglExperience.Destroy()</code>, closes the leak the previous version openly warned about.</div>
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> To add a new HUD element reacting to gameplay, define a fresh game event in <a href="#engine-events-input--eventbus"><code class="language-typescript">eventBus.ts</code></a>'s <code class="language-typescript">GameEventMap</code>, emit it from the game side, and add one <code class="language-typescript">Emitter.on</code> here that flips a <code class="language-typescript">ref</code> the template renders — do not reach into game objects from Vue. To wire a new engine↔game seam (another contact-rule set, debug sink, or update participant), add it to the <code class="language-typescript">onMounted</code> recipe in the right slot: injection calls after <code class="language-typescript">Configure</code>, anything subscribing to <code class="language-typescript">resourcesReady</code> before <code class="language-typescript">StartLoading()</code>, and listeners before <code class="language-typescript">Configure</code> when they must catch boot events. Keep <code class="language-typescript">StartLoading()</code> the final statement of <code class="language-typescript">onMounted</code>. And whenever you add an <code class="language-typescript">Emitter.on</code> here, define it as a named handler and add the matching <code class="language-typescript">Emitter.off</code> (by that same reference) to <code class="language-typescript">onUnmounted</code> so the listener tears down cleanly.</p>
+  </article>
+</section>

@@ -1,0 +1,509 @@
+<section class="doc-section" id="engine-rendering">
+  <header class="section-head">
+    <h2 class="section-title">Rendering — Renderer &amp; SpriteAnimator</h2>
+    <p class="section-blurb">
+      Two small, single-responsibility files own everything the player actually <em>sees</em>. <code>renderer.ts</code>
+      is a thin lifecycle wrapper around one <code>THREE.WebGLRenderer</code> — it is created by the <em>Experience</em>
+      singleton, rendered once per <code>tick</code>, resized on <code>resize</code>, and disposed on teardown.
+      <code>spriteAnimator.ts</code> is a per-entity helper that turns a single static sprite-sheet texture into a
+      flip-book: it slices the sheet into a tile grid and walks a <code>THREE.SpriteMaterial</code>'s UV
+      <code>offset</code> frame-by-frame. Both files share one obsessive theme — <b>pixel-perfect, never-blurry</b>
+      rendering — and both encode that as inline <code>CRITICAL</code> comments rather than decision-codes.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/engine/rendering/renderer.ts</span>
+      <span class="chip">src/engine/rendering/spriteAnimator.ts</span>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <!-- renderer.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-rendering--renderer">
+    <h3 class="file-name">src/engine/rendering/renderer.ts <span class="loc">58 LOC</span></h3>
+    <p class="file-role">
+      This file IS the engine's window onto the GPU — a wrapper that owns exactly one <code>THREE.WebGLRenderer</code>
+      and nothing else. It is constructed by the <em>Experience</em> singleton (see <em>Engine Core — Experience</em>):
+      <code>this.Renderer = new Renderer()</code>, immediately after the <code>Scene</code> and <code>Camera</code> exist
+      and just before <code>Physics</code>. It imports <code>Experience</code> only to pull engine singletons out of the
+      one global wiring hub, <code>Sizes</code> for width/height/pixel-ratio, and <code>Camera</code> because rendering
+      needs a viewpoint — it does not import the game layer at all, which is what keeps it reusable. Its lifecycle is
+      deliberately minimal: <b>constructor</b> grabs refs and builds the renderer, <b>Resize()</b> re-fits it to the
+      window, <b>Update()</b> draws one frame, <b>Destroy()</b> frees the GL context.
+    </p>
+
+    <div class="callout note">
+      <b>Note.</b> The renderer never subscribes to the event bus itself. The <em>Experience</em> owns the
+      <code>tick</code> and <code>resize</code> subscriptions and calls <code>Renderer.Update()</code> /
+      <code>Renderer.Resize()</code> directly. That keeps this class a passive device the coordinator drives, not an
+      actor that wires itself into the world — the same pattern every engine subsystem follows.
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private experience; private canvas; private sizes; private scene; private camera; private Instance!: THREE.WebGLRenderer</code></h4>
+      <p>
+        Five cached references plus the raw renderer. Everything except <code>Instance</code> is read straight off the
+        <em>Experience</em> in the constructor, so this object never re-resolves a singleton at runtime. <code>Instance</code>
+        is the only thing this class actually <em>owns</em> and is marked <code>!</code> (definite-assignment) because it
+        is built in <code>setInstance()</code> rather than inline.
+      </p>
+      <pre class="code"><code class="language-typescript">private experience: Experience;
+private canvas: HTMLElement;
+private sizes: Sizes;
+private scene: THREE.Scene;
+private camera: Camera;
+
+private Instance!: THREE.WebGLRenderer; // the raw THREE WebGL renderer</code></pre>
+      <p>
+        Note <code>scene</code> is a <code>THREE.Scene</code> (the engine-shared draw list) while <code>camera</code> is the
+        engine's <em>own</em> <code>Camera</code> wrapper — so rendering reaches through <code>this.camera.Instance</code>
+        for the underlying <code>THREE</code> camera (see <em>Camera</em>).
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor()</code></h4>
+      <p>
+        No parameters. Resolves the singleton, caches the canvas/sizes/scene/camera off it, then builds and sizes the
+        renderer. The order matters: <code>setInstance()</code> creates the GL context bound to the canvas, and
+        <code>Resize()</code> immediately fits it to the current window — there is no first-frame at the wrong size.
+      </p>
+      <pre class="code"><code class="language-typescript">this.experience = Experience.GetInstance();
+this.canvas = this.experience.TargetElement as HTMLElement;
+this.sizes = this.experience.Sizes;
+this.scene = this.experience.Scene;
+this.camera = this.experience.Camera;
+
+this.setInstance();
+this.Resize();</code></pre>
+      <p>
+        <code>TargetElement</code> is cast to <code>HTMLElement</code> because the Experience stores it generically; the
+        WebGL renderer wants a concrete canvas element. Reading <code>Sizes</code> here (not <code>window</code> directly)
+        is the seam that lets <code>Sizes</code> own the single source of truth for dimensions and pixel ratio.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private setInstance()</code></h4>
+      <p>
+        Builds and configures the one <code>THREE.WebGLRenderer</code>. This is the most opinionated method in the file:
+        every option here exists to make pixel art crisp.
+      </p>
+      <pre class="code"><code class="language-typescript">this.Instance = new THREE.WebGLRenderer({
+  canvas: this.canvas,
+  // CRITICAL: Antialiasing MUST be disabled for pixel art!
+  // Antialiasing smooths edges which makes pixel art look blurry...
+  antialias: false,
+});
+
+this.Instance.setClearColor("#211d20");
+this.Instance.setSize(this.sizes.Width, this.sizes.Height);
+this.Instance.setPixelRatio(this.sizes.PixelRatio);</code></pre>
+      <p>
+        Line by line: <code>canvas</code> binds the GL context to the existing DOM canvas (rather than letting THREE create
+        a detached one). <code>setClearColor("#211d20")</code> paints the background — a near-black warm charcoal — every
+        frame before drawing. <code>setSize</code> sets the drawing-buffer resolution from <code>Sizes</code>, and
+        <code>setPixelRatio</code> applies the (capped) device pixel ratio so HiDPI displays render sharp without
+        over-rendering.
+      </p>
+      <div class="callout victory">
+        <b>Hard-won victory: <code>antialias: false</code>.</b> This is the single most important line in the renderer.
+        MSAA smooths triangle edges, which on a magnified pixel-art sprite reads as a shimmering, blurry halo that
+        crawls during motion. Disabling it is what makes a 16&times;-scaled firefighter look like crisp pixels instead of
+        a smear. It is the renderer-side half of a fix that the <em>SpriteAnimator</em> completes with
+        <code>NearestFilter</code> — you need <b>both</b> off/nearest or the art still blurs.
+      </div>
+      <div class="callout gotcha">
+        <b>Gotcha.</b> <code>setPixelRatio</code> must come after (or alongside) <code>setSize</code>, and both read from
+        <code>Sizes</code>. If you ever set the renderer size from <code>window.innerWidth</code> directly you fork the
+        source of truth and the canvas can desync from the camera's aspect on resize. Always go through <code>Sizes</code>.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Resize()</code></h4>
+      <p>
+        Re-fits the renderer to the current window. Called by the <em>Experience</em>'s <code>resize</code> handler
+        (which also calls <code>Camera.Resize()</code>). It simply re-applies size and pixel ratio from the freshly
+        updated <code>Sizes</code> values.
+      </p>
+      <pre class="code"><code class="language-typescript">this.Instance?.setSize(this.sizes.Width, this.sizes.Height);
+this.Instance?.setPixelRatio(this.sizes.PixelRatio);</code></pre>
+      <p>
+        The <code>?.</code> optional chaining guards the one race where <code>Resize()</code> could fire before
+        <code>Instance</code> exists. In practice the constructor builds it first, but the guard keeps a stray early
+        resize from throwing. Pixel ratio is re-applied here too, not just in <code>setInstance</code>, because dragging
+        a window between a HiDPI and a standard monitor changes <code>window.devicePixelRatio</code> live.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Update()</code></h4>
+      <p>
+        Draws exactly one frame: the shared scene viewed through the active camera. This is the engine's render call,
+        invoked once per <code>tick</code> by the Experience.
+      </p>
+      <pre class="code"><code class="language-typescript">this.Instance?.render(this.scene, this.camera.Instance);</code></pre>
+      <p>
+        <code>this.camera.Instance</code> reaches past the engine's <code>Camera</code> wrapper to the underlying
+        <code>THREE</code> camera that <code>render()</code> requires. The crucial detail is <b>when</b> this runs in the
+        frame: the Experience's tick handler runs <code>Physics.Update()</code> first (which moves bodies and lets each
+        game object sync its mesh to its physics transform), <em>then</em> the game's <code>OnGameUpdate</code> hook,
+        <em>then</em> <code>Renderer.Update()</code> last — so the renderer always draws the world's final, settled state
+        for that frame.
+      </p>
+      <pre class="mermaid">sequenceDiagram
+    participant T as Time (tick)
+    participant E as Experience.onTick
+    participant P as Physics.Update
+    participant G as OnGameUpdate
+    participant R as Renderer.Update
+    T->>E: emit "tick"
+    E->>P: step world, sync meshes
+    E->>G: game logic / camera follow
+    E->>R: render(scene, camera.Instance)
+    R-->>T: frame drawn</pre>
+      <div class="callout gotcha">
+        <b>Gotcha: render is last for a reason.</b> If you ever move <code>Renderer.Update()</code> before
+        <code>Physics.Update()</code>, you draw last frame's positions — one-frame visual lag and jitter on fast-moving
+        barrels. The ordering in <em>Experience</em>'s <code>onTick</code> is load-bearing.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Destroy()</code></h4>
+      <p>
+        Frees the GPU resources held by the renderer. Called by the Experience's <code>Destroy()</code> in the documented
+        teardown order (<em>camera &rarr; physics &rarr; renderer &rarr; resources</em>).
+      </p>
+      <pre class="code"><code class="language-typescript">// Dispose of the WebGL renderer
+this.Instance.dispose();</code></pre>
+      <p>
+        <code>dispose()</code> releases the WebGL context and its GPU buffers. Note this does <em>not</em> dispose
+        geometries, materials, or textures in the scene — those belong to the individual <code>GameObject</code>s and the
+        <code>ResourceLoader</code>, each of which disposes its own (e.g. the <em>SpriteAnimator</em> below disposes its
+        texture and material). Renderer only owns the context, so it only frees the context.
+      </p>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> treat the four pixel-art settings as a unit — if you turn <code>antialias</code> back on you
+      reintroduce blur, and changing <code>setPixelRatio</code> away from the <code>Sizes</code> value forks the source of
+      truth. To add post-processing you would introduce an <code>EffectComposer</code> and swap <code>Update()</code>'s
+      <code>render</code> for <code>composer.render()</code> (and resize the composer in <code>Resize()</code>). To change
+      the background, edit the one <code>setClearColor</code> hex. Keep this file game-agnostic: no game import belongs here.
+    </p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- spriteAnimator.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-rendering--spriteanimator">
+    <h3 class="file-name">src/engine/rendering/spriteAnimator.ts <span class="loc">139 LOC</span></h3>
+    <p class="file-role">
+      This file IS the engine's flip-book player: it takes one static sprite-sheet <code>THREE.Texture</code>, treats it
+      as a grid of equal tiles, and animates a <code>THREE.SpriteMaterial</code> by sliding its UV <code>offset</code>
+      from tile to tile over time. It imports only <code>three</code> — it knows nothing about players, states, or the
+      game. One <code>SpriteAnimator</code> is constructed and owned <em>per animated entity</em>; for the hero it is
+      built in <code>Player.setSpriteAnimator()</code> as <code>new SpriteAnimator(this.Resources.Items.randy, 4, 6)</code>
+      (see <em>Player</em>). Lifecycle: <b>constructor</b> caches the grid dimensions and builds the material;
+      <b>ChangeState()</b> swaps which frames play; <b>ChangeAnimationTiming()</b> scales playback speed;
+      <b>Update(deltaTime)</b> advances the frame; <b>Destroy()</b> disposes the texture and material.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">interface SpriteState { indicies: number[]; timing: number[] }</code></h4>
+      <p>
+        The data shape that drives one animation. <code>indicies</code> is the ordered list of tile ids to show (the
+        <em>misspelling is kept on purpose</em>, per the comment, so it matches the rest of the codebase). <code>timing</code>
+        is the parallel array of <b>seconds each frame holds</b> — same length as <code>indicies</code>, index-aligned.
+        The game supplies these as a static table in <code>spriteAnimations.ts</code> (see <em>Player</em>); the engine
+        never hard-codes any frame numbers.
+      </p>
+      <pre class="code"><code class="language-typescript">interface SpriteState {
+  indicies: number[]; // tile indices, left-to-right top-to-bottom from 0
+  timing: number[];   // seconds per frame; same length as indicies
+}</code></pre>
+    </div>
+
+    <h4 class="member-sig" style="margin-top:1.5rem;">How a sheet becomes a flip-book</h4>
+    <p>
+      The animator never crops or copies pixels. The texture stays whole; what moves is a small UV window. In the
+      constructor the material's <code>repeat</code> is set to <code>(1/tilesHorizontal, 1/tilesVertical)</code> — for
+      Randy that is <code>(1/4, 1/6)</code>, a window exactly one tile wide and one tile tall. Every frame, <code>Update()</code>
+      recomputes the window's <code>offset</code> so it lands on the desired tile. Here is the real sheet the offsets walk:
+    </p>
+    <img class="figure" src="docs/assets/randySpriteSheet.png" alt="Randy sprite sheet">
+    <p>
+      Randy is a <b>4&times;6</b> grid (24 tiles, ids <code>0..23</code>), numbered left-to-right then top-to-bottom from
+      <code>0</code> in the top-left. So row 0 is ids <code>0,1,2,3</code>; row 1 is <code>4,5,6,7</code>; and so on down to
+      row 5 = <code>20,21,22,23</code>. The empty cells are intentional gaps — the game's
+      <code>SpriteAnimations</code> table only references the occupied ones:
+    </p>
+    <table class="tbl">
+      <thead><tr><th>Animation</th><th>indicies</th><th>Sheet location</th><th>timing (s)</th></tr></thead>
+      <tbody>
+        <tr><td>IDLE_LEFT</td><td>[1, 2]</td><td>row 0, cols 1&amp;2</td><td>[5, 0.1]</td></tr>
+        <tr><td>IDLE_RIGHT</td><td>[5, 6]</td><td>row 1, cols 1&amp;2</td><td>[0.1, 5]</td></tr>
+        <tr><td>RUN_LEFT</td><td>[8, 9, 10, 11]</td><td>row 2, all 4</td><td>[0.25&times;4]</td></tr>
+        <tr><td>RUN_RIGHT</td><td>[12, 13, 14, 15]</td><td>row 3, all 4</td><td>[0.25&times;4]</td></tr>
+        <tr><td>JUMP_LEFT / FALL_LEFT</td><td>[17, 18]</td><td>row 4, cols 1&amp;2</td><td>[0.25, 0.25]</td></tr>
+        <tr><td>JUMP_RIGHT / FALL_RIGHT</td><td>[21, 22]</td><td>row 5, cols 1&amp;2</td><td>[0.25, 0.25]</td></tr>
+      </tbody>
+    </table>
+    <div class="callout tip">
+      <b>Tip: the blink.</b> Idle is a two-frame loop where one frame holds for <b>5 s</b> and the other for <b>0.1 s</b> —
+      that 0.1 s frame is the eyes-closed tile, so Randy blinks once every ~5 seconds while standing. Notice
+      <code>IDLE_LEFT</code> is <code>[5, 0.1]</code> but <code>IDLE_RIGHT</code> is <code>[0.1, 5]</code>: the long-hold
+      frame is the second entry on the right side because the open-eyes tile happens to be the second id (<code>6</code>)
+      there. The timing array is what encodes "which tile is the resting pose."
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private currentTile; elapsedTime; runningTileIndex; tilesHorizontal; tilesVertical; timingMultiplier; public State; public Material!</code></h4>
+      <p>
+        Two indices are easy to confuse, so the field names are precise: <code>currentTile</code> is the <em>tile id</em>
+        on the sheet (e.g. <code>13</code>), while <code>runningTileIndex</code> is the <em>position within
+        <code>State.indicies</code></em> (e.g. the 2nd entry). <code>elapsedTime</code> accumulates <code>deltaTime</code>
+        toward the current frame's duration. <code>tilesHorizontal</code>/<code>tilesVertical</code> are the grid dims.
+        <code>timingMultiplier</code> scales every frame duration to speed up or slow down playback. <code>State</code> and
+        <code>Material</code> are the only public members — the game reads/writes <code>State</code> and the entity's mesh
+        binds to <code>Material</code>.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor(spriteSheet: THREE.Texture, tilesHorizontal: number, tilesVertical: number)</code></h4>
+      <p>
+        Parameters: the sheet texture (Randy's <code>randy</code> texture from <code>ResourceLoader</code>), and the grid
+        dimensions. Zeroes the playback cursors, stores the grid, initialises <code>State</code> to an empty animation, sets
+        <code>timingMultiplier = 1</code>, then builds the material.
+      </p>
+      <pre class="code"><code class="language-typescript">this.currentTile = 0;
+this.elapsedTime = 0;
+this.runningTileIndex = 0;
+this.tilesHorizontal = tilesHorizontal;
+this.tilesVertical = tilesVertical;
+
+this.State = { indicies: [], timing: [] };
+this.timingMultiplier = 1;
+
+this.setMaterial(spriteSheet);</code></pre>
+      <p>
+        The empty starting <code>State</code> means a freshly built animator shows tile <code>0</code> (top-left) and does
+        not advance until the game assigns a real state — which the <em>Player</em> does immediately after construction:
+        <code>this.SpriteAnimator.State = SpriteAnimations.IDLE_RIGHT</code>.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private setMaterial(spriteSheet: THREE.Texture)</code></h4>
+      <p>
+        Builds the <code>THREE.SpriteMaterial</code> and locks in pixel-perfect filtering — the SpriteAnimator's half of
+        the crispness fix that <em>Renderer</em> starts with <code>antialias: false</code>.
+      </p>
+      <pre class="code"><code class="language-typescript">spriteSheet.colorSpace = THREE.SRGBColorSpace;
+
+this.Material = new THREE.SpriteMaterial({ map: spriteSheet });
+
+this.Material.map!.magFilter = THREE.NearestFilter; // scaling UP: hard edges
+this.Material.map!.minFilter = THREE.NearestFilter; // scaling DOWN: no blur
+this.Material.map!.anisotropy = 1;                  // minimum: no angle filtering
+
+// Show one tile from the sheet at a time
+this.Material.map!.repeat.set(
+  1 / this.tilesHorizontal,
+  1 / this.tilesVertical,
+);</code></pre>
+      <p>
+        <code>colorSpace = SRGBColorSpace</code> keeps the art's colours correct through THREE's colour pipeline.
+        <code>repeat.set(1/4, 1/6)</code> shrinks the sampled UV rectangle to one tile — combined with the per-frame
+        <code>offset</code> in <code>Update()</code>, that rectangle becomes the moving "window" over the sheet.
+      </p>
+      <div class="callout victory">
+        <b>Hard-won victory: <code>NearestFilter</code> on BOTH min and mag.</b> The comment is emphatic for a reason —
+        THREE defaults <code>minFilter</code> to a mip-mapped <em>linear</em> filter. With the default, the sprite blurs
+        the moment it is drawn even slightly smaller than its native size (camera pull-back, sub-pixel positions).
+        Forcing <code>NearestFilter</code> on <code>magFilter</code> (zoomed in) <em>and</em> <code>minFilter</code>
+        (zoomed out), plus <code>anisotropy = 1</code> (no oblique-angle smoothing), is what guarantees Randy stays
+        razor-sharp at every scale and never shimmers in motion. Miss any one of these three and the blur sneaks back.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public ChangeState(newState: { indicies: number[]; timing: number[] })</code></h4>
+      <p>
+        Swaps the playing animation. Called by the player state handlers (<code>handlePlayerIdle</code>,
+        <code>handlePlayerRunning</code>, <code>handlePlayerJumping</code>, <code>handlePlayerFalling</code> — see the
+        <em>Player</em> states) every frame with the appropriate <code>SpriteAnimations.*</code> object.
+      </p>
+      <pre class="code"><code class="language-typescript">// Skip if already in this state (don't reset the animation every frame)
+if (this.State === newState) {
+  return;
+}
+
+this.State = newState;
+this.timingMultiplier = 1;
+this.runningTileIndex = 0;
+this.currentTile = this.State.indicies[this.runningTileIndex];
+this.elapsedTime = this.State.timing[this.runningTileIndex]; // Force play new animation instead of waiting a loop</code></pre>
+      <p>
+        The <b>reference-equality guard</b> is the load-bearing line: handlers call <code>ChangeState</code>
+        unconditionally each frame, but because <code>SpriteAnimations.RUN_RIGHT</code> is a single shared object, passing
+        the same one short-circuits — so the animation does <em>not</em> restart from frame 0 sixty times a second. It only
+        truly changes when the object identity differs. Resetting <code>timingMultiplier</code> to <code>1</code> here means
+        a new state starts at base speed (running re-applies its own multiplier afterward).
+      </p>
+      <div class="callout gotcha">
+        <b>Gotcha: that last line pre-loads <code>elapsedTime</code>.</b> Setting <code>elapsedTime = timing[0]</code> means
+        the very next <code>Update()</code> immediately satisfies the advance condition and steps to
+        <code>indicies[1]</code> — the new animation visibly "moves" on the first frame instead of holding
+        <code>indicies[0]</code> for its full duration first. The practical consequence: the first frame actually
+        <em>rendered</em> after a state change is <code>indicies[1]</code>, not <code>indicies[0]</code>. That is intended
+        ("force play"), but it means index 0 is effectively the loop's starting pose, not its first-shown pose. Keep that
+        in mind when ordering frames in <code>spriteAnimations.ts</code>.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public ChangeAnimationTiming(newTimingMultiplier: number)</code></h4>
+      <p>
+        Scales playback speed without changing which frames play. The running handler drives this so the run cycle speeds
+        up with the player's velocity: <code>handlePlayerRunning</code> calls
+        <code>ChangeAnimationTiming(1 / (|NextTranslation.x| / AnimationScalingFactor))</code>.
+      </p>
+      <pre class="code"><code class="language-typescript">// Don't change timing unless needed
+if (this.timingMultiplier === newTimingMultiplier) {
+  return;
+}
+
+this.timingMultiplier = newTimingMultiplier;</code></pre>
+      <p>
+        Every duration in <code>Update()</code> is multiplied by <code>timingMultiplier</code>, so a multiplier
+        <b>below 1 shortens</b> frame holds (faster animation) and <b>above 1 lengthens</b> them (slower). The equality
+        guard avoids redundant writes. <code>AnimationScalingFactor</code> (set to <code>1.6</code> in
+        <code>baseFeel.ts</code>) is the game-feel knob that tunes how fast the legs churn relative to ground speed — a
+        game-layer concern the engine stays ignorant of.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Update(deltaTime: number)</code></h4>
+      <p>
+        Advances the flip-book by one tick. Called every frame from <code>Player.updatePlayerState()</code> as
+        <code>this.SpriteAnimator.Update(this.Time.Delta)</code> right after the FSM runs, so the sprite reflects the state
+        the handlers just chose. Accumulates time, and when the current frame's (scaled) duration is reached, steps to the
+        next tile and recomputes the UV offset.
+      </p>
+      <pre class="code"><code class="language-typescript">this.elapsedTime += deltaTime;
+
+if (
+  this.State.timing[this.runningTileIndex] * this.timingMultiplier &gt; 0 &amp;&amp;
+  this.elapsedTime &gt;=
+    this.State.timing[this.runningTileIndex] * this.timingMultiplier
+) {
+  this.elapsedTime = 0;
+
+  // Move to the next tile index, looping back to the beginning if necessary
+  this.runningTileIndex =
+    (this.runningTileIndex + 1) % this.State.indicies.length;
+
+  this.currentTile = this.State.indicies[this.runningTileIndex];
+
+  const offsetX =
+    (this.currentTile % this.tilesHorizontal) / this.tilesHorizontal;
+  const offsetY =
+    (this.tilesVertical -
+      Math.floor(this.currentTile / this.tilesHorizontal) -
+      1) /
+    this.tilesVertical;
+
+  this.Material.map!.offset.x = offsetX;
+  this.Material.map!.offset.y = offsetY;
+}</code></pre>
+      <p>
+        Walking the two halves of the gate condition:
+      </p>
+      <ul>
+        <li>
+          <code>timing[runningTileIndex] * timingMultiplier &gt; 0</code> — a <b>zero (or negative) duration disables
+          advancing</b>, freezing on the current tile. This is the safety valve: a <code>0</code> in a timing array means
+          "hold this frame forever," and it also prevents a degenerate <code>&gt;= 0</code> from advancing every single
+          frame.
+        </li>
+        <li>
+          <code>elapsedTime &gt;= timing[...] * timingMultiplier</code> — the frame's time is up. Reset
+          <code>elapsedTime</code> to 0 and advance.
+        </li>
+      </ul>
+      <p>
+        <code>(runningTileIndex + 1) % indicies.length</code> is the <b>loop</b>: it wraps the position cursor back to the
+        first entry, so every animation here loops indefinitely. There is no one-shot mode — a non-looping animation would
+        be expressed by parking on a frame with timing <code>0</code> (the gate above), not by a flag.
+      </p>
+      <h4 style="margin-top:1rem;">The offset math, and why Y is flipped</h4>
+      <p>
+        Tile ids count from the <b>top-left</b>, but THREE texture UVs originate at the <b>bottom-left</b>. So column is a
+        straight modulo, while the row must be flipped:
+      </p>
+      <ul>
+        <li><code>column = currentTile % tilesHorizontal</code>, then <code>offsetX = column / tilesHorizontal</code>.</li>
+        <li><code>rowFromTop = Math.floor(currentTile / tilesHorizontal)</code>, then
+          <code>offsetY = (tilesVertical - rowFromTop - 1) / tilesVertical</code> — the <code>(V - row - 1)</code> term is
+          the top-to-bottom &rarr; bottom-to-top flip.</li>
+      </ul>
+      <p>
+        <b>Worked example — tile 13</b> (RUN_RIGHT frame 2), grid 4&times;6:
+        <code>column = 13 % 4 = 1</code> &rarr; <code>offsetX = 1/4 = 0.25</code>;
+        <code>rowFromTop = floor(13/4) = 3</code> &rarr; <code>offsetY = (6 - 3 - 1)/6 = 2/6 &asymp; 0.333</code>.
+        With <code>repeat = (0.25, 0.1667)</code> the sampled window is x &isin; [0.25, 0.5], y &isin; [0.333, 0.5] — the
+        4th row from the top, 2nd column. Exactly the tile shown in the sheet above.
+      </p>
+      <pre class="mermaid">flowchart TD
+    A["Update(deltaTime)"] --&gt; B["elapsedTime += deltaTime"]
+    B --&gt; C{"elapsedTime &gt;= timing * mult ?"}
+    C -- no --&gt; Z["hold current tile"]
+    C -- yes --&gt; D["elapsedTime = 0"]
+    D --&gt; E["runningTileIndex = (i+1) % indicies.length"]
+    E --&gt; F["currentTile = indicies[i]"]
+    F --&gt; G["offsetX = (tile % W) / W"]
+    G --&gt; H["offsetY = (V - floor(tile/W) - 1) / V"]
+    H --&gt; I["map.offset = (offsetX, offsetY)"]</pre>
+      <div class="callout note">
+        <b>Note.</b> Only the texture <code>offset</code> changes per frame — never the geometry, the mesh, or the
+        <code>repeat</code>. That is why this is cheap enough to run on every animated entity every frame: it is two float
+        writes when a frame boundary is crossed, and nothing at all otherwise.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Destroy()</code></h4>
+      <p>
+        Releases this animator's GPU resources. Called from <code>Player.Destroy()</code> as
+        <code>this.SpriteAnimator.Destroy()</code> before the base <code>GameObject</code> teardown.
+      </p>
+      <pre class="code"><code class="language-typescript">if (this.Material.map) {
+  this.Material.map.dispose();
+}
+
+this.Material.dispose();</code></pre>
+      <p>
+        Disposing <code>Material.map</code> (the texture) first, then the material, frees both the uploaded texture and the
+        material program. Because each entity owns its own <code>SpriteAnimator</code>, each one disposes its own texture
+        and material — the <em>Renderer</em>'s <code>dispose()</code> only frees the GL context, not these, so without this
+        method destroyed entities would leak their sheets.
+      </p>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> to animate a new character, hand the constructor that sheet's texture and its real
+      <code>(tilesHorizontal, tilesVertical)</code> — the offset math is fully driven by those two numbers, so no code
+      changes are needed for a differently-shaped grid. To add new clips, add entries to the game's
+      <code>spriteAnimations.ts</code> table (engine stays untouched). To make a clip play once and stop, give its final
+      frame a <code>timing</code> of <code>0</code> so the gate freezes it. If you ever want frame <code>indicies[0]</code>
+      to actually be the first <em>shown</em> frame, change the <code>ChangeState</code> pre-load from
+      <code>elapsedTime = timing[0]</code> to <code>elapsedTime = 0</code> — but expect a brief hold before the first
+      advance. Keep all pixel-art filtering settings as-is; they are paired with the renderer's <code>antialias: false</code>.
+    </p>
+  </article>
+</section>

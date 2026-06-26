@@ -1,4 +1,6 @@
+// Per-state sprite-frame animation table (keyed by state + facing).
 const SpriteAnimations = {
+  // indicies = frames in the sheet; timing = seconds each frame holds
   IDLE_LEFT: {
     indicies: [1, 2],
     timing: [5, 0.1],

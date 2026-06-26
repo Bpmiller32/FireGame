@@ -1,0 +1,648 @@
+<section class="doc-section" id="cookbook">
+  <header class="section-head">
+    <h2 class="section-title">Cookbook — how to extend the engine</h2>
+    <p class="section-blurb">
+      This is the hands-on companion to <em>Game Config — the data that defines the game</em>. The whole point of the
+      engine/game split is that almost every gameplay change is a <strong>data edit in a config file</strong>, not a new
+      code path. Below are six step-by-step recipes — add an entity, add a level, add a player state, tune the feel, add an
+      input, add a contact rule — each one grounded line-by-line in the five files that drive the game:
+      <code>entityFactories.ts</code>, <code>levelRegistry.ts</code>, <code>inputBindings.ts</code>, <code>contactRules.ts</code>,
+      and <code>baseFeel.ts</code>. Every recipe lists which files to touch <em>in order</em>, the exact additions, and the
+      one gotcha that will bite you if you skip a step.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/game/config/entityFactories.ts</span>
+      <span class="chip">src/game/config/levelRegistry.ts</span>
+      <span class="chip">src/game/config/inputBindings.ts</span>
+      <span class="chip">src/game/config/contactRules.ts</span>
+      <span class="chip">src/game/attributes/baseFeel.ts</span>
+    </div>
+
+    <div class="callout note">
+      <b>Note — the design these recipes lean on.</b> Three identity tables are the spine of the game:
+      <em>EntityType</em> (the routing string every entity carries), <em>PlayerStates</em> (the FSM states), and
+      <em>CollisionGroups</em> (the Rapier bit masks). Each is a single <code>const</code> map so the spawn side and the
+      routing side can never drift. The recipes below mostly amount to "add a row to one of these tables, then wire the one
+      or two places that consume it."
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <!-- RECIPE: add an entity -->
+  <!-- ============================================================ -->
+  <span class="anchor" id="cookbook--entityfactories"></span>
+  <article class="file-block" id="cookbook--add-entity">
+    <h3 class="file-name">Recipe — add a new entity type <span class="loc">touches 5+ files</span></h3>
+    <p class="file-role">
+      Goal: introduce a brand-new level-placeable thing (we'll use a <code>Spike</code> hazard that kills the player on
+      touch). An entity needs an <em>identity</em> (its <code>EntityType</code> string), a way for the GLB parser to
+      <em>recognise its cube</em> (the resourceLoader's canonical-type mirror), a <em>class</em> that builds its physics
+      body, a <em>factory</em> that the level loader dispatches to, optionally its own <em>collision group</em>, and a
+      <em>contact rule</em> that says what happens when it's touched. Do them in this order so each step compiles against the
+      one before it.
+    </p>
+
+    <pre class="mermaid">flowchart LR
+  A["Blender cube named &quot;Spike&quot;"] --> B["resourceLoader.parseScene"]
+  B -->|CANONICAL_TYPES lookup| C["LevelData row type=Spike"]
+  C --> D["GameDirector.LoadLevelData"]
+  D -->|"ENTITY_FACTORIES[Spike]"| E["createSpike factory"]
+  E --> F["new Spike(...)"]
+  F --> G["contactRules: Spike+Player = gameOver"]</pre>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">1. src/game/types/entityType.ts — add the identity string</code></h4>
+      <p>
+        Add one line to the <code>EntityType</code> const. The <em>value</em> is the verbatim string everything routes on, so
+        pick it once and never change it.
+      </p>
+      <pre class="code"><code class="language-typescript">const EntityType = {
+  PLAYER: "Player",
+  WALL: "Wall",
+  // ...existing...
+  TELEPORTER: "Teleporter",
+  SPIKE: "Spike",            // &lt;-- NEW
+  PLAYER_START: "PlayerStart",
+  CAMERA_START: "CameraStart",
+} as const;</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">2. src/engine/resources/resourceLoader.ts — mirror it in CANONICAL_TYPES</code></h4>
+      <p>
+        The engine deliberately cannot import the game's <code>EntityType</code> (it names zero game concepts), so the parser
+        keeps a <em>hand-synced</em> copy. Add the lower-cased mesh-name token mapping to the canonical string. The parser
+        takes the first <code>_</code>-delimited token of a cube's name, lower-cases it, and looks it up here.
+      </p>
+      <pre class="code"><code class="language-typescript">private static readonly CANONICAL_TYPES: Record&lt;string, string&gt; = {
+  wall: "Wall",
+  platform: "Platform",
+  onewayplatform: "OneWayPlatform",
+  // ...existing...
+  teleporter: "Teleporter",
+  spike: "Spike",            // &lt;-- NEW: a cube named "Spike" (or "Spike_2") resolves here
+  playerstart: "PlayerStart",
+  camerastart: "CameraStart",
+  graphics: "GraphicsObject",
+  graphicsobject: "GraphicsObject",
+};</code></pre>
+      <div class="callout gotcha">
+        <b>Gotcha — the silent-drop.</b> Skip this step and your <code>Spike</code> cube resolves to <em>no</em> type:
+        <code>lookupCanonicalType</code> returns <code>undefined</code>, <code>parseScene</code> treats the leaf mesh as a
+        mis-named cube, calls <code>warnUnknownType</code>, and <strong>skips it entirely</strong>. The entity just never
+        appears. This mirror in <em>Engine Resources — resourceLoader</em> is the "known residue" of the engine/game split:
+        it must be kept in sync by hand whenever you add a level-placeable type.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">3. src/game/entities/spike.ts — the entity class</code></h4>
+      <p>
+        Patterned exactly on <em>Teleporter</em> (a sensor that defines no callback of its own and joins the contact table).
+        It extends <code>GameSensor</code>, builds its physics body with the new <code>EntityType.SPIKE</code> routing flag,
+        flags itself a sensor, and arms contact events so the declarative table can see it.
+      </p>
+      <pre class="code"><code class="language-typescript">import * as RAPIER from "@dimforge/rapier2d-compat";
+import GameObjectType from "../../engine/types/gameObjectType";
+import GameSensor from "../../engine/entities/gameSensor";
+import EntityType from "../types/entityType";
+
+// Spike - kills the player on contact. The "who dies" rule lives in the
+// declarative contact table (contactRules.ts), not here.
+export default class Spike extends GameSensor {
+  constructor(
+    size: { width: number; height: number },
+    position: { x: number; y: number },
+    rotation: number = 0
+  ) {
+    super();
+
+    this.createObjectPhysics(
+      EntityType.SPIKE,
+      GameObjectType.CUBE,
+      size,
+      position,
+      rotation,
+      RAPIER.RigidBodyDesc.fixed()
+    );
+
+    this.setAsSensor(true);
+    // Take part in the contact table even though we define no callback here.
+    this.enableContactEvents();
+
+    this.createObjectGraphicsDebug("red", 0.4);
+  }
+}</code></pre>
+      <div class="callout victory">
+        <b>Hard-won victory — <code>enableContactEvents()</code>.</b> <em>GameObject</em> only auto-arms collision events for
+        entities that define an <code>OnCollisionEnter</code>/<code>OnSensorEnter</code> callback
+        (<code>enablePhysicsEvents</code>). A contact-table-only entity defines none, so without this call Rapier emits no
+        event for it and your contact rule never fires. <em>Teleporter</em> hit exactly this and the comment there spells it
+        out: "Take part in the contact table even though we define no callback here."
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">4. (optional) src/game/types/gameCollisionGroups.ts — a collision group</code></h4>
+      <p>
+        A <em>sensor</em> like Spike can skip this — sensors use the default group (collides/intersects with everything), the
+        same way <em>Teleporter</em> sets no group. You only need a group bit if the entity is a <strong>solid</strong> the
+        player must physically stop against. If so, claim the free bit (bit 1 is open — it used to be
+        <code>PLAYER_HIT_BOX</code>) and remember the <em>player must be told to collide with it</em>.
+      </p>
+      <pre class="code"><code class="language-typescript">const CollisionGroups = {
+  PLAYER_BOUNDING_BOX: 0b0000000000000001, // Bit 0
+  SPIKE:               0b0000000000000010, // Bit 1 (was free) — only if SOLID
+  ENEMY:               0b0000000000000100, // Bit 2
+  PLATFORM:            0b0000000000001000, // Bit 3
+  DEFAULT:             0b1111111111111111,
+} as const;</code></pre>
+      <div class="callout gotcha">
+        <b>Gotcha — collision is two-way.</b> Collision occurs only when <code>(a.group &amp; b.mask)</code> AND
+        <code>(b.group &amp; a.mask)</code>. Giving Spike its own group does nothing unless the player's <em>mask</em>
+        includes it. The player sets <code>setCollisionMask(CollisionGroups.PLATFORM | CollisionGroups.ENEMY, 0)</code> in
+        its constructor — you'd have to OR in <code>| CollisionGroups.SPIKE</code> there too. For a kill-on-touch hazard a
+        sensor (no group) is simpler and avoids this entirely.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">5. src/game/config/entityFactories.ts — the factory + registry row</code></h4>
+      <p>
+        Write a factory matching the <code>EntityFactory</code> signature <code>(data, ctx, type) =&gt; GameObject</code> and
+        register it under the <code>EntityType.SPIKE</code> key. Mirror the existing one-liners (axis mapping
+        <code>position[0]</code>/<code>position[2]</code>, the <code>-rotation[1]</code> negation, sizes passed straight
+        through). Read any per-entity metadata off <code>data.meta</code> with the <code>metaNum</code>/<code>metaCoords</code>
+        helpers.
+      </p>
+      <pre class="code"><code class="language-typescript">import Spike from "../entities/spike";
+
+// FROM nothing — brand-new hazard.
+const createSpike: EntityFactory = (data) =&gt; {
+  const spike = new Spike(
+    { width: data.width, height: data.height },
+    { x: data.position[0], y: data.position[2] },
+    -data.rotation[1]
+  );
+  return spike;
+};
+
+const ENTITY_FACTORIES: Record&lt;string, EntityFactory&gt; = {
+  [EntityType.CAMERA_SENSOR]: createCameraSensor,
+  // ...existing...
+  [EntityType.TELEPORTER]: createTeleporter,
+  [EntityType.SPIKE]: createSpike,   // &lt;-- NEW
+};</code></pre>
+      <div class="callout note">
+        <b>Note — the <code>ctx</code> arg.</b> Spike isn't queried by index anywhere (unlike <code>trashCans[0]</code> or the
+        ladder sub-arrays), so its factory pushes into no <code>FactoryContext</code> view and ignores <code>ctx</code>. If
+        you <em>do</em> need the director to iterate your entities, add a typed array to <code>FactoryContext</code>, push the
+        new entity into it inside the factory, and alias it in <em>GameDirector.getFactoryContext</em> (and tear it down in
+        <em>UnloadLevelData</em>). See <em>Game Director</em> for both.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">6. src/game/config/contactRules.ts — what touching it does</code></h4>
+      <p>
+        Spike is a sensor, so it fires the <code>"sensorEnter"</code> phase. Declare the rule the same way the WinFlag and
+        Teleporter rules are declared — match both sides <code>byType</code>, pick the phase, run the reaction.
+      </p>
+      <pre class="code"><code class="language-typescript">// Player touches a Spike -> game over.
+contacts.Add(
+  byType(EntityType.SPIKE),
+  byType(EntityType.PLAYER),
+  "sensorEnter",
+  () =&gt; Emitter.emit("gameOver")
+);</code></pre>
+    </div>
+
+    <p class="modify"><b>Step 7 — the GLB.</b> In the level editor (BlockBench/Blender) drop a cube, name it
+      <code>Spike</code> (or <code>Spike_2</code> for a second instance — the parser strips the suffix), and export the
+      <code>.glb</code> into <code>src/assets/levels</code>. The parser reads the cube's <em>name</em> for its type and its
+      <em>texture name</em> for metadata; you don't touch any loader code. See the <em>add a level</em> recipe below for the
+      drop-in mechanics.</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- RECIPE: add a level -->
+  <!-- ============================================================ -->
+  <span class="anchor" id="cookbook--levelregistry"></span>
+  <article class="file-block" id="cookbook--add-level">
+    <h3 class="file-name">Recipe — add a playable level <span class="loc">touches 1 file + 1 GLB</span></h3>
+    <p class="file-role">
+      Levels are GLB-only and the whole pipeline is data: drop a <code>.glb</code> into <code>src/assets/levels</code> and add
+      one row to <code>LEVEL_REGISTRY</code>. <em>GameDirector</em> boots index <code>0</code>, F2 cycles, and the dat.gui
+      level dropdown selects — all three funnel through the same <code>loadLevelByIndex</code>, so one row is genuinely all you
+      add.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">1. Drop the GLB — auto-discovery does the rest</code></h4>
+      <p>
+        GLBs under <code>src/assets/levels</code> are Vite-bundled (hashed), not in <code>public/</code>. An eager
+        <code>import.meta.glob</code> collects every <code>*.glb</code> as its bundled URL into a filename→URL map, which
+        <code>levelUrl()</code> resolves against.
+      </p>
+      <pre class="code"><code class="language-typescript">const levelGlbUrls = import.meta.glob("../../assets/levels/*.glb", {
+  query: "?url",
+  import: "default",
+  eager: true,
+}) as Record&lt;string, string&gt;;</code></pre>
+      <div class="callout warning">
+        <b>Warning — the glob is eager.</b> EVERY <code>.glb</code> in the folder is bundled into the build whether or not a
+        registry row references it. Delete unused level GLBs to stay lean — an orphaned 4&nbsp;MB level still ships.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">2. src/game/config/levelRegistry.ts — add a LEVEL_REGISTRY row</code></h4>
+      <p>
+        Each row is a <code>LevelEntry</code>: a <code>name</code> (the dat.gui label and
+        <code>GameDirector.CurrentLevelName</code> value), a <code>source</code> (the bundled URL via
+        <code>levelUrl("file.glb")</code>), a <code>feelProfile</code> (a key of <code>FEEL_PROFILES</code> — see the
+        <em>tune the feel</em> recipe), a <code>cameraFollow</code> boolean, and an optional <code>graphics</code> overlay key.
+      </p>
+      <pre class="code"><code class="language-typescript">export const LEVEL_REGISTRY: LevelEntry[] = [
+  {
+    name: "Slopes Testing",
+    source: levelUrl("TestLevel-Slopes.glb"),
+    feelProfile: "dk",
+    cameraFollow: true,
+  },
+  // ...existing rows...
+  {
+    name: "My New Level",                    // &lt;-- NEW ROW
+    source: levelUrl("MyNewLevel.glb"),
+    feelProfile: "celeste",
+    cameraFollow: true,
+    // graphics: "dkGraphicsData",  // optional detailed-art overlay (a ResourceLoader.Items key)
+  },
+];</code></pre>
+      <p>
+        Append it and you're done — it joins the F2 cycle automatically (<code>switchToNextLevel</code> does
+        <code>(currentLevelIndex + 1) % LEVEL_REGISTRY.length</code>). To boot into it instead, change
+        <code>DEFAULT_LEVEL_INDEX</code>.
+      </p>
+    </div>
+
+    <div class="callout gotcha">
+      <b>Gotcha — every level needs a <code>PlayerStart</code>.</b> <em>GameDirector.setPlayerStart</em> scans the LevelData
+      for a <code>PlayerStart</code> row and only then constructs the <code>Player</code>. No PlayerStart cube → the player is
+      never spawned → <code>Update</code>'s guard <code>if (!this.Player?.PhysicsBody) return;</code> freezes the whole game
+      with no error. Include a <code>CameraStart</code> too, or the camera sits at its default origin.
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — fail loud on a missing GLB (D5 neighbour).</b> If <code>levelUrl()</code> can't resolve a filename
+      it logs the available list and returns <code>""</code>. <em>loadLevelByIndex</em> checks for that empty
+      <code>source</code> and throws a clear error <em>before</em> handing it to the loader — otherwise
+      <code>gltfLoader.load("")</code> fetches the HTML page and throws a baffling parse error far from the real cause (a
+      typo'd filename). The surrounding <code>try/catch/finally</code> still closes the Vue loading overlay so the screen
+      never hangs.
+    </div>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- RECIPE: add a player state -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="cookbook--add-player-state">
+    <h3 class="file-name">Recipe — add a player state <span class="loc">touches 3 files</span></h3>
+    <p class="file-role">
+      The player movement FSM is the generic <em>StateMachine</em> (see <em>Architecture — Finite State Machine</em>) driving a
+      handler-per-state map. Adding a state — say <code>DASHING</code> — is three edits: the state constant, a handler file,
+      and the registration + at least one transition <em>into</em> it.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">1. src/engine/types/playerStates.ts — add the constant</code></h4>
+      <pre class="code"><code class="language-typescript">const PlayerStates = {
+  IDLE: "idle",
+  RUNNING: "running",
+  JUMPING: "jumping",
+  FALLING: "falling",
+  CLIMBING: "climbing",
+  DASHING: "dashing",      // &lt;-- NEW
+} as const;</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">2. src/game/entities/player/states/handlePlayerDashing.ts — the handler</code></h4>
+      <p>
+        A handler is a plain <code>(player: Player) =&gt; void</code>. It runs once per frame while the player is in this
+        state; it reads <code>player.Input</code>/<code>player.IsTouching</code>, writes
+        <code>player.NextTranslation</code>, drives the sprite, and reassigns <code>player.State</code> to transition. Pattern
+        it on <em>handlePlayerIdle</em>: guard-clause transitions first (each with an early <code>return</code>), then the
+        in-state behaviour.
+      </p>
+      <pre class="code"><code class="language-typescript">import Player from "../player";
+import PlayerStates from "../../../../engine/types/playerStates";
+
+const handlePlayerDashing = (player: Player) =&gt; {
+  // Transition out: dash ended -> fall back to falling/idle.
+  if (player.IsTouching.ground) {
+    player.State = PlayerStates.IDLE;
+    return;
+  }
+
+  // In-state behaviour: drive horizontal velocity hard in the facing direction.
+  const dir = player.Direction; // LEFT/RIGHT/NEUTRAL
+  player.NextTranslation.x = dir * player.MaxGroundSpeed * 2;
+
+  // ...sprite animation via player.SpriteAnimator.ChangeState(...)...
+};
+
+export default handlePlayerDashing;</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">3. src/game/entities/player/player.ts — register + transition IN</code></h4>
+      <p>
+        Import the handler and add it to the FSM map (the player constructs its <code>StateMachine</code> in
+        <code>initializePlayerAttributes</code>). Then add a transition <em>into</em> <code>DASHING</code> from an existing
+        handler — e.g. in <em>handlePlayerRunning</em> when a dash key is pressed.
+      </p>
+      <pre class="code"><code class="language-typescript">import handlePlayerDashing from "./states/handlePlayerDashing";
+
+this.fsm = new StateMachine&lt;Player, PlayerState&gt;(this, {
+  [PlayerStates.IDLE]: handlePlayerIdle,
+  [PlayerStates.RUNNING]: handlePlayerRunning,
+  [PlayerStates.FALLING]: handlePlayerFalling,
+  [PlayerStates.JUMPING]: handlePlayerJumping,
+  [PlayerStates.CLIMBING]: handlePlayerClimbing,
+  [PlayerStates.DASHING]: handlePlayerDashing,   // &lt;-- NEW
+});</code></pre>
+      <div class="callout gotcha">
+        <b>Gotcha — a state with no handler silently freezes.</b> <em>StateMachine.Update</em> dispatches via
+        <code>this.handlers[this.host.State]?.(this.host)</code> — that <em>optional chaining</em> means a state whose key is
+        missing from the map is a <strong>no-op</strong>, not a crash. Forget step 3 and the player enters
+        <code>DASHING</code> and just stops updating forever, with no error. Every <code>PlayerStates</code> member must have a
+        map entry.
+      </div>
+      <div class="callout note">
+        <b>Note — transitions take effect NEXT frame.</b> <em>StateMachine.Update</em> reads <code>State</code> once per
+        frame. A handler that sets <code>player.State = PlayerStates.DASHING</code> does <em>not</em> re-dispatch into the dash
+        handler within the same frame — the new state runs on the following <code>Update</code>. This is by design and is why
+        every handler does its state write last and returns.
+      </div>
+      <div class="callout tip">
+        <b>Tip — new feel knobs go in the attribute profiles.</b> If your dash reads a new tunable
+        (<code>player.DashSpeed</code>, say), declare it on <em>Player</em> (<code>public DashSpeed!: number;</code>) and seed
+        it in <em>baseFeel</em> or a profile (next recipe) — the <code>!</code> definite-assignment fields are
+        <em>undefined</em> until something sets them, and a handler reading <code>undefined</code> produces <code>NaN</code>
+        velocity.
+      </div>
+    </div>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- RECIPE: tune the feel -->
+  <!-- ============================================================ -->
+  <span class="anchor" id="cookbook--basefeel"></span>
+  <article class="file-block" id="cookbook--tune-feel">
+    <h3 class="file-name">Recipe — tune the feel <span class="loc">baseFeel.ts + a profile</span></h3>
+    <p class="file-role">
+      "Feel" is a set of numeric attributes written onto the <code>Player</code> by a <em>profile</em>. The layering is:
+      every profile calls <code>applyBaseFeel(player)</code> FIRST (shared values), then overrides on top.
+      <code>baseFeel.ts</code> holds the values common to DK and Celeste (climb speed/accel/decel, the coyote/buffer runtime
+      flags, <code>CoyoteTime</code>, <code>AnimationScalingFactor</code>); <em>setDkAttributes</em> /
+      <em>setCelesteAttributes</em> hold the per-game divergences (see <em>Game Feel</em>).
+    </p>
+
+    <pre class="mermaid">flowchart TD
+  A["level loads"] --> B["GameDirector.applyFeelProfile(entry.feelProfile)"]
+  B --> C["FEEL_PROFILES[profile](player)"]
+  C --> D["applyBaseFeel(player) — shared values"]
+  D --> E["DK/Celeste overrides on top"]</pre>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">Tune a SHARED value — edit baseFeel.ts</code></h4>
+      <p>
+        Values that should change for both profiles live here. For example, to give every profile a snappier climb, bump
+        <code>MaxClimbSpeed</code>:
+      </p>
+      <pre class="code"><code class="language-typescript">const applyBaseFeel = (player: Player) =&gt; {
+  // Climbing (shared)
+  player.MaxClimbSpeed = 4;        // &lt;-- e.g. raise to 6
+  player.ClimbAcceleration = 30;
+  player.ClimbDeceleration = 8;
+  // ...coyote/buffer flags, CoyoteTime, AnimationScalingFactor...
+  player.CoyoteTime = 0.033; // 2 frames
+  player.AnimationScalingFactor = 1.6;
+};</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">Tune a PER-PROFILE value — edit setDkAttributes.ts</code></h4>
+      <p>
+        Values that differ per game live in the profile, after the <code>applyBaseFeel(player)</code> call. To make the DK
+        jump higher, raise <code>JumpPower</code>:
+      </p>
+      <pre class="code"><code class="language-typescript">const setDkAttributes = (player: Player) =&gt; {
+  applyBaseFeel(player);            // shared first
+  // DK overrides (differ from base feel)
+  player.MaxGroundSpeed = 11.8;
+  player.JumpPower = 24;            // &lt;-- raise for a higher jump
+  player.RiseGravity = 72;         // lighter rise = floatier ascent
+  player.MaxFallSpeed = 40;
+  // ...
+};</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">Add a NEW profile — register it in FEEL_PROFILES</code></h4>
+      <p>
+        Write a setter (call <code>applyBaseFeel</code> first), then add it to the <code>FEEL_PROFILES</code> table in
+        <em>levelRegistry.ts</em>. The <code>FeelProfile</code> type is <code>keyof typeof FEEL_PROFILES</code>, so a level
+        row's <code>feelProfile</code> is then type-checked against the new key automatically.
+      </p>
+      <pre class="code"><code class="language-typescript">import setFloatyAttributes from "../attributes/setFloatyAttributes";
+
+export const FEEL_PROFILES = {
+  dk: setDkAttributes,
+  celeste: setCelesteAttributes,
+  floaty: setFloatyAttributes,   // &lt;-- NEW; now usable as feelProfile: "floaty"
+} as const;</code></pre>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — feel is single-source, applied only on load.</b> <em>GameDirector.applyFeelProfile</em> runs
+      exactly once, in <em>loadLevelByIndex</em>, from the loading level's registry entry — there is deliberately no live debug
+      swap that bypasses it. That's why the registry row is the one true place a level's feel is decided; a value you change
+      in the Feel Lab at runtime is never the persisted truth.
+    </div>
+    <div class="callout gotcha">
+      <b>Gotcha — ordering: profile beats base.</b> Because the profile calls <code>applyBaseFeel</code> <em>first</em> and
+      overrides after, a value set in BOTH places resolves to the profile's. A value set ONLY in <code>baseFeel</code> (and
+      not overridden) is the effective value. If a new attribute reads as its base value when you expected the override,
+      check you actually re-assigned it <em>below</em> the <code>applyBaseFeel(player)</code> line in the profile.
+    </div>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- RECIPE: add an input -->
+  <!-- ============================================================ -->
+  <span class="anchor" id="cookbook--inputbindings"></span>
+  <article class="file-block" id="cookbook--add-input">
+    <h3 class="file-name">Recipe — add an input key <span class="loc">input.ts + inputBindings.ts</span></h3>
+    <p class="file-role">
+      Two layers handle input. The engine <em>Input</em> device exposes raw HELD-state booleans and names no game concept.
+      <code>inputBindings.ts</code> (the game) watches the flow F-keys, detects the press <em>edge</em>, and emits a game
+      event once per press. This recipe adds a new flow key — F4 → "togglePause" — through both layers. (Movement keys like
+      arrows and Space go a different path: they're captured into <code>InputState</code> via <code>CaptureInto</code> and read
+      by the player handlers directly — see <em>Engine Events &amp; Input</em>.)
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">1. src/engine/input/input.ts — expose the held-state flag</code></h4>
+      <p>
+        The F4 flag already exists in this codebase (<code>IsF4Pressed</code>, with its <code>F4</code> entry in the
+        <code>keys[]</code> table) — for a genuinely new key you'd add all three pieces: the public field, its
+        <code>false</code> init in the constructor, and a <code>Key</code> table entry whose <code>keyCode</code> is the
+        layout-independent <code>KeyboardEvent.code</code>.
+      </p>
+      <pre class="code"><code class="language-typescript">public IsF4Pressed: boolean;   // field
+
+this.IsF4Pressed = false;      // init in constructor
+
+{                              // entry in the keys[] table
+  keyCode: "F4",
+  isPressed: (eventResult: boolean) =&gt; {
+    this.IsF4Pressed = eventResult;
+  },
+},</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">2. src/game/config/inputBindings.ts — edge-detect and emit</code></h4>
+      <p>
+        Add a <code>wasF4Pressed</code> latch (init <code>false</code> in the constructor), then in <code>Update</code> emit
+        the event on the false→true edge and store this frame's value. The existing F1/F2/F3 blocks are the exact template.
+      </p>
+      <pre class="code"><code class="language-typescript">private wasF4Pressed: boolean;
+
+constructor(input: Input) {
+  this.input = input;
+  this.wasF1Pressed = false;
+  // ...
+  this.wasF4Pressed = false;   // &lt;-- NEW
+}
+
+public Update() {
+  // ...F1/F2/F3...
+
+  // F4 -&gt; togglePause
+  if (this.input.IsF4Pressed &amp;&amp; !this.wasF4Pressed) {
+    Emitter.emit("togglePause");
+  }
+  this.wasF4Pressed = this.input.IsF4Pressed;   // remember for next frame
+}</code></pre>
+      <div class="callout gotcha">
+        <b>Gotcha — forget the latch and it fires every frame.</b> The whole reason this file exists is that engine
+        <em>Input</em> only tells you a key is <em>held</em>, not that it was just <em>pressed</em>. The
+        <code>&amp;&amp; !this.wasF4Pressed</code> guard plus <code>this.wasF4Pressed = ...</code> assignment is the edge
+        detector. Drop the assignment and "togglePause" emits 60×/second while the key is down.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">3. Listen for the event — GameDirector (or App.vue)</code></h4>
+      <p>
+        <code>inputBindings.Update()</code> runs each frame from <code>App.vue</code>'s <code>OnGameUpdate</code> hook (right
+        before <code>gameDirector.Update()</code>). The emit goes onto the global <em>mitt</em> bus; subscribe wherever the
+        reaction belongs, the way <em>GameDirector.setupEventHandlers</em> subscribes to <code>switchLevel</code> /
+        <code>gameReset</code>.
+      </p>
+      <pre class="code"><code class="language-typescript">Emitter.on("togglePause", () =&gt; {
+  const p = this.experience.Physics;
+  p.SetPaused(!p.IsPaused);
+});</code></pre>
+    </div>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- RECIPE: add a contact rule -->
+  <!-- ============================================================ -->
+  <span class="anchor" id="cookbook--contactrules"></span>
+  <article class="file-block" id="cookbook--add-contact-rule">
+    <h3 class="file-name">Recipe — add a contact rule <span class="loc">contactRules.ts</span></h3>
+    <p class="file-role">
+      The contact table is the declarative "when an A touches a B, do this" layer over the engine's physics dispatch (see
+      <em>Architecture — The Contact Table</em>). <code>registerContactRules(contacts)</code> runs ONCE at startup in
+      <em>App.vue</em>, after <code>Configure</code>, against <code>webglExperience.Physics.Contacts</code>. Each rule is one
+      <code>contacts.Add(matchA, matchB, phase, handler)</code> call. There are no <code>if/else</code> chains — you add a row.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">contacts.Add(a, b, phase, run) — the four args</code></h4>
+      <p>
+        Match each side with the <code>byType</code> helper (which wraps <code>matchesType(go, type)</code>). Pick the
+        <code>phase</code>. Write the <code>run</code> handler — it receives the two matched <code>GameObject</code>s in the
+        rule's declared <code>(a, b)</code> order, so cast to the concrete class to read typed fields.
+      </p>
+      <table class="tbl">
+        <thead><tr><th>phase</th><th>fires when</th><th>used by</th></tr></thead>
+        <tbody>
+          <tr><td><code>"enter"</code></td><td>two SOLID bodies begin touching</td><td>Enemy↔Player = gameOver; Enemy↔TrashCan = ignite</td></tr>
+          <tr><td><code>"exit"</code></td><td>two solid bodies stop touching</td><td>(available, none declared)</td></tr>
+          <tr><td><code>"sensorEnter"</code></td><td>a body enters a SENSOR</td><td>Teleporter, CameraSensor, WinFlag</td></tr>
+          <tr><td><code>"sensorExit"</code></td><td>a body leaves a sensor</td><td>(available, none declared)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">Example — a solid contact that emits an event</code></h4>
+      <p>The simplest rule: match both sides by type, fire on solid <code>"enter"</code>, emit a bus event the game already
+        listens for.</p>
+      <pre class="code"><code class="language-typescript">// Enemy touches Player -> game over. Two-sided.
+contacts.Add(
+  byType(EntityType.ENEMY),
+  byType(EntityType.PLAYER),
+  "enter",
+  () =&gt; Emitter.emit("gameOver")
+);</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">Example — a handler that reads typed state off the matched entity</code></h4>
+      <p>When the reaction needs data from the entity, cast the <code>GameObject</code> arg. The handler args arrive in the
+        rule's own declared order regardless of which body actually moved.</p>
+      <pre class="code"><code class="language-typescript">// Player enters a Teleporter sensor -> teleport to its destination.
+contacts.Add(
+  byType(EntityType.TELEPORTER),
+  byType(EntityType.PLAYER),
+  "sensorEnter",
+  (teleporter, player) =&gt; {
+    const dest = (teleporter as Teleporter).Destination;
+    (player as Player).TeleportToPosition(dest.x, dest.y);
+  }
+);</code></pre>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — two-sided dispatch.</b> <em>ContactRegistry.Dispatch</em> tests each rule as both
+      <code>(x, y)</code> and <code>(y, x)</code> with an <code>else if</code>, so a rule fires whether the player ran into the
+      enemy or the enemy rolled into the player — "any touch registers" — yet fires <strong>once</strong>, not twice, and the
+      handler always gets args in your declared order. You never write the rule twice.
+    </div>
+    <div class="callout gotcha">
+      <b>Gotcha — match the phase to the body kind.</b> A sensor entity emits <code>"sensorEnter"</code>/<code>"sensorExit"</code>,
+      a solid emits <code>"enter"</code>/<code>"exit"</code>. Declare a Teleporter rule with <code>"enter"</code> and it never
+      fires — the Teleporter is a sensor. When in doubt, check whether the entity's class calls <code>setAsSensor(true)</code>.
+    </div>
+    <div class="callout gotcha">
+      <b>Gotcha — both entities must have contact events armed.</b> A rule can only fire if Rapier actually emits an event for
+      the pair. Callback-defining entities are auto-armed; contact-table-only entities must call
+      <code>enableContactEvents()</code> in their constructor (Teleporter, and the Spike in the first recipe). And the player
+      side works in BOTH directions only because the kinematic controller's own blocked-by collisions are fed back into the
+      table as <code>"enter"</code> contacts in <em>Player.updateTranslation</em> — without that, a player-as-mover collision
+      fires no Rapier event at all.
+    </div>
+    <div class="callout note">
+      <b>Note — where rules do NOT belong.</b> An entity's own <em>movement</em> reaction (an enemy reversing at a wall, a
+      one-way platform toggling) lives with the entity, not in this table. The contact table is for cross-entity
+      <em>outcomes</em>: who dies, wins, teleports, ignites.
+    </div>
+  </article>
+</section>

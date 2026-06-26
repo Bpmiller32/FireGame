@@ -1,0 +1,738 @@
+<section class="doc-section" id="arch-overview">
+  <header class="section-head">
+    <h2 class="section-title">The Big Picture: engine vs game, the singleton, the wiring</h2>
+    <p class="section-blurb">
+      FireGame is split into two layers that never blur together: a reusable
+      <code class="language-typescript">engine/</code> that knows nothing about Donkey Kong, and a
+      <code class="language-typescript">game/</code> that supplies the rules. A single
+      <code class="language-typescript">Experience</code> singleton owns the one canvas, scene, and physics world;
+      a global <code class="language-typescript">mitt</code> event bus decouples everything; and the whole
+      machine is wired together from <code class="language-typescript">App.vue</code> in one
+      <code class="language-typescript">onMounted</code> pass. This section is the map you read before any other.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/engine/core/experience.ts</span>
+      <span class="chip">src/main.ts</span>
+      <span class="chip">src/App.vue</span>
+      <span class="chip">src/game/gameDirector.ts</span>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <!-- ORIENTATION: the two layers                                  -->
+  <!-- ============================================================ -->
+
+  <article class="file-block" id="arch-overview--two-layers">
+    <h3 class="file-name">Orientation: the two-layer architecture</h3>
+    <p class="file-role">
+      Before any one file, hold the shape of the whole thing in your head. There are two layers and a
+      strict import rule between them:
+    </p>
+    <ul>
+      <li>
+        <b><code class="language-typescript">engine/</code></b> — reusable, game-agnostic. The renderer, the
+        Rapier physics world, the camera, the resource/GLB loader, the input device reader, the finite-state-machine
+        base, the contact registry, the debug coordinator. <em>It never imports from <code class="language-typescript">game/</code>.</em>
+        When the engine needs something game-specific it exposes a <b>seam</b> — an interface, a registry, a late-bound
+        hook — and lets the game plug in.
+      </li>
+      <li>
+        <b><code class="language-typescript">game/</code></b> — the Donkey Kong rules. The
+        <a href="#arch-overview--gamedirector">GameDirector</a>, the player/enemy entities and their FSM states, the
+        level registry, the contact rules, the feel profiles, the F-key bindings. It imports freely from
+        <code class="language-typescript">engine/</code> and fills every seam the engine left open.
+      </li>
+    </ul>
+
+    <div class="callout note">
+      <b>Note. The leak that became a seam.</b> The engine's GLB parser
+      (<code class="language-typescript">resourceLoader.ts</code>) is type-blind: it no longer carries a hand-maintained table
+      mirroring the game's <code class="language-typescript">EntityType</code> strings. Instead the game <em>injects</em> its
+      level-node vocabulary — <code class="language-typescript">LEVEL_NODE_TYPES</code>, a name-token → game-type map whose
+      values come straight from <code class="language-typescript">EntityType</code> so the two cannot drift — via
+      <code class="language-typescript">Resources.RegisterLevelTypes()</code> at boot. The engine still never <em>imports</em>
+      the game enum; it just looks each node up in whatever map the game handed it. What used to be the one place the engine
+      named something game-shaped is now a proper seam like every other.
+    </div>
+
+    <p>How the layers own each other — every arrow points "down" into the engine, never up:</p>
+
+    <pre class="mermaid">
+flowchart TD
+  subgraph shell["Vue shell (presentation)"]
+    main["main.ts"]
+    app["App.vue (onMounted wiring)"]
+  end
+
+  subgraph game["game/ (Donkey Kong rules)"]
+    director["GameDirector"]
+    rules["contactRules / inputBindings"]
+    cfg["levelRegistry / feel profiles / entityFactories"]
+    ent["Player / Enemy / sensors / platforms"]
+  end
+
+  subgraph engine["engine/ (reusable, game-agnostic)"]
+    exp["Experience (singleton)"]
+    subsys["Scene / Camera / Renderer / Physics / Resources / Input / Debug / Time / Sizes"]
+    bus["Emitter (mitt event bus)"]
+    reg["ContactRegistry seam"]
+  end
+
+  main --> app
+  app --> exp
+  app --> director
+  app --> rules
+  director --> exp
+  director --> ent
+  rules --> reg
+  exp --> subsys
+  game -. "decoupled via" .-> bus
+  engine -. "decoupled via" .-> bus
+  engine -. "never imports" .-x game
+    </pre>
+
+    <div class="callout tip">
+      <b>Tip. The litmus test.</b> If you ever find yourself wanting to <code class="language-typescript">import</code>
+      something from <code class="language-typescript">game/</code> inside an <code class="language-typescript">engine/</code>
+      file, stop: the correct move is to add a seam (a registry entry, an interface the game implements, or a late-bound
+      callback) and let <a href="#arch-overview--app">App.vue</a> wire the game side in.
+    </div>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- experience.ts                                                -->
+  <!-- ============================================================ -->
+
+  <article class="file-block" id="arch-overview--experience">
+    <h3 class="file-name">src/engine/core/experience.ts <span class="loc">134 LOC</span></h3>
+    <p class="file-role">
+      <code class="language-typescript">Experience</code> is the engine's root object: the one place that owns the
+      canvas, the <code class="language-typescript">THREE.Scene</code>, the Rapier world, and every engine subsystem.
+      It is a <b>singleton</b> — a private constructor plus a static
+      <code class="language-typescript">GetInstance()</code> — so that anyone, anywhere (the camera, the physics
+      world, the game director) can reach the same scene/world without it being threaded through every constructor.
+      Construction is split in two: <code class="language-typescript">GetInstance()</code> hands back the bare object;
+      the real wiring lives in an async <code class="language-typescript">Configure()</code> because the physics world
+      needs <code class="language-typescript">await RAPIER.init()</code>. It imports only engine modules — never anything
+      from <code class="language-typescript">game/</code>.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private static instance: Experience;  private constructor() {}</code></h4>
+      <p>
+        The singleton mechanism. The constructor is <code class="language-typescript">private</code>, so
+        <code class="language-typescript">new Experience()</code> is a compile error everywhere outside this file.
+        The only way to obtain the instance is the static accessor below.
+      </p>
+      <pre class="code"><code class="language-typescript">// Class prop instance and "new" blocking constructor for Singleton
+private static instance: Experience;
+private constructor() {}</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public static GetInstance(): Experience</code></h4>
+      <p>
+        Lazily creates the instance on first call and returns the same one forever after. This is what
+        <a href="#arch-overview--app">App.vue</a> calls first, and what every engine/game module calls to reach the
+        shared scene/world.
+      </p>
+      <pre class="code"><code class="language-typescript">public static GetInstance(): Experience {
+  if (!Experience.instance) {
+    Experience.instance = new Experience();
+  }
+  return Experience.instance;
+}</code></pre>
+      <div class="callout victory">
+        <b>Why a singleton.</b> There is exactly one canvas, one WebGL renderer, one
+        <code class="language-typescript">THREE.Scene</code>, and one Rapier <code class="language-typescript">World</code>.
+        A singleton makes that physically true: <code class="language-typescript">Physics</code> and
+        <code class="language-typescript">Camera</code> both call <code class="language-typescript">GetInstance()</code>
+        and necessarily get the <em>same</em> scene to bind into. The alternative — passing the scene/world through
+        every constructor — invites two worlds drifting out of sync.
+      </div>
+    </div>
+
+    <h4>The subsystems Experience owns</h4>
+    <p>
+      All fields are declared with the definite-assignment <code class="language-typescript">!</code> because they are
+      null until <code class="language-typescript">Configure()</code> runs. Every one of these is documented in its own
+      section; here is the ownership roster:
+    </p>
+    <table class="tbl">
+      <thead><tr><th>Field</th><th>Type</th><th>Owns / does</th><th>Detailed in</th></tr></thead>
+      <tbody>
+        <tr><td><code class="language-typescript">Debug</code></td><td>Debug</td><td>dat.GUI panel + Stats.js; registry for game debug modules, log sink, type colors</td><td>The Debug Coordinator</td></tr>
+        <tr><td><code class="language-typescript">Sizes</code></td><td>Sizes</td><td>Window size; emits <code class="language-typescript">resize</code></td><td>Core: Sizes &amp; Time</td></tr>
+        <tr><td><code class="language-typescript">Time</code></td><td>Time</td><td>rAF loop; clamped delta; emits <code class="language-typescript">tick</code></td><td>Core: Sizes &amp; Time</td></tr>
+        <tr><td><code class="language-typescript">Input</code></td><td>Input</td><td>Keyboard device state (held booleans)</td><td>Input</td></tr>
+        <tr><td><code class="language-typescript">Resources</code></td><td>ResourceLoader</td><td>Texture/GLB batch loader + GLB level parser</td><td>Resources &amp; the GLB Pipeline</td></tr>
+        <tr><td><code class="language-typescript">TargetElement</code></td><td>HTMLCanvasElement | null</td><td>The DOM canvas from the Vue <code class="language-typescript">ref</code></td><td>this section</td></tr>
+        <tr><td><code class="language-typescript">Scene</code></td><td>THREE.Scene</td><td>The single render scene everything binds to</td><td>Rendering</td></tr>
+        <tr><td><code class="language-typescript">Camera</code></td><td>Camera</td><td>Orthographic/perspective follow camera</td><td>Camera</td></tr>
+        <tr><td><code class="language-typescript">Renderer</code></td><td>Renderer</td><td>WebGL renderer bound to the canvas</td><td>Rendering</td></tr>
+        <tr><td><code class="language-typescript">Physics</code></td><td>Physics</td><td>Rapier2D world, event queue, <code class="language-typescript">Contacts</code> registry</td><td>Physics &amp; the Contact Table</td></tr>
+        <tr><td><code class="language-typescript">OnGameUpdate</code></td><td>(() =&gt; void) | null</td><td>The one late-bound seam the engine calls into the game each frame</td><td>this section</td></tr>
+      </tbody>
+    </table>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public OnGameUpdate: (() =&gt; void) | null = null;</code></h4>
+      <p>
+        This is the single most important field in the file and the thesis of the whole architecture. The engine's
+        per-frame loop needs to run the game's logic, but the engine core must not <em>name</em> a game class. So instead
+        of <code class="language-typescript">import GameDirector</code>, the engine exposes a nullable callback that the
+        game assigns from outside. The engine calls it; it never knows what is on the other end.
+      </p>
+      <pre class="code"><code class="language-typescript">// Late-bound game update hook. The game layer assigns this; the engine just
+// calls it each frame between physics and renderer. Keeps the engine core
+// from naming any game class.
+public OnGameUpdate: (() =&gt; void) | null = null;</code></pre>
+      <p>
+        It is assigned in <a href="#arch-overview--app">App.vue</a> to a closure that drives the game's input bindings
+        and the <a href="#arch-overview--gamedirector">GameDirector</a>, and it is invoked with optional-chaining
+        (<code class="language-typescript">this.OnGameUpdate?.()</code>) inside the <code class="language-typescript">tick</code>
+        handler so that an unconfigured engine simply renders nothing-game and does not crash.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public async Configure(canvas: HTMLCanvasElement | null, resources: Resource[])</code></h4>
+      <p>
+        The real constructor. Instantiates every subsystem in a deliberate order, captures the canvas, builds the scene,
+        and subscribes the two engine-level event handlers (<code class="language-typescript">resize</code>,
+        <code class="language-typescript">tick</code>). It is <code class="language-typescript">async</code> purely because
+        <code class="language-typescript">Physics.Configure()</code> awaits <code class="language-typescript">RAPIER.init()</code>
+        (the WASM module). <b>Parameters:</b> <code class="language-typescript">canvas</code> — the DOM canvas element from the
+        Vue template ref, or <code class="language-typescript">null</code> if not yet mounted; <code class="language-typescript">resources</code>
+        — the game's asset manifest, passed straight to the <code class="language-typescript">ResourceLoader</code> so the engine
+        names none of the game's assets. <b>Returns:</b> a promise that resolves once physics is ready.
+      </p>
+      <pre class="code"><code class="language-typescript">public async Configure(
+  canvas: HTMLCanvasElement | null,
+  resources: Resource[]
+) {
+  this.Debug = new Debug();
+  this.Sizes = new Sizes();
+  this.Time = new Time();
+  this.Input = new Input();
+  this.Resources = new ResourceLoader(resources);
+
+  this.TargetElement = canvas;
+
+  this.Scene = new THREE.Scene();
+  this.Camera = new Camera(new THREE.Vector3(0, 25, 100));
+  this.Renderer = new Renderer();
+  this.Physics = new Physics();
+  await this.Physics.Configure();</code></pre>
+      <p class="">Line-level notes:</p>
+      <ul>
+        <li>
+          <b><code class="language-typescript">Debug</code> first.</b> It reads
+          <code class="language-typescript">import.meta.env.DEV</code> / the <code class="language-typescript">#debug</code> hash
+          to set <code class="language-typescript">IsActive</code>; later subsystems (notably
+          <code class="language-typescript">Physics.Configure</code>) check <code class="language-typescript">Debug.IsActive</code>
+          to decide whether to attach wireframes, so Debug must exist before them.
+        </li>
+        <li>
+          <b>The <code class="language-typescript">ResourceLoader</code> is handed the game's manifest, not a hardcoded one.</b>
+          The engine no longer names <code class="language-typescript">randy</code>/<code class="language-typescript">enemy</code>/<code class="language-typescript">dkGraphicsData</code>
+          anywhere — those <code class="language-typescript">{ name, type, path }</code> entries live in the game's
+          <code class="language-typescript">assetManifest.ts</code> (<code class="language-typescript">GAME_ASSETS</code>), where the
+          <code class="language-typescript">path</code>s are Vite <code class="language-typescript">?url</code> imports resolved to bundled,
+          content-hashed URLs. <code class="language-typescript">getAssetPath</code> now simply returns
+          <code class="language-typescript">source.path</code>; a different game supplies its own manifest and reuses the engine
+          unchanged (reusability mile, #5).
+        </li>
+        <li>
+          <b>The camera's start position</b> <code class="language-typescript">(0, 25, 100)</code> is the only camera-placement
+          value baked into the engine; per-level camera starts are applied later by the GameDirector.
+        </li>
+        <li>
+          <b><code class="language-typescript">Physics</code> is constructed then awaited.</b> The two-step
+          <code class="language-typescript">new Physics()</code> then <code class="language-typescript">await ...Configure()</code>
+          mirrors this very class's own pattern, again because of the async <code class="language-typescript">RAPIER.init()</code>.
+        </li>
+      </ul>
+
+      <p>Configure then registers the two engine-level event listeners and stores the handler refs for cleanup:</p>
+      <pre class="code"><code class="language-typescript">this.onResize = () =&gt; {
+  this.Camera.Resize();
+  this.Renderer.Resize();
+};
+Emitter.on("resize", this.onResize);
+
+this.onTick = () =&gt; {
+  if (this.Debug.IsActive) {
+    this.Debug.Stats?.begin();
+  }
+
+  this.Physics.Update();
+  this.OnGameUpdate?.();
+  this.Renderer.Update();
+
+  if (this.Debug.IsActive) {
+    this.Debug.Stats?.end();
+  }
+};
+Emitter.on("tick", this.onTick);</code></pre>
+      <div class="callout victory">
+        <b>Hard-won victory. The frame order is the whole game in one line.</b>
+        <code class="language-typescript">Physics.Update()</code> → <code class="language-typescript">OnGameUpdate?.()</code> →
+        <code class="language-typescript">Renderer.Update()</code>. Physics steps the world first, then the game reads this
+        frame's freshly-solved positions to update entities and camera, then the renderer draws. The
+        <code class="language-typescript">Stats.begin()/end()</code> bracket wraps the whole frame so the FPS/MS monitor
+        measures real work. The handler refs (<code class="language-typescript">this.onResize</code>,
+        <code class="language-typescript">this.onTick</code>) are stored as fields specifically so
+        <code class="language-typescript">Destroy()</code> can <code class="language-typescript">Emitter.off</code> the exact same
+        function instances — an inline arrow could never be removed.
+      </div>
+      <div class="callout gotcha">
+        <b>Gotcha. The engine subscribes to <code class="language-typescript">tick</code>, but it does not produce it.</b>
+        <a href="#arch-overview--two-layers">Time</a> owns the <code class="language-typescript">requestAnimationFrame</code> loop
+        and emits <code class="language-typescript">tick</code>; <code class="language-typescript">Sizes</code> owns the window
+        listener and emits <code class="language-typescript">resize</code>. Experience is a <em>subscriber</em>. That is the event
+        bus doing its job: the clock does not know who listens, and the loop does not know who clocks it.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Destroy()</code></h4>
+      <p>
+        Symmetric teardown. Removes its own two listeners first (using the stored refs), then tells each subsystem to
+        clean up in a sane order, and finally tears down the debug panel only if it was active.
+      </p>
+      <pre class="code"><code class="language-typescript">public Destroy() {
+  Emitter.off("resize", this.onResize);
+  Emitter.off("tick", this.onTick);
+
+  this.Sizes.Destroy();
+  this.Time.Destroy();
+  this.Input.Destroy();
+
+  this.Camera.Destroy();
+  this.Physics.Destroy();
+  this.Renderer.Destroy();
+  this.Resources.Destroy();
+
+  if (this.Debug &amp;&amp; this.Debug.IsActive) {
+    this.Debug.Destroy();
+  }
+}</code></pre>
+      <p>
+        Note the order: stop the clock and input first (so no more frames fire mid-teardown), then the render/physics/resource
+        chain. The <code class="language-typescript">Debug.IsActive</code> guard avoids destroying a panel that was never built in a
+        production (non-debug) build.
+      </p>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> to add a new engine subsystem, declare a <code class="language-typescript">public X!: X;</code>
+      field, instantiate it in <code class="language-typescript">Configure()</code> (mind the ordering — anything that reads
+      <code class="language-typescript">Debug.IsActive</code> or <code class="language-typescript">Scene</code> must come after
+      them), tick it inside the <code class="language-typescript">onTick</code> handler at the right point in the
+      physics→game→render order, and tear it down in <code class="language-typescript">Destroy()</code>. Resist the urge to import
+      anything game-specific here — if the new subsystem needs game knowledge, give it a registry/interface seam instead and
+      let App.vue feed it.
+    </p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- main.ts                                                      -->
+  <!-- ============================================================ -->
+
+  <article class="file-block" id="arch-overview--main">
+    <h3 class="file-name">src/main.ts <span class="loc">5 LOC</span></h3>
+    <p class="file-role">
+      The literal entry point named in <code class="language-typescript">index.html</code>. It does exactly one thing:
+      mount the Vue app. It is intentionally trivial — none of the engine wiring lives here, because the engine needs a
+      real, mounted <code class="language-typescript">&lt;canvas&gt;</code> element to attach to, and that only exists after
+      Vue has rendered. So bootstrap is deferred to <a href="#arch-overview--app">App.vue</a>'s
+      <code class="language-typescript">onMounted</code>.
+    </p>
+    <pre class="code"><code class="language-typescript">import { createApp } from 'vue'
+import './style.css'
+import App from './App.vue'
+
+createApp(App).mount('#app')</code></pre>
+    <div class="callout note">
+      <b>Note.</b> The order matters even here: importing <code class="language-typescript">./style.css</code> before mounting
+      ensures the global stylesheet (and the canvas's full-bleed layout) is present when the component renders. The
+      <code class="language-typescript">#app</code> selector is the mount root in <code class="language-typescript">index.html</code>.
+    </div>
+    <p class="modify">
+      <b>Modifying this:</b> almost never. If you wanted to install a Vue plugin (router, store) it would go here as
+      <code class="language-typescript">createApp(App).use(plugin).mount('#app')</code> — but the game's own lifecycle does not
+      belong here; it belongs in App.vue.
+    </p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- App.vue                                                      -->
+  <!-- ============================================================ -->
+
+  <article class="file-block" id="arch-overview--app">
+    <h3 class="file-name">src/App.vue <span class="loc">177 LOC</span></h3>
+    <p class="file-role">
+      The wiring harness and the presentation shell. This Vue 3
+      <code class="language-html">&lt;script setup&gt;</code> component is the <em>only</em> place the two layers are
+      stitched together. Its <code class="language-html">&lt;template&gt;</code> owns the loading overlay, the status text,
+      and the reset button; its <code class="language-typescript">onMounted</code> hook runs the entire bootstrap sequence.
+      Everything game-specific that the engine needs — the asset manifest, the level-node type vocabulary, the contact rules,
+      the collision-log sink, the debug color palette, the GameDirector, the F-key bindings, the per-frame game hook — is
+      injected here (the manifest into <code class="language-typescript">Configure</code> itself; the rest right after). The Vue
+      layer communicates with the game purely through the <a href="#arch-overview--two-layers">event bus</a>; it never
+      reaches into game internals.
+    </p>
+
+    <h4>Reactive state (the presentation layer)</h4>
+    <table class="tbl">
+      <thead><tr><th>ref</th><th>Drives</th></tr></thead>
+      <tbody>
+        <tr><td><code class="language-typescript">webglRef</code></td><td>The <code class="language-html">&lt;canvas&gt;</code> handed to <code class="language-typescript">Experience.Configure</code></td></tr>
+        <tr><td><code class="language-typescript">statusRef</code></td><td>The "Game Win!" / "Game Over!" status text</td></tr>
+        <tr><td><code class="language-typescript">isResetButtonVisible</code></td><td>Shows/hides the Reset button</td></tr>
+        <tr><td><code class="language-typescript">isLoading</code></td><td>Shows/hides the full-screen loading overlay (starts <code class="language-typescript">true</code>)</td></tr>
+        <tr><td><code class="language-typescript">loadProgress</code></td><td><code class="language-typescript">{ loaded, total, item }</code> for the real progress bar during the initial multi-asset load; <code class="language-typescript">null</code> for single-GLB level loads (falls back to a plain spinner)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">onMounted(async () =&gt; { ... })</code> — the bootstrap sequence</h4>
+      <p>
+        This is the spine of the whole application. The ordering inside it is not incidental; almost every line is placed to
+        avoid a specific race. Walk it top to bottom.
+      </p>
+
+      <p><b>1. Loading-screen listeners FIRST — before <code class="language-typescript">Configure</code>.</b></p>
+      <pre class="code"><code class="language-typescript">Emitter.on("loadingStarted", () =&gt; {
+  isLoading.value = true;
+  loadProgress.value = null;
+});
+Emitter.on("loadingFinished", () =&gt; {
+  isLoading.value = false;
+});
+Emitter.on("loadingProgress", (progress) =&gt; {
+  loadProgress.value = progress;
+});</code></pre>
+      <div class="callout gotcha">
+        <b>Gotcha. Subscribe before you can be notified.</b> These go up first so a very fast boot load cannot fire
+        <code class="language-typescript">loadingFinished</code> before anyone is listening — <code class="language-typescript">mitt</code>
+        does not buffer or replay events, so a notification with zero listeners is simply lost forever. This is the same hazard
+        that governs <code class="language-typescript">StartLoading()</code> being called last (below).
+      </div>
+
+      <p><b>2. Get the singleton, configure the engine, and inject the level vocabulary.</b></p>
+      <pre class="code"><code class="language-typescript">const webglExperience = Experience.GetInstance();
+// The game supplies its own asset manifest; the engine names none of these.
+await webglExperience.Configure(webglRef.value, GAME_ASSETS);
+
+// Inject the game's level-node type vocabulary into the engine GLB parser.
+webglExperience.Resources.RegisterLevelTypes(LEVEL_NODE_TYPES);</code></pre>
+      <p>
+        <code class="language-typescript">webglRef.value</code> is the now-mounted canvas; <code class="language-typescript">GAME_ASSETS</code>
+        is the game's boot manifest (<code class="language-typescript">assetManifest.ts</code>), so the engine names none of its own
+        assets. The <code class="language-typescript">await</code> matters: nothing below may touch
+        <code class="language-typescript">webglExperience.Physics</code> until <code class="language-typescript">Configure</code> has
+        finished <code class="language-typescript">RAPIER.init()</code>. The first thing it does afterward is hand the engine's GLB
+        parser the game's level-node vocabulary via <code class="language-typescript">RegisterLevelTypes(LEVEL_NODE_TYPES)</code> —
+        the parser stays type-blind and the game's <code class="language-typescript">EntityType</code> strings live in one place.
+        It must run before any level loads, i.e. before <code class="language-typescript">StartLoading</code> (below) triggers the
+        first one.
+      </p>
+
+      <p><b>3. Register the game's contact rules into the engine's contact registry.</b></p>
+      <pre class="code"><code class="language-typescript">registerContactRules(webglExperience.Physics.Contacts);</code></pre>
+      <p>
+        <a href="#arch-overview--two-layers">contactRules.ts</a> declares the cross-entity table — Enemy→Player =
+        <code class="language-typescript">gameOver</code>, Enemy→TrashCan = destroy + ignite, Player→Teleporter/CameraSensor/WinFlag
+        = the matching reaction. The engine's <code class="language-typescript">Physics.handleCollisionEvents</code> dispatches every
+        physics contact into this registry; it never names a game concept. This is the "no hard-coded if/else" collision routing the
+        engine is built around (detailed in <em>Physics &amp; the Contact Table</em>).
+      </p>
+
+      <p><b>4. Register the collision-log sink and the debug color palette.</b></p>
+      <pre class="code"><code class="language-typescript">webglExperience.Debug.RegisterCollisionLogSink(new CollisionLogger());
+webglExperience.Debug.SetPhysicsTypeColors(DEBUG_TYPE_COLORS);</code></pre>
+      <div class="callout victory">
+        <b>Hard-won victory (D3). The engine never names a game type.</b> The debug wireframe palette maps an
+        entity-type string → a <code class="language-typescript">THREE.Color</code>. Rather than baking that map into
+        <code class="language-typescript">PhysicsDebug</code> (which would force the engine to enumerate game types), the game
+        <em>injects</em> the map via <code class="language-typescript">SetPhysicsTypeColors</code>, and PhysicsDebug looks each
+        collider's type up in it opaquely. Same idea for the log sink: <code class="language-typescript">CollisionLogger</code> owns
+        the game-specific formatting; the engine's <code class="language-typescript">Debug</code> just forwards events to whatever
+        sink implements the <code class="language-typescript">CollisionLogSink</code> interface. Both calls are safe even when debug is
+        inactive — they only store; PhysicsDebug reads them solely while rendering, which only happens when active.
+      </div>
+
+      <p><b>5. Construct the game director and the F-key bindings.</b></p>
+      <pre class="code"><code class="language-typescript">const gameDirector = new GameDirector();
+const inputBindings = new InputBindings(webglExperience.Input);
+
+webglExperience.Debug.RegisterModule(new LevelDebug(gameDirector));</code></pre>
+      <p>
+        <a href="#arch-overview--gamedirector">GameDirector</a> is constructed <em>after</em>
+        <code class="language-typescript">Configure</code> so that the scene/camera/resources it pulls from the singleton already
+        exist. <code class="language-typescript">InputBindings</code> is handed the engine's
+        <code class="language-typescript">Input</code> device reader and converts F-key press edges into game events
+        (F1→<code class="language-typescript">gameReset</code>, F2→<code class="language-typescript">switchLevel</code>,
+        F3→<code class="language-typescript">manualCameraControl</code>). <code class="language-typescript">RegisterModule</code> with a
+        <code class="language-typescript">LevelDebug</code> wires a dat.gui level-select dropdown — but it is a no-op store when debug
+        is inactive, so production builds pay nothing.
+      </p>
+
+      <p><b>6. Install the per-frame game hook — the one seam.</b></p>
+      <pre class="code"><code class="language-typescript">webglExperience.OnGameUpdate = () =&gt; {
+  inputBindings.Update();
+  gameDirector.Update();
+};</code></pre>
+      <div class="callout victory">
+        <b>This single assignment is the engine↔game seam.</b> The engine's <code class="language-typescript">tick</code> handler
+        calls <code class="language-typescript">this.OnGameUpdate?.()</code> between physics and render. By assigning a closure here,
+        App.vue gives the engine a way to run game logic every frame <em>without the engine ever importing
+        <code class="language-typescript">GameDirector</code> or <code class="language-typescript">InputBindings</code></em>. Input
+        bindings run first (so an F-key press is observed before the director acts on the resulting event this frame).
+      </div>
+
+      <p><b>7. Game-flow listeners that drive the UI shell.</b></p>
+      <pre class="code"><code class="language-typescript">Emitter.on("gameWin", () =&gt; { /* status = "Game Win!"; show Reset */ });
+Emitter.on("gameOver", () =&gt; { /* status = "Game Over!"; show Reset */ });
+Emitter.on("gameReset", () =&gt; { /* clear status; hide Reset */ });
+Emitter.on("gameStart", () =&gt; { /* clear status; hide Reset */ });</code></pre>
+      <p>
+        These are pure presentation reactions. Note both the GameDirector <em>and</em> App.vue listen to
+        <code class="language-typescript">gameStart</code> / <code class="language-typescript">gameOver</code> / etc.: the director
+        changes <em>simulation</em> state (pause physics, stop spawning) while App.vue changes <em>screen</em> state (status text,
+        reset button). Neither calls the other; they meet only at the event name. The <code class="language-typescript">gameStart</code>
+        listener clears stale win/over UI so a freshly-loaded level never shows a leftover "Game Over!".
+      </p>
+
+      <p><b>8. Kick off asset loading LAST.</b></p>
+      <pre class="code"><code class="language-typescript">webglExperience.Resources.StartLoading();</code></pre>
+      <div class="callout victory">
+        <b>Hard-won victory. Load last, after every listener is wired.</b> <code class="language-typescript">StartLoading()</code>
+        is deliberately not called inside <code class="language-typescript">ResourceLoader</code>'s constructor. If every asset happened
+        to resolve during the <code class="language-typescript">await</code> window in <code class="language-typescript">Configure</code>
+        (e.g. assets cached), the <code class="language-typescript">resourcesReady</code> event would fire into zero listeners — and the
+        <a href="#arch-overview--gamedirector">GameDirector</a>'s boot handler (which loads the default level) subscribes to exactly
+        that event. <code class="language-typescript">mitt</code> does not replay, so the boot would hang on the loading screen forever.
+        Loading last guarantees the listener exists before the completion event can fire.
+      </div>
+    </div>
+
+    <h4>The full boot sequence, end to end</h4>
+    <pre class="mermaid">
+sequenceDiagram
+  participant Main as main.ts
+  participant Vue as App.vue (onMounted)
+  participant Exp as Experience
+  participant Bus as Emitter
+  participant Res as ResourceLoader
+  participant Dir as GameDirector
+
+  Main->>Vue: createApp(App).mount('#app')
+  Note over Vue: register loadingStarted/Finished/Progress listeners
+  Vue->>Exp: GetInstance()
+  Vue->>Exp: await Configure(canvas, GAME_ASSETS)
+  Note over Exp: build Debug/Sizes/Time/Input/Resources&lt;br/&gt;Scene/Camera/Renderer/Physics (await RAPIER.init)&lt;br/&gt;subscribe resize + tick
+  Vue->>Res: RegisterLevelTypes(LEVEL_NODE_TYPES)
+  Vue->>Exp: registerContactRules(Physics.Contacts)
+  Vue->>Exp: Debug.RegisterCollisionLogSink / SetPhysicsTypeColors
+  Vue->>Dir: new GameDirector()
+  Note over Dir: subscribes resourcesReady, gameStart, gameOver, ...
+  Vue->>Exp: OnGameUpdate = () => { inputBindings.Update(); director.Update() }
+  Vue->>Res: StartLoading()  (LAST)
+  Res->>Bus: loadingProgress (per asset)
+  Res->>Bus: resourcesReady (all loaded/failed)
+  Bus->>Dir: resourcesReady -> loadLevelByIndex(DEFAULT)
+  Note over Dir: parse GLB, spawn entities, apply feel + camera
+  Dir->>Bus: gameStart
+  Bus->>Dir: gameStart -> unpause physics, enable spawning
+  Bus->>Vue: gameStart -> clear status, hide Reset
+    </pre>
+
+    <h4>The template</h4>
+    <p>
+      The markup is small: a status line and Reset button (top-left), the WebGL <code class="language-html">&lt;canvas&gt;</code>,
+      and a full-screen loading overlay shown <code class="language-html">v-if="isLoading"</code>. When
+      <code class="language-typescript">loadProgress</code> is set (initial multi-asset load) it renders a real
+      <code class="language-typescript">loaded / total</code> bar driven by <code class="language-typescript">barWidth()</code>; otherwise
+      it shows a pulsing "Loading…" for single-GLB level swaps. The Reset button's
+      <code class="language-typescript">handleButtonClicked</code> simply emits <code class="language-typescript">gameReset</code> — it does
+      not touch the game directly; the director and the shell both react to the event.
+    </p>
+
+    <p class="modify">
+      <b>Modifying this:</b> this is where new game→engine wiring goes. To add a new contact rule, edit
+      <code class="language-typescript">contactRules.ts</code> (it is already registered here). To add a new debug module, construct it
+      and pass it to <code class="language-typescript">Debug.RegisterModule</code> alongside <code class="language-typescript">LevelDebug</code>.
+      To add a new per-frame game system, fold it into the <code class="language-typescript">OnGameUpdate</code> closure. The two
+      inviolable rules: keep <code class="language-typescript">StartLoading()</code> the <em>last</em> line, and register any listener for a
+      boot/completion event <em>before</em> the thing that emits it.
+    </p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- gameDirector.ts (conceptual)                                 -->
+  <!-- ============================================================ -->
+
+  <article class="file-block" id="arch-overview--gamedirector">
+    <h3 class="file-name">src/game/gameDirector.ts <span class="loc">546 LOC</span></h3>
+    <p class="file-role">
+      The game layer's central controller — the counterpart to <code class="language-typescript">Experience</code> on the
+      <code class="language-typescript">game/</code> side. It owns the player and all level entities, drives the level lifecycle
+      (load / unload / switch), runs the frame-driven enemy spawner, and translates game-flow events into simulation state. It
+      reaches the engine the canonical way — <code class="language-typescript">Experience.GetInstance()</code> in its constructor,
+      then caches <code class="language-typescript">Scene</code>, <code class="language-typescript">Time</code>,
+      <code class="language-typescript">Camera</code>, <code class="language-typescript">Resources</code> — and it is driven by the engine
+      through the <code class="language-typescript">OnGameUpdate</code> seam. <em>This section maps its role and seams; the line-by-line
+      bodies (spawning cadence, GLB load path, camera mapping) are covered in the dedicated GameDirector and entity sections.</em>
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor()</code></h4>
+      <p>
+        Pulls the engine singleton and caches the subsystems it needs, creates the level's
+        <code class="language-typescript">GraphicsObject</code> overlay holder, then wires every game-flow listener via
+        <code class="language-typescript">setupEventHandlers()</code>.
+      </p>
+      <pre class="code"><code class="language-typescript">this.experience = Experience.GetInstance();
+this.scene = this.experience.Scene;
+this.time = this.experience.Time;
+this.camera = this.experience.Camera;
+this.resources = this.experience.Resources;
+this.GraphicsObject = new GameObject();
+
+this.setupEventHandlers();</code></pre>
+      <p>
+        Because App.vue constructs the director <em>after</em> <code class="language-typescript">Configure</code>, every one of these
+        <code class="language-typescript">GetInstance()</code> reads returns a fully-built subsystem. Construct it earlier and you would
+        cache <code class="language-typescript">undefined</code>.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private setupEventHandlers()</code></h4>
+      <p>The director's entire reaction surface lives here — it is a pure event consumer. The events it listens to:</p>
+      <table class="tbl">
+        <thead><tr><th>Event</th><th>Reaction</th></tr></thead>
+        <tbody>
+          <tr><td><code class="language-typescript">resourcesReady</code></td><td>Boot: <code class="language-typescript">await loadLevelByIndex(DEFAULT_LEVEL_INDEX)</code> (which emits <code class="language-typescript">gameStart</code> on success)</td></tr>
+          <tr><td><code class="language-typescript">gameStart</code></td><td><code class="language-typescript">Physics.SetPaused(false)</code>; enable enemy spawning</td></tr>
+          <tr><td><code class="language-typescript">gameOver</code></td><td><code class="language-typescript">Physics.SetPaused(true)</code>; stop spawning</td></tr>
+          <tr><td><code class="language-typescript">gameWin</code></td><td>Freeze identically to game over (so a stray barrel can't flip "Win" to "Over")</td></tr>
+          <tr><td><code class="language-typescript">gameReset</code></td><td>Unpause; <code class="language-typescript">resetGameState()</code></td></tr>
+          <tr><td><code class="language-typescript">switchLevel</code></td><td><code class="language-typescript">switchToNextLevel()</code> (F2 cycle)</td></tr>
+          <tr><td><code class="language-typescript">gameObjectRemoved</code></td><td><code class="language-typescript">removedGameObject.Destroy()</code></td></tr>
+        </tbody>
+      </table>
+      <p>
+        It also starts a 5-second <code class="language-typescript">setInterval</code> that prunes destroyed enemies from the
+        <code class="language-typescript">Enemies</code> array (kept separate from the frame loop so it keeps running after game over).
+      </p>
+      <div class="callout note">
+        <b>Note. The boot handler is why <code class="language-typescript">StartLoading()</code> must run last.</b> This
+        <code class="language-typescript">resourcesReady</code> subscription is the listener App.vue is protecting when it defers asset
+        loading to the final line — it is the chain <code class="language-typescript">resourcesReady → load default level → gameStart</code>.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Update()</code> — the body of the <code class="language-typescript">OnGameUpdate</code> hook</h4>
+      <p>
+        Called every frame by the engine (through the closure App.vue installed on
+        <code class="language-typescript">OnGameUpdate</code>). The ordering inside is deliberate: bail while a level is loading, guard
+        that the player exists, then <b>player → camera → spawn → enemies → level entities → ladder state</b>.
+      </p>
+      <pre class="code"><code class="language-typescript">if (this.isLoading) return;
+if (!this.Player?.PhysicsBody) return;
+
+this.Player.Update();
+this.camera.Update(this.cameraTargetFromPlayer(this.Player));
+this.trySpawn();
+
+const firstTrashCan = this.TrashCans[0];
+this.Enemies.forEach((enemy) =&gt; enemy.Update(this.Player, firstTrashCan));</code></pre>
+      <div class="callout victory">
+        <b>Hard-won victory (C5). The camera is engine-pure.</b> The director never hands the camera a game
+        <code class="language-typescript">Player</code>; it maps the player into a plain
+        <code class="language-typescript">CameraTarget</code> snapshot (<code class="language-typescript">x, y, velocityX, followState,
+        isGrounded</code>) via <code class="language-typescript">cameraTargetFromPlayer</code>. That is why
+        <code class="language-typescript">camera.ts</code> imports nothing from <code class="language-typescript">game/</code> — it consumes
+        scalars, not a game type. Player is updated <em>before</em> the camera so the follow reads this frame's position (the reverse
+        order left the camera one frame stale).
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private async loadLevelByIndex(index: number)</code></h4>
+      <p>
+        The single funnel for every level load — boot, the F2 cycle, and the dat.gui select all pass through here. It brackets the
+        load with <code class="language-typescript">loadingStarted</code> / <code class="language-typescript">loadingFinished</code>
+        (so the Vue overlay covers it), tears down the current level, parses the GLB, applies the registry entry's feel profile and
+        camera-follow mode, and on success emits <code class="language-typescript">gameStart</code>.
+      </p>
+      <div class="callout victory">
+        <b>Hard-won victory (D5). One boolean, old-school.</b> Loads are async and callers are fire-and-forget, so an
+        <code class="language-typescript">isLoading</code> guard serializes overlapping loads (F2 mashing / selecting mid-load). Without
+        it a second load would interleave teardown and respawn → doubled entities, a leaked ambient light, a mismatched index. The same
+        flag freezes <code class="language-typescript">Update()</code> while a level rebuilds.
+      </div>
+      <div class="callout gotcha">
+        <b>Gotcha. A failed load must not reject out of here.</b> The whole body is wrapped in
+        <code class="language-typescript">try/catch/finally</code>: a missing/corrupt GLB is logged loud but swallowed, because rejecting
+        would skip the boot handler's <code class="language-typescript">gameStart</code> (leaving physics paused) and surface as an unhandled
+        promise rejection. The <code class="language-typescript">finally</code> always closes the loading overlay, so the screen never hangs.
+        And <code class="language-typescript">gameStart</code> is emitted only on the success path, so a failed load never wrongly unpauses.
+      </div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private trySpawn() / SpawnEnemy() / SpawnCrazyEnemy()</code></h4>
+      <p>
+        Frame-driven enemy spawning, advanced off <code class="language-typescript">Time.Delta</code> rather than a wall-clock
+        <code class="language-typescript">setInterval</code> (one clock, and a fresh boot spawns without needing a reset).
+      </p>
+      <div class="callout victory">
+        <b>Hard-won victory (D28). One unified barrel array.</b> Normal and "crazy" barrels are both
+        <code class="language-typescript">Enemy</code> now, distinguished only by their starting FSM state — the old separate
+        <code class="language-typescript">CrazyEnemy</code> class was folded in. The cadence counters are advanced <em>before</em> the
+        async spawn so a stutter frame can't double-spawn.
+      </div>
+      <p>The spawning cadence, FSM states, and oil-can targeting are detailed in the Enemy section.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Destroy()</code></h4>
+      <p>
+        Unsubscribes every game-flow listener (<code class="language-typescript">Emitter.off</code> by name), clears the cleanup interval,
+        and unloads the current level. The mirror image of <code class="language-typescript">setupEventHandlers()</code>.
+      </p>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> add a new game-flow reaction by subscribing in <code class="language-typescript">setupEventHandlers()</code>
+      and unsubscribing in <code class="language-typescript">Destroy()</code> — keep them paired. Add a new level by editing the
+      <code class="language-typescript">levelRegistry</code>, not this file. Add a new level-placed entity type by giving it an
+      <code class="language-typescript">entityFactory</code> and a typed query array, not a new branch here — the spawn pass is data-driven
+      over <code class="language-typescript">ENTITY_FACTORIES</code>. Never call <code class="language-typescript">Physics.SetPaused</code> or
+      emit flow events from elsewhere if you can route it through these handlers; one funnel keeps the state machine honest.
+    </p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- Wrap-up                                                      -->
+  <!-- ============================================================ -->
+
+  <article class="file-block" id="arch-overview--threads">
+    <h3 class="file-name">Threads to follow next</h3>
+    <p class="file-role">From this overview, the natural next reads, by name:</p>
+    <ul>
+      <li><b>The Event Bus</b> — <code class="language-typescript">eventBus.ts</code>: the typed <code class="language-typescript">mitt</code> emitter, split into engine-level and game-level event maps, that decouples every line above.</li>
+      <li><b>Core: Sizes &amp; Time</b> — who actually emits <code class="language-typescript">resize</code> and <code class="language-typescript">tick</code>, and the clamped delta the physics step depends on.</li>
+      <li><b>Physics &amp; the Contact Table</b> — <code class="language-typescript">physics.ts</code> + <code class="language-typescript">contactRegistry.ts</code>: how <code class="language-typescript">handleCollisionEvents</code> dispatches into the rules App.vue registered.</li>
+      <li><b>Resources &amp; the GLB Pipeline</b> — <code class="language-typescript">resourceLoader.ts</code>: <code class="language-typescript">StartLoading</code>, <code class="language-typescript">resourcesReady</code>, and the GLB→<code class="language-typescript">LevelData</code> parser.</li>
+      <li><b>The Debug Coordinator</b> — <code class="language-typescript">debug.ts</code>: the <code class="language-typescript">DebugModule</code> / <code class="language-typescript">CollisionLogSink</code> seams and the injected type-color palette (D3).</li>
+      <li><b>GameDirector (in depth)</b> and the <b>Player/Enemy FSM</b> sections for the bodies deferred here.</li>
+    </ul>
+  </article>
+</section>

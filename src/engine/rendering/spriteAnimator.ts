@@ -1,17 +1,20 @@
-/* -------------------------------------------------------------------------- */
-/*             Used to animate a THREE sprite using a spritesheet             */
-/* -------------------------------------------------------------------------- */
+// Used to animate a THREE sprite using a spritesheet
 
 import * as THREE from "three";
-import SpriteState from "../types/spriteState";
+
+// One spritesheet animation: which tiles to show and for how long.
+interface SpriteState {
+  indicies: number[]; // tile indices, left-to-right top-to-bottom from 0 (typo kept on purpose)
+  timing: number[]; // seconds per frame; same length as indicies
+}
 
 export default class SpriteAnimator {
   private currentTile: number;
   private elapsedTime: number;
-  private runningTileIndex: number;
+  private runningTileIndex: number; // position within State.indicies, not the tile id
   private tilesHorizontal: number;
   private tilesVertical: number;
-  private timingMultiplier: number;
+  private timingMultiplier: number; // scales frame durations to speed/slow playback
 
   public State: SpriteState;
   public Material!: THREE.SpriteMaterial;
@@ -19,13 +22,13 @@ export default class SpriteAnimator {
   constructor(
     spriteSheet: THREE.Texture,
     tilesHorizontal: number,
-    tilesVerical: number,
+    tilesVertical: number,
   ) {
     this.currentTile = 0;
     this.elapsedTime = 0;
     this.runningTileIndex = 0;
     this.tilesHorizontal = tilesHorizontal;
-    this.tilesVertical = tilesVerical;
+    this.tilesVertical = tilesVertical;
 
     this.State = {
       indicies: [],
@@ -36,6 +39,7 @@ export default class SpriteAnimator {
     this.setMaterial(spriteSheet);
   }
 
+  // build the sprite material with pixel-perfect filtering
   private setMaterial(spriteSheet: THREE.Texture) {
     spriteSheet.colorSpace = THREE.SRGBColorSpace;
 
@@ -68,8 +72,8 @@ export default class SpriteAnimator {
   }
 
   public ChangeState(newState: { indicies: number[]; timing: number[] }) {
-    // Don't call spritesToLoop every frame
-    if (this.State == newState) {
+    // Skip if already in this state (don't reset the animation every frame)
+    if (this.State === newState) {
       return;
     }
 
@@ -82,7 +86,7 @@ export default class SpriteAnimator {
 
   public ChangeAnimationTiming(newTimingMultiplier: number) {
     // Don't change timing unless needed
-    if (this.timingMultiplier == newTimingMultiplier) {
+    if (this.timingMultiplier === newTimingMultiplier) {
       return;
     }
 

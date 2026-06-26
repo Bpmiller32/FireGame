@@ -4,7 +4,7 @@ import Experience from "../core/experience";
 import Physics from "../physics/physics";
 import GameObjectType from "../types/gameObjectType";
 import UserData from "../types/userData";
-import GameUtils from "../../game/gameUtils";
+import { getUserData } from "../helpers/physicsHelpers";
 
 export default class GameObject {
   protected experience!: Experience;
@@ -13,6 +13,7 @@ export default class GameObject {
 
   protected gameObjectType!: string;
 
+  // THREE render side: shape, surface, scene node
   protected geometry?:
     | THREE.BoxGeometry
     | THREE.SphereGeometry
@@ -20,82 +21,50 @@ export default class GameObject {
   protected material?: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
   protected mesh?: THREE.Mesh | THREE.Sprite | THREE.Group;
   protected spriteScale?: number;
-  protected vertices?: number[];
 
   public PhysicsBody?: RAPIER.RigidBody;
 
+  // cached size/translation/rotation, mirrored from the physics body
   public InitialSize!: RAPIER.Vector2;
   public CurrentSize!: RAPIER.Vector2;
   public InitialTranslation!: RAPIER.Vector2;
   public CurrentTranslation!: RAPIER.Vector;
-  public CurrentRotation!: number;
+  private CurrentRotation!: number;
 
-  public IsBeingDestroyed!: boolean;
+  // Render interpolation: the previous sim transform plus the latest, so the render
+  // pass can lerp between them and stay smooth above the sim rate. RenderTranslation
+  // is the interpolated position other systems (e.g. the camera) should follow.
+  protected previousRenderTranslation = { x: 0, y: 0 };
+  protected previousRenderRotation = 0;
+  public RenderTranslation = { x: 0, y: 0 };
+
+  public IsBeingDestroyed!: boolean; // true while tearing down, blocks callbacks
 
   // ============================================================================
   // COLLISION CALLBACKS - Override these in subclasses to handle collisions
   // ============================================================================
 
-  /**
-   * Called when this GameObject starts colliding with another solid GameObject
-   * Override this method in subclasses to define collision behavior
-   * 
-   * @param other - The GameObject this object collided with
-   * 
-   * @example
-   * ```typescript
-   * protected onCollisionEnter(other: GameObject) {
-   *   if (other instanceof Player) {
-   *     console.log("Enemy hit player!");
-   *     Emitter.emit("gameOver");
-   *   }
-   * }
-   * ```
-   */
+  // Called when this object starts colliding with another solid object; override in subclasses.
   public OnCollisionEnter?(other: GameObject): void;
 
-  /**
-   * Called when this GameObject stops colliding with another solid GameObject
-   * Override this method in subclasses to define collision exit behavior
-   *
-   * @param other - The GameObject this object stopped colliding with
-   */
+  // Called when this object stops colliding with another solid object; override in subclasses.
   public OnCollisionExit?(other: GameObject): void;
 
   // ============================================================================
   // SENSOR CALLBACKS - Override these in subclasses to handle sensor triggers
   // ============================================================================
 
-  /**
-   * Called when this GameObject (as a sensor) detects another GameObject entering
-   * Override this method in subclasses to define sensor trigger behavior
-   * 
-   * @param other - The GameObject that entered this sensor
-   * 
-   * @example
-   * ```typescript
-   * protected onSensorEnter(other: GameObject) {
-   *   if (other instanceof Player) {
-   *     console.log("Player entered ladder zone!");
-   *     this.camera.changePosition(this.targetPosition);
-   *   }
-   * }
-   * ```
-   */
+  // Called when this object (as a sensor) detects another object entering; override in subclasses.
   public OnSensorEnter?(other: GameObject): void;
 
-  /**
-   * Called when this GameObject (as a sensor) detects another GameObject exiting
-   * Override this method in subclasses to define sensor exit behavior
-   *
-   * @param other - The GameObject that exited this sensor
-   */
+  // Called when this object (as a sensor) detects another object exiting; override in subclasses.
   public OnSensorExit?(other: GameObject): void;
 
   constructor() {
     this.initializeAttributes();
   }
 
+  // grab engine singletons, zero out transform fields
   private initializeAttributes() {
     this.experience = Experience.GetInstance();
     this.scene = this.experience.Scene;
@@ -112,6 +81,7 @@ export default class GameObject {
     this.IsBeingDestroyed = false;
   }
 
+  // build rigid body + collider for this object
   protected createObjectPhysics(
     name: string = "GameObject",
     gameObjectType: string,
@@ -158,10 +128,7 @@ export default class GameObject {
     this.enablePhysicsEvents();
   }
 
-  /**
-   * Automatically enable collision/sensor events if the GameObject has callbacks defined
-   * This allows the event system to efficiently only process events for objects that need them
-   */
+  // Auto-enable collision/sensor events only for objects that define callbacks.
   private enablePhysicsEvents() {
     if (!this.PhysicsBody) {
       return;
@@ -190,50 +157,37 @@ export default class GameObject {
     }
   }
 
-  /**
-   * Explicitly arm collision/sensor events on a collider so this entity takes
-   * part in the contact-rule system even when it defines no collision or sensor
-   * callback of its own (its interactions live in the declarative contact table
-   * instead). Entities that DO define a callback are armed automatically above.
-   */
+  // Arm collision/sensor events on a collider for entities that use the declarative contact
+  // table instead of their own callback (callback-defining entities are armed automatically above).
   protected enableContactEvents(colliderIndex: number = 0) {
     this.PhysicsBody?.collider(colliderIndex)?.setActiveEvents(
       RAPIER.ActiveEvents.COLLISION_EVENTS
     );
   }
 
+  // pick collider shape from the object type
   protected createCollider(
     size: { width: number; height: number },
     gameObjectType: string
   ) {
     switch (gameObjectType) {
-      case GameObjectType.CUBE:
-        return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
       case GameObjectType.SPHERE:
         return RAPIER.ColliderDesc.ball(size.width / 2);
       case GameObjectType.CAPSULE:
-        return RAPIER.ColliderDesc.capsule(size.height / 2, size.width);
-      case GameObjectType.CONVEX_MESH:
-        if (this.vertices && this.vertices.length > 0) {
-          return RAPIER.ColliderDesc.convexHull(
-            new Float32Array(this.vertices)
-          )!;
-        } else {
-          return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
-        }
-      case GameObjectType.POLYLINE:
-        if (this.vertices && this.vertices.length > 0) {
-          return RAPIER.ColliderDesc.polyline(new Float32Array(this.vertices));
-        } else {
-          return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
-        }
+        // capsule(halfHeight, radius): total height = 2*halfHeight + 2*radius,
+        // total width = 2*radius. So radius = width/2 and halfHeight = (height-width)/2
+        // reproduces a {width x height} envelope as a y-aligned capsule (height >= width).
+        return RAPIER.ColliderDesc.capsule(
+          Math.max(0, (size.height - size.width) / 2),
+          size.width / 2
+        );
+      // CUBE — and any unrecognized type — fall through to a cuboid. Slopes are
+      // rotated cubes and complex shapes are overlapped cubes (no polyline or
+      // convex-mesh).
+      case GameObjectType.CUBE:
       default:
         return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
     }
-  }
-
-  protected setVertices(vertices: number[]) {
-    this.vertices = vertices.flat();
   }
 
   protected setGeometry(geometry?: THREE.BoxGeometry | THREE.SphereGeometry) {
@@ -248,6 +202,7 @@ export default class GameObject {
     this.spriteScale = spriteScale;
   }
 
+  // lazily create the empty mesh group
   private createMeshGroup() {
     if (this.mesh) {
       return;
@@ -256,6 +211,7 @@ export default class GameObject {
     this.mesh = new THREE.Group();
   }
 
+  // add meshes in batches so loading does not block
   private async addMeshesToGroupAsync(meshes: any[], batchSize: number) {
     // Needed to load meshes from BlenderScene async, otherwise operation is blocking with too many synchronous loads to THREE.Scene
     for (let i = 0; i < meshes.length; i += batchSize) {
@@ -270,6 +226,7 @@ export default class GameObject {
     this.scene.add(this.mesh!);
   }
 
+  // dispose geometry and material(s) of one object
   private disposeMeshHelper(object: THREE.Object3D) {
     if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
       // Dispose geometry
@@ -286,6 +243,7 @@ export default class GameObject {
     }
   }
 
+  // build a simple solid debug mesh
   protected createObjectGraphicsDebug(meshColor: string, opacity: number = 1) {
     // Check to set transparent property on MeshBasicMaterial
     let isMaterialTransparent: boolean;
@@ -333,6 +291,7 @@ export default class GameObject {
     this.syncGraphicsToPhysics();
   }
 
+  // copy physics translation/rotation onto the mesh
   protected syncGraphicsToPhysics(
     meshOffset: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 }
   ) {
@@ -340,6 +299,12 @@ export default class GameObject {
     if (this.IsBeingDestroyed || !this.PhysicsBody) {
       return;
     }
+
+    // Record the previous sim transform so the render pass can interpolate toward
+    // the new one (see InterpolateGraphics).
+    this.previousRenderTranslation.x = this.CurrentTranslation.x;
+    this.previousRenderTranslation.y = this.CurrentTranslation.y;
+    this.previousRenderRotation = this.CurrentRotation;
 
     this.CurrentTranslation = this.PhysicsBody.translation();
     this.mesh?.position.set(
@@ -356,6 +321,43 @@ export default class GameObject {
     );
   }
 
+  // Render-interpolated mesh placement: lerp between the previous and current sim
+  // transforms by alpha (0..1 — how far into the next step we are). Called once per
+  // RENDER frame for MOVING entities (Player, Enemies) so motion stays smooth above
+  // the sim rate; static entities are positioned once by syncGraphicsToPhysics and
+  // don't need it. Records the interpolated position in RenderTranslation so the
+  // camera can follow the smooth visual position, not the stepped sim position.
+  public InterpolateGraphics(
+    alpha: number,
+    meshOffset: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 }
+  ) {
+    if (this.IsBeingDestroyed || !this.mesh) {
+      return;
+    }
+
+    const x =
+      this.previousRenderTranslation.x +
+      (this.CurrentTranslation.x - this.previousRenderTranslation.x) * alpha;
+    const y =
+      this.previousRenderTranslation.y +
+      (this.CurrentTranslation.y - this.previousRenderTranslation.y) * alpha;
+
+    this.RenderTranslation.x = x;
+    this.RenderTranslation.y = y;
+
+    this.mesh.position.set(x + meshOffset.x, y + meshOffset.y, meshOffset.z);
+
+    // Interpolate rotation along the SHORTEST arc. The Rapier 2D angle wraps at ±π,
+    // so a rolling barrel's angle jumps from ~+π to ~-π between steps; a naive lerp
+    // would spin the long way round (a visible one-frame backspin). atan2(sin,cos)
+    // wraps the delta into (-π, π] so we always take the short way.
+    let dRot = this.CurrentRotation - this.previousRenderRotation;
+    dRot = Math.atan2(Math.sin(dRot), Math.cos(dRot));
+    const rot = this.previousRenderRotation + dRot * alpha;
+    this.mesh.rotation.set(this.mesh.rotation.x, this.mesh.rotation.y, rot);
+  }
+
+  // set group bits, preserve the current mask
   protected setCollisionGroup(
     collisionGroups: number,
     colliderIndex: number = 0
@@ -375,6 +377,7 @@ export default class GameObject {
       .setCollisionGroups(collisionGroups | (currentMask << 16));
   }
 
+  // set mask bits, preserve the current group
   protected setCollisionMask(collisionMask: number, colliderIndex: number = 0) {
     // Physics body needs to be created
     if (!this.PhysicsBody) {
@@ -391,50 +394,28 @@ export default class GameObject {
       .setCollisionGroups(currentGroup | (collisionMask << 16));
   }
 
-  /**
-   * Set this entity's TYPE flag — the shared routing identity. Used to specialize
-   * an entity after construction (a generic shape becomes a more specific kind,
-   * e.g. a Platform becomes a "Wall"). Keeps `name` mirroring `type` as a sensible
-   * default; call SetName afterwards for a distinct per-instance id.
-   */
+  // Set this entity's TYPE routing flag and mirror name to it; call SetName after for a distinct id.
   public SetType(newType?: string) {
     if (!newType) {
       return;
     }
 
-    const userData = GameUtils.GetDataFromPhysicsBody(this.PhysicsBody);
+    const userData = getUserData(this.PhysicsBody);
     userData.type = newType;
     userData.name = newType;
   }
 
-  /**
-   * Set this entity's per-INSTANCE name (e.g. "SpecificEnemy2"), leaving its
-   * routing `type` unchanged so type-flag matching still groups it with its kind.
-   */
+  // Set this entity's per-INSTANCE name, leaving its routing type unchanged.
   public SetName(newName?: string) {
     if (!newName) {
       return;
     }
 
-    GameUtils.GetDataFromPhysicsBody(this.PhysicsBody).name = newName;
-  }
-
-  public ChangeColliderSize(newSize: { width: number; height: number }) {
-    // Remove the old collider (assuming there's only one collider attached)
-    this.Physics.World.removeCollider(this.PhysicsBody!.collider(0), true);
-
-    // Create a new collider with the updated size
-    const newCollider = this.createCollider(newSize, this.gameObjectType);
-
-    // Attach the new collider to the rigid body
-    this.Physics.World.createCollider(newCollider, this.PhysicsBody);
-
-    // Update the current size property
-    this.CurrentSize = new RAPIER.Vector2(newSize.width, newSize.height);
+    getUserData(this.PhysicsBody).name = newName;
   }
 
   // Teleport GameObject by x units relative from current location
-  public TeleportRelative(newX: number, newY: number) {
+  private TeleportRelative(newX: number, newY: number) {
     this.PhysicsBody!.setTranslation(
       {
         x: this.CurrentTranslation.x + newX,
@@ -452,16 +433,39 @@ export default class GameObject {
 
     // Use teleportRelative to move to the target position
     this.TeleportRelative(deltaX, deltaY);
+
+    // Snap the render-interpolation state to the new position so the mesh JUMPS to
+    // the teleport target instead of sliding across the level over one frame (reset,
+    // teleporter). Without this, prev=old/curr=new would lerp the whole distance.
+    this.CurrentTranslation = this.PhysicsBody!.translation();
+    this.previousRenderTranslation.x = this.CurrentTranslation.x;
+    this.previousRenderTranslation.y = this.CurrentTranslation.y;
+    this.RenderTranslation.x = this.CurrentTranslation.x;
+    this.RenderTranslation.y = this.CurrentTranslation.y;
   }
 
+  // clone Blender scene meshes onto this object
   public async CreateObjectGraphics(resourceFromLoader: any) {
     // Create the MeshGroup if it doesn't exist
     this.createMeshGroup();
 
-    const blenderMeshes = resourceFromLoader.scene.children
-      .filter((child: any) => child?.isMesh)
-      // Clone meshes without affecting the original blenderScene meshes' parent
-      .map((mesh: THREE.Mesh) => mesh.clone());
+    // Clone meshes without affecting the original blenderScene meshes' parent.
+    // Clone geometry + material too so THIS instance OWNS its GPU buffers: a plain
+    // .clone() SHARES them with the source asset, so disposing a dead entity (e.g.
+    // a barrel on contact, every couple seconds) would free buffers still used by
+    // the source and every other live clone. Owning them makes Destroy() free only
+    // our own.
+    const blenderMeshes: THREE.Mesh[] = [];
+    for (const child of resourceFromLoader.scene.children) {
+      if (child?.isMesh) {
+        const cloned: THREE.Mesh = child.clone();
+        cloned.geometry = child.geometry.clone();
+        cloned.material = Array.isArray(child.material)
+          ? child.material.map((m: THREE.Material) => m.clone())
+          : child.material.clone();
+        blenderMeshes.push(cloned);
+      }
+    }
 
     // Add meshes to the scene in batches of 5
     await this.addMeshesToGroupAsync(blenderMeshes, 5);
@@ -469,7 +473,14 @@ export default class GameObject {
     this.syncGraphicsToPhysics();
   }
 
+  // tear down mesh, geometry, and physics body
   public Destroy() {
+    // Idempotent: a second Destroy() (e.g. a re-entrant "gameObjectRemoved") is a
+    // no-op instead of double-freeing the body or recursing.
+    if (this.IsBeingDestroyed) {
+      return;
+    }
+
     // Set immediately — guards concurrent collision callbacks from firing on a partially-destroyed object
     this.IsBeingDestroyed = true;
 

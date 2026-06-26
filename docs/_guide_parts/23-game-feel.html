@@ -1,0 +1,447 @@
+<section class="doc-section" id="game-feel">
+  <header class="section-head">
+    <h2 class="section-title">Feel — tunable movement profiles</h2>
+    <p class="section-blurb">
+      "Feel" is the complete set of scalars that decide how heavy, snappy, floaty, or forgiving the
+      player character is — run speed, ground/air accel, the jump launch impulse, rise/fall gravity,
+      terminal velocity, coyote time, jump buffering, climb pacing, and animation cadence. Three tiny
+      pure functions own it: <code>baseFeel</code> seeds the values shared by every character, then
+      <code>setDkAttributes</code> / <code>setCelesteAttributes</code> stamp two distinct personalities
+      on top. Feel is the single source of truth and is applied <em>only</em> at level load, from the
+      registry, via <code>GameDirector.applyFeelProfile</code> — see
+      <a href="#game-director">GameDirector</a> and <a href="#game-config--levelregistry">levelRegistry</a>.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/game/attributes/baseFeel.ts</span>
+      <span class="chip">src/game/attributes/setCelesteAttributes.ts</span>
+      <span class="chip">src/game/attributes/setDkAttributes.ts</span>
+    </div>
+  </header>
+
+  <!-- ============================================================= -->
+  <!-- Orientation: how feel reaches the player                       -->
+  <!-- ============================================================= -->
+  <div class="callout note">
+    <b>Note — where these scalars live and how they're consumed.</b> None of these three files
+    contains any logic; each one just <em>writes public fields on a</em>
+    <a href="#game-player">Player</a> instance. The fields are declared in the
+    "Player attributes" block of <code>player.ts</code> (e.g. <code>public JumpPower!: number;</code>),
+    and they are read every frame by the player state handlers:
+    <a href="#game-player-states--handleplayerrunning">handlePlayerRunning</a>, <a href="#game-player-states--handleplayerjumping">handlePlayerJumping</a>,
+    <a href="#game-player-states--handleplayerfalling">handlePlayerFalling</a>, <a href="#game-player-states--handleplayerclimbing">handlePlayerClimbing</a>,
+    and the shared <a href="#game-player--applyhorizontalmovement">applyHorizontalMovement</a>. So to understand what a
+    number <em>does</em>, you read it in the setter and feel it in the handler.
+  </div>
+
+  <div class="callout tip">
+    <b>Tip — the unit convention.</b> <code>player.NextTranslation</code> is a <em>velocity</em>
+    (world-units per second); <code>updateTranslation()</code> in <code>player.ts</code> multiplies it
+    by <code>Time.Delta</code> to get the per-frame move. So a "speed" tunable
+    (<code>MaxGroundSpeed</code>, <code>MaxFallSpeed</code>, <code>MaxClimbSpeed</code>,
+    <code>JumpPower</code>) is a target velocity, and an "accel/decel/gravity" tunable
+    (<code>GroundAcceleration</code>, <code>FallAcceleration</code>, <code>RiseGravity</code>, …) is
+    fed in as <code>rate * Time.Delta</code> — i.e. units / second² — the maximum step a velocity is
+    allowed to change this frame. Every ramp goes through
+    <code>GameUtils.MoveTowardsPoint(current, target, maxStep)</code>
+    (<code>= MathHelpers.moveTowards</code>): nudge <code>current</code> toward <code>target</code> by
+    at most <code>maxStep</code>, snap exactly on arrival.
+  </div>
+
+  <pre class="mermaid">
+flowchart TD
+  A["GameDirector.loadLevelByIndex(index)"] --> B["entry = LEVEL_REGISTRY[index]"]
+  B --> C["applyFeelProfile(entry.feelProfile)"]
+  C --> D["FEEL_PROFILES[profile](this.Player)"]
+  D --> E["setDkAttributes(player) OR setCelesteAttributes(player)"]
+  E --> F["applyBaseFeel(player)  // shared seed first"]
+  F --> G["profile overrides on top  // horizontal + jump arc"]
+  G --> H["Player fields mutated in place"]
+  H --> I["state handlers read fields every frame"]
+  </pre>
+
+  <!-- ============================================================= -->
+  <!-- baseFeel.ts                                                    -->
+  <!-- ============================================================= -->
+  <article class="file-block" id="game-feel--basefeel">
+    <h3 class="file-name">src/game/attributes/baseFeel.ts <span class="loc">39 LOC</span></h3>
+    <p class="file-role">
+      The default movement attribute set — the values <em>shared</em> by every feel profile, so the
+      common DK/Celeste numbers live in exactly one place and each profile only writes its
+      <em>differences</em> on top. It exports a single pure function, <code>applyBaseFeel</code>, which
+      takes a <a href="#game-player">Player</a> and assigns the shared climbing scalars, the jump/coyote/buffer
+      runtime flags &amp; counters, the shared timers, the coyote-time window, and the sprite-animation
+      pacing divisor. It imports only the <code>Player</code> type (for the parameter signature) — it
+      owns no behaviour and is never constructed; it is <em>called</em>, always first, by the two
+      profile setters.
+    </p>
+
+    <div class="callout note">
+      <b>Note — what base feel deliberately does NOT set.</b> Read it carefully: base feel never
+      touches <code>MaxGroundSpeed</code>, the ground/air accel-decel pairs, or any jump-arc scalar
+      (<code>JumpPower</code>, <code>RiseGravity</code>, <code>FallAcceleration</code>,
+      <code>MaxFallSpeed</code>, <code>ApexHang*</code>, <code>MinJumpTime</code>,
+      <code>BufferJumpRange</code>). Those are <em>profile-only</em> — the things that actually make DK
+      feel like DK and Celeste feel like Celeste. Base feel owns the parts that are genuinely identical
+      between the two: ladder climbing, the coyote/buffer bookkeeping flags, and animation pacing.
+      Consequence: calling <code>applyBaseFeel</code> alone would leave a player unable to walk or jump
+      (those fields would be <code>undefined</code>) — it is an ingredient, never a complete recipe.
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const applyBaseFeel = (player: Player) =&gt; void</code></h4>
+      <p>
+        <b>Purpose.</b> Seed the shared half of a feel profile onto <code>player</code>.
+        <b>Parameter.</b> <code>player</code> — the live Player whose public attribute fields are
+        mutated in place. <b>Returns.</b> nothing; it is a side-effecting setter. The body is three
+        thematic blocks.
+      </p>
+
+      <h5>Climbing (shared)</h5>
+      <pre class="code"><code class="language-typescript">player.MaxClimbSpeed = 4;       // top vertical speed on a ladder
+player.ClimbAcceleration = 30;  // how fast you reach MaxClimbSpeed
+player.ClimbDeceleration = 8;   // how fast you stop when you let go</code></pre>
+      <p>
+        Read these in <a href="#game-player-states--handleplayerclimbing">handlePlayerClimbing</a>: when up/down is held the
+        target is <code>player.Direction * MaxClimbSpeed</code> ramped at
+        <code>ClimbAcceleration * Time.Delta</code>; when neutral the target is <code>0</code> ramped
+        at <code>ClimbDeceleration * Time.Delta</code>. Ladders feel the same in both games, so these
+        are shared. <code>MaxClimbSpeed</code> also doubles as the nudge velocity used to pop the player
+        off the top/bottom of a ladder back into IDLE.
+      </p>
+
+      <h5>Jump / coyote / buffer runtime state (shared)</h5>
+      <pre class="code"><code class="language-typescript">// Early-jump-ended latch (variable height): reset every jump entry &amp; on ground.
+player.EndedJumpEarly = false;
+
+// Coyote-jump runtime flags/counters
+player.CoyoteAvailable = false;
+player.CoyoteCount = 0;
+
+// Buffer-jump runtime flags/counters (the RANGE differs per profile)
+player.BufferJumpAvailable = false;
+player.GroundWithinBufferRange = false;
+player.WasBufferJumpUsed = false;
+player.BufferJumpCount = 0;
+
+// Jump and fall timers (shared)
+player.TimeJumpWasEntered = 0;
+player.TimeFallWasEntered = 0;
+
+player.CoyoteTime = 0.033; // 2 frames</code></pre>
+      <p>
+        These are <em>runtime</em> values, not personality knobs — seeding them here guarantees every
+        flag holds a real boolean and every counter a real number before the first frame runs, so the
+        handlers never branch on <code>undefined</code>. Their meanings, traced through the handlers:
+      </p>
+      <ul>
+        <li>
+          <b><code>EndedJumpEarly</code></b> — the variable-height latch. Set <code>true</code> in
+          <a href="#game-player-states--handleplayerjumping">handlePlayerJumping</a> when jump is released after
+          <code>MinJumpTime</code>; reset to <code>false</code> on every fresh launch (idle/running/coyote)
+          and on the ground (idle/running). When true, rise gravity is multiplied by
+          <code>JumpEndedEarlyGravityModifier</code> so a tapped jump peaks lower.
+        </li>
+        <li>
+          <b><code>CoyoteAvailable</code> / <code>CoyoteCount</code></b> — grace-jump state. Set
+          <code>CoyoteAvailable = true</code> while grounded (idle/running); the FALLING handler lets you
+          still jump if <code>Time.Elapsed &lt; TimeFallWasEntered + CoyoteTime</code>.
+        </li>
+        <li>
+          <b>Buffer quartet</b> — <code>GroundWithinBufferRange</code> is set by the player's downward
+          shapecast (true when ground is within <code>BufferJumpRange</code> and you're descending);
+          <code>BufferJumpAvailable</code> arms when you're in range with jump released;
+          <code>WasBufferJumpUsed</code> + <code>BufferJumpCount</code> are the debounce/telemetry so one
+          press counts once.
+        </li>
+        <li>
+          <b><code>TimeJumpWasEntered</code> / <code>TimeFallWasEntered</code></b> — timestamps
+          (<code>Time.Elapsed</code> seconds) stamped on entering JUMPING/FALLING; the coyote and
+          MinJumpTime windows are measured against them.
+        </li>
+        <li>
+          <b><code>CoyoteTime = 0.033</code></b> — the actual grace window, ~2 frames at 60 fps. This
+          one <em>is</em> a tunable, and it's shared: both games give the same 2-frame forgiveness.
+        </li>
+      </ul>
+
+      <h5>Animation pacing (shared)</h5>
+      <pre class="code"><code class="language-typescript">player.AnimationScalingFactor = 1.6;</code></pre>
+      <p>
+        The divisor that ties run-cycle speed to horizontal velocity. In
+        <a href="#game-player-states--handleplayerrunning">handlePlayerRunning</a> it feeds
+        <code>SpriteAnimator.ChangeAnimationTiming(1 / (|NextTranslation.x| / AnimationScalingFactor))</code>
+        — i.e. <code>AnimationScalingFactor / |vx|</code>. Larger <code>|vx|</code> → smaller per-frame
+        hold → faster legs; the factor sets the overall relationship so the run cycle reads right at each
+        game's top speed (the wall-hit branch reuses <code>MaxGroundSpeed</code> in the same formula to
+        keep the cycle moving while pinned against a wall).
+      </p>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> put a value here only if DK and Celeste genuinely agree on it (climbing,
+      coyote window, animation pacing) — anything that should differ between feels belongs in a profile
+      setter instead. If you add a <em>new</em> shared runtime flag, seed it here too so the handlers
+      always see a defined value on frame one. Remember base feel runs <em>first</em> inside each profile,
+      so a profile can always override anything you set here.
+    </p>
+  </article>
+
+  <!-- ============================================================= -->
+  <!-- setCelesteAttributes.ts                                        -->
+  <!-- ============================================================= -->
+  <article class="file-block" id="game-feel--setcelesteattributes">
+    <h3 class="file-name">src/game/attributes/setCelesteAttributes.ts <span class="loc">47 LOC</span></h3>
+    <p class="file-role">
+      The "Celeste" personality: fast, twitchy, high-flying, very floaty at the apex — a precision
+      platformer feel. It exports <code>setCelesteAttributes(player)</code>, which calls
+      <code>applyBaseFeel(player)</code> first (the shared seed) and then overrides the horizontal-movement
+      and jump-arc scalars with big, snappy numbers. It imports the <code>Player</code> type and
+      <code>applyBaseFeel</code>. It is referenced by name only through the <code>FEEL_PROFILES</code>
+      table in <a href="#game-config--levelregistry">levelRegistry</a> (key <code>"celeste"</code>); a level opts into
+      it via <code>feelProfile: "celeste"</code>.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const setCelesteAttributes = (player: Player) =&gt; void</code></h4>
+      <p>
+        <b>Purpose.</b> Apply the Celeste feel. <b>Parameter.</b> <code>player</code> — mutated in place.
+        <b>Returns.</b> nothing. First line is always the shared base; everything below is a Celeste
+        override.
+      </p>
+      <pre class="code"><code class="language-typescript">applyBaseFeel(player);
+
+// Horizontal
+player.MaxGroundSpeed = 25;
+player.GroundAcceleration = 120;
+player.GroundDeceleration = 30;
+player.AirAcceleration = 120;   // air == ground here (no air difference)
+player.AirDeceleration = 30;</code></pre>
+      <p>
+        Top horizontal speed is <code>25</code> (more than double DK's), and acceleration is a steep
+        <code>120</code> — you snap to full speed almost instantly. Air control is set equal to ground
+        control, so mid-air steering is just as responsive as on the floor;
+        <a href="#game-player--applyhorizontalmovement">applyHorizontalMovement</a> picks the air pair when its
+        <code>airborne</code> flag is true (jumping/falling pass <code>true</code>). The comment notes
+        these are deliberately equal as a starting point — diverge them in the Feel Lab for floatier or
+        draggier air.
+      </p>
+      <pre class="code"><code class="language-typescript">// Jump arc
+player.MaxFallSpeed = 80;       // terminal fall velocity
+player.FallAcceleration = 440;  // fall half of the arc
+player.RiseGravity = 360;       // rise half (lighter than fall = floaty ascent)
+player.JumpEndedEarlyGravityModifier = 3;
+player.ApexHangThreshold = 20;  // |vy| window for apex float
+player.ApexHangMult = 0.5;
+player.JumpPower = 128;         // upward launch velocity
+player.BufferJumpRange = 4;
+player.MinJumpTime = 0.06;</code></pre>
+      <p>Tracing each through the handlers:</p>
+      <ul>
+        <li>
+          <b><code>JumpPower = 128</code></b> — the launch impulse written straight into
+          <code>NextTranslation.y</code> on jump entry (idle/running/coyote). A huge initial velocity.
+        </li>
+        <li>
+          <b><code>RiseGravity = 360</code></b> — subtracted from <code>vy</code> each frame during
+          JUMPING (<code>NextTranslation.y -= riseGravity * Time.Delta</code>). The apex
+          <em>emerges</em> where this brings <code>vy</code> to zero — there is no fixed apex timer.
+        </li>
+        <li>
+          <b><code>FallAcceleration = 440</code></b> — fall ramps toward <code>-MaxFallSpeed</code> at
+          this rate in FALLING. It is much larger than <code>RiseGravity</code>, which is the asymmetry
+          that produces the signature snappy Celeste arc: you rise lazily and drop hard.
+        </li>
+        <li>
+          <b><code>MaxFallSpeed = 80</code></b> — terminal velocity; also used in idle/running as the
+          constant downward velocity that keeps the player glued to slopes.
+        </li>
+        <li>
+          <b><code>ApexHangThreshold = 20</code> / <code>ApexHangMult = 0.5</code></b> — near the top,
+          while <code>|vy| &lt; 20</code>, rise gravity is halved, giving a generous hang. The window
+          (20) is wide, so the float is pronounced.
+        </li>
+        <li>
+          <b><code>JumpEndedEarlyGravityModifier = 3</code></b> — release jump early (after
+          <code>MinJumpTime</code>) and rise gravity triples, cutting the jump short. Mutually exclusive
+          with the apex hang in the handler's <code>if / else if</code>.
+        </li>
+        <li>
+          <b><code>BufferJumpRange = 4</code></b> — a generous landing window; pressing jump up to 4
+          units above the ground still fires on touchdown.
+        </li>
+        <li>
+          <b><code>MinJumpTime = 0.06</code></b> — the variable-height floor; a jump always lasts at
+          least 60 ms even on the fastest tap.
+        </li>
+      </ul>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — the "2× time-scaled" arc.</b> The header comment records that these numbers
+      were <em>not</em> hand-guessed: they were tuned in slow-motion (the Feel Lab), then time-scaled ~2×
+      to feel snappy on the real clock. The rule preserves apex <em>height</em> while halving
+      <em>airtime</em>: velocities ×2, accelerations ×4, jump times ×0.5. The original labbed values were
+      <code>JumpPower 64 / RiseGravity 90 / Fall 110 / MaxFall 40 / ApexHang 10×0.5 / MinJumpTime 0.12</code>.
+      This works because apex height <code>h = v² / (2g)</code> is invariant under
+      <code>v → 2v, g → 4g</code> (<code>4v² / 8g = v² / 2g</code>), while time-to-apex
+      <code>t = v / g → 2v / 4g</code> halves. Same arc shape, twice as responsive.
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> change values <em>below</em> the <code>applyBaseFeel(player)</code> line
+      only — never remove that first call or you lose climbing/coyote/animation defaults. Keep
+      <code>FallAcceleration &gt; RiseGravity</code> if you want to preserve the rise-floaty / fall-snappy
+      character. To add a brand-new feel knob, declare the field on <a href="#game-player">Player</a>, set it
+      in <code>baseFeel</code> (if shared) or in both profile setters, and read it in a handler.
+    </p>
+  </article>
+
+  <!-- ============================================================= -->
+  <!-- setDkAttributes.ts                                             -->
+  <!-- ============================================================= -->
+  <article class="file-block" id="game-feel--setdkattributes">
+    <h3 class="file-name">src/game/attributes/setDkAttributes.ts <span class="loc">49 LOC</span></h3>
+    <p class="file-role">
+      The "Donkey Kong" personality and the default the engine actually ships with: slow, heavy,
+      deliberate, with a short controlled hop — the original arcade feel. It exports
+      <code>setDkAttributes(player)</code>, structurally identical to the Celeste setter
+      (<code>applyBaseFeel</code> first, then overrides) but with much smaller numbers. It is referenced
+      through <code>FEEL_PROFILES.dk</code> in <a href="#game-config--levelregistry">levelRegistry</a> (both shipped
+      levels use <code>feelProfile: "dk"</code>), and it is <em>also</em> imported directly by
+      <a href="#game-player">player.ts</a>, where the constructor calls <code>setDkAttributes(this)</code> in
+      <code>initializePlayerAttributes()</code> as a construction-time default.
+    </p>
+
+    <div class="callout gotcha">
+      <b>Gotcha — DK feel is applied twice, and that's intentional.</b> The Player constructor runs
+      <code>setDkAttributes(this)</code> so a freshly-built player is never half-initialised (it can
+      move on frame zero even before a level finishes loading). Then
+      <code>GameDirector.loadLevelByIndex</code> calls <code>applyFeelProfile(entry.feelProfile)</code>,
+      which re-applies the registry's chosen profile to the same player. For a DK level this is a
+      harmless re-stamp; for a Celeste level the load-time call <em>overrides</em> the constructor's DK
+      seed. The load-time application — not the constructor — is the authoritative one. See
+      <a href="#game-director">GameDirector.applyFeelProfile</a>.
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const setDkAttributes = (player: Player) =&gt; void</code></h4>
+      <p>
+        <b>Purpose.</b> Apply the DK feel. <b>Parameter.</b> <code>player</code> — mutated in place.
+        <b>Returns.</b> nothing.
+      </p>
+      <pre class="code"><code class="language-typescript">applyBaseFeel(player);
+
+// Horizontal
+player.MaxGroundSpeed = 11.8;   // less than half Celeste's 25
+player.GroundAcceleration = 50;
+player.GroundDeceleration = 20;
+player.AirAcceleration = 50;
+player.AirDeceleration = 20;
+
+// Jump arc
+player.MaxFallSpeed = 40;
+player.FallAcceleration = 80;
+player.RiseGravity = 72;
+player.JumpEndedEarlyGravityModifier = 3;
+player.ApexHangThreshold = 4;   // narrow window = barely-there hang
+player.ApexHangMult = 0.5;
+player.JumpPower = 24;          // a short controlled hop
+player.BufferJumpRange = 1.5;   // tight landing window
+player.MinJumpTime = 0.05;</code></pre>
+      <p>
+        Same fields, same handler paths as Celeste — only the magnitudes change, and that difference is
+        the entire point. <code>MaxGroundSpeed = 11.8</code> is a measured-feeling arcade walk;
+        <code>JumpPower = 24</code> with <code>RiseGravity = 72</code> gives a short hop that clears a
+        barrel but not much more. The apex window is narrow (<code>ApexHangThreshold = 4</code>) so DK
+        gets only the faintest hang — heavy, not floaty — and <code>BufferJumpRange = 1.5</code> demands
+        a more precise pre-land press than Celeste's forgiving <code>4</code>. The early-release modifier
+        (<code>3</code>), apex multiplier (<code>0.5</code>), and the shared coyote/climb values are
+        identical to Celeste, so the <em>mechanics</em> are the same; only the tuning differs.
+      </p>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — same time-scale recipe, DK numbers.</b> Like Celeste, DK's arc was labbed
+      slow then time-scaled ~2× (velocities ×2, accelerations ×4, jump times ×0.5; same apex height,
+      half the airtime). The recorded originals were
+      <code>JumpPower 12 / RiseGravity 18 / Fall 20 / MaxFall 20 / ApexHang 2×0.5 / MinJumpTime 0.1</code>.
+      Doubling <code>JumpPower 12 → 24</code> and quadrupling <code>RiseGravity 18 → 72</code> keeps the
+      identical hop height while making the controls feel responsive on the real frame clock.
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> this is the live default, so test changes here against the actual game, not
+      just the Feel Lab. Keep the constructor seed and the registry profile in sync conceptually — if you
+      want a different construction-time default, change the call in <code>player.ts</code>
+      <code>initializePlayerAttributes()</code>, but the real authority is the level's
+      <code>feelProfile</code>.
+    </p>
+  </article>
+
+  <!-- ============================================================= -->
+  <!-- Comparison table                                               -->
+  <!-- ============================================================= -->
+  <h3>Base vs DK vs Celeste — every tunable, side by side</h3>
+  <p>
+    "<code>—</code>" means base feel does not set that field (it is profile-only). Where base feel sets
+    a value, DK and Celeste inherit it unless they explicitly override (none of them override the shared
+    ones today).
+  </p>
+  <table class="tbl">
+    <thead>
+      <tr><th>Field</th><th>baseFeel</th><th>DK</th><th>Celeste</th><th>Physical meaning &amp; where it's read</th></tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="5"><b>Horizontal movement</b> — <a href="#game-player--applyhorizontalmovement">applyHorizontalMovement</a></td></tr>
+      <tr><td><code>MaxGroundSpeed</code></td><td>—</td><td>11.8</td><td>25</td><td>Top horizontal speed (target velocity). Celeste is &gt;2× faster.</td></tr>
+      <tr><td><code>GroundAcceleration</code></td><td>—</td><td>50</td><td>120</td><td>How fast you reach top speed on the floor.</td></tr>
+      <tr><td><code>GroundDeceleration</code></td><td>—</td><td>20</td><td>30</td><td>How fast you stop on the floor (neutral input).</td></tr>
+      <tr><td><code>AirAcceleration</code></td><td>—</td><td>50</td><td>120</td><td>Mid-air steering accel (here = ground, by design).</td></tr>
+      <tr><td><code>AirDeceleration</code></td><td>—</td><td>20</td><td>30</td><td>Mid-air stop accel (here = ground, by design).</td></tr>
+      <tr><td colspan="5"><b>Jump arc</b> — <a href="#game-player-states--handleplayerjumping">handlePlayerJumping</a> / <a href="#game-player-states--handleplayerfalling">handlePlayerFalling</a></td></tr>
+      <tr><td><code>JumpPower</code></td><td>—</td><td>24</td><td>128</td><td>Upward launch velocity stamped into <code>vy</code> on jump entry.</td></tr>
+      <tr><td><code>RiseGravity</code></td><td>—</td><td>72</td><td>360</td><td>Decel applied while rising; apex is where it zeroes <code>vy</code>.</td></tr>
+      <tr><td><code>FallAcceleration</code></td><td>—</td><td>80</td><td>440</td><td>Accel toward terminal velocity while falling (&gt; rise = snappy).</td></tr>
+      <tr><td><code>MaxFallSpeed</code></td><td>—</td><td>40</td><td>80</td><td>Terminal fall velocity; also the slope-glue downward velocity.</td></tr>
+      <tr><td><code>JumpEndedEarlyGravityModifier</code></td><td>—</td><td>3</td><td>3</td><td>Rise-gravity multiplier when jump released early (variable height).</td></tr>
+      <tr><td><code>ApexHangThreshold</code></td><td>—</td><td>4</td><td>20</td><td><code>|vy|</code> window for the apex float. Wide = floaty (Celeste).</td></tr>
+      <tr><td><code>ApexHangMult</code></td><td>—</td><td>0.5</td><td>0.5</td><td>Rise-gravity multiplier inside the apex window.</td></tr>
+      <tr><td><code>MinJumpTime</code></td><td>—</td><td>0.05</td><td>0.06</td><td>Minimum jump duration; the variable-height floor (seconds).</td></tr>
+      <tr><td colspan="5"><b>Forgiveness</b> — coyote &amp; buffer</td></tr>
+      <tr><td><code>CoyoteTime</code></td><td>0.033</td><td>0.033</td><td>0.033</td><td>Post-ledge grace window to still jump (~2 frames). Shared.</td></tr>
+      <tr><td><code>BufferJumpRange</code></td><td>—</td><td>1.5</td><td>4</td><td>Pre-land distance at which a jump press is remembered.</td></tr>
+      <tr><td colspan="5"><b>Climbing</b> — <a href="#game-player-states--handleplayerclimbing">handlePlayerClimbing</a> (all shared)</td></tr>
+      <tr><td><code>MaxClimbSpeed</code></td><td>4</td><td>4</td><td>4</td><td>Top vertical speed on a ladder.</td></tr>
+      <tr><td><code>ClimbAcceleration</code></td><td>30</td><td>30</td><td>30</td><td>How fast you reach climb speed.</td></tr>
+      <tr><td><code>ClimbDeceleration</code></td><td>8</td><td>8</td><td>8</td><td>How fast you stop climbing.</td></tr>
+      <tr><td colspan="5"><b>Presentation</b></td></tr>
+      <tr><td><code>AnimationScalingFactor</code></td><td>1.6</td><td>1.6</td><td>1.6</td><td>Divisor tying run-cycle speed to <code>|vx|</code>. Shared.</td></tr>
+      <tr><td colspan="5"><b>Runtime flags / counters / timers</b> (seeded in baseFeel, mutated by handlers)</td></tr>
+      <tr><td><code>EndedJumpEarly</code></td><td>false</td><td>false</td><td>false</td><td>Variable-height latch.</td></tr>
+      <tr><td><code>CoyoteAvailable</code> / <code>CoyoteCount</code></td><td>false / 0</td><td>↑</td><td>↑</td><td>Coyote grace state &amp; tally.</td></tr>
+      <tr><td><code>BufferJumpAvailable</code> / <code>GroundWithinBufferRange</code> / <code>WasBufferJumpUsed</code> / <code>BufferJumpCount</code></td><td>false / false / false / 0</td><td>↑</td><td>↑</td><td>Buffer-jump arming, range flag, debounce, tally.</td></tr>
+      <tr><td><code>TimeJumpWasEntered</code> / <code>TimeFallWasEntered</code></td><td>0 / 0</td><td>↑</td><td>↑</td><td>Entry timestamps for the MinJump / coyote windows.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout note">
+    <b>Note — feel is the single source of truth, applied only at level load.</b>
+    <code>GameDirector.applyFeelProfile(profile)</code> is the one place feel is set: it looks the profile
+    up in <code>FEEL_PROFILES</code> and calls the setter on the current player —
+    <code>FEEL_PROFILES[profile](this.Player)</code>. There is no live debug swap that bypasses it; the
+    dat.gui <a href="#game-debug-types--playerdebug">PlayerDebug</a> can nudge individual fields for experimentation, but
+    the authoritative profile is whatever the loading level's registry row declares. The method comment
+    even flags the future hook: a "trigger sets the feel" mechanic would promote
+    <code>applyFeelProfile</code> from <code>private</code> to a public entry point.
+  </div>
+
+  <div class="callout gotcha">
+    <b>Gotcha — load order matters.</b> <code>applyFeelProfile</code> guards on <code>this.Player</code>
+    existing, and inside <code>loadLevelByIndex</code> it runs <em>after</em>
+    <code>setPlayerStart()</code> has spawned (or teleported) the player and after the GLB has parsed —
+    so the player object is always present when the profile is stamped. The whole load path is serialized
+    by the <code>isLoading</code> re-entrancy lock (decision code <b>D5</b>): without it, mashing F2 or the
+    level dropdown mid-load could interleave teardown and respawn and apply a profile to a half-built
+    player. Feel application rides safely inside that single-flight window.
+  </div>
+</section>

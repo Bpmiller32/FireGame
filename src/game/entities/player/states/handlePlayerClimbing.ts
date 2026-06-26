@@ -3,10 +3,9 @@ import PlayerStates from "../../../../engine/types/playerStates";
 import PlayerDirection from "../../../../engine/types/playerDirection";
 import GameUtils from "../../../gameUtils";
 
+// Climbing state: ladder top/bottom exits, vertical climb movement
 const handlePlayerClimbing = (player: Player) => {
-  /* -------------------------------------------------------------------------- */
-  /*                                Change state                                */
-  /* -------------------------------------------------------------------------- */
+  // Change state
   // Helper variables for touching ladder top and bottom
   const atLadderBottom =
     player.IsTouching.ladderBottom &&
@@ -33,9 +32,7 @@ const handlePlayerClimbing = (player: Player) => {
     return;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                             Input and animation                            */
-  /* -------------------------------------------------------------------------- */
+  // Input and animation
   if (player.Input.isUp) {
     player.Direction = PlayerDirection.UP;
   } else if (player.Input.isDown) {
@@ -44,33 +41,18 @@ const handlePlayerClimbing = (player: Player) => {
     player.Direction = PlayerDirection.NEUTRAL;
   }
 
-  // Controls accelerating or decellerating the sprite animation transitions
-  // Denominator determines the scaling factor relative to player speed, faster/slower move horizontally - faster/slower animation updates
-  // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
-  if (Math.abs(player.NextTranslation.x) > 0) {
-    player.SpriteAnimator.ChangeAnimationTiming(
-      1 / (Math.abs(player.NextTranslation.x) / player.AnimationScalingFactor)
-    );
-  }
-
-  /* -------------------------------------------------------------------------- */
-  /*                           Movement Logic (X axis)                          */
-  /* -------------------------------------------------------------------------- */
+  // Movement Logic (Y axis — vertical climbing)
   let targetSpeed = 0;
   let acceleration = 0;
 
-  // Accellerate climbing up
-  if (player.Direction === PlayerDirection.UP) {
+  // Accelerate up or down (Direction carries the sign); otherwise decelerate to a stop.
+  if (
+    player.Direction === PlayerDirection.UP ||
+    player.Direction === PlayerDirection.DOWN
+  ) {
     targetSpeed = player.Direction * player.MaxClimbSpeed;
     acceleration = player.ClimbAcceleration * player.Time.Delta;
-  }
-  // Accellerate climbing down
-  else if (player.Direction === PlayerDirection.DOWN) {
-    targetSpeed = player.Direction * player.MaxClimbSpeed;
-    acceleration = player.ClimbAcceleration * player.Time.Delta;
-  }
-  // Decellerate
-  else {
+  } else {
     targetSpeed = 0;
     acceleration = player.ClimbDeceleration * player.Time.Delta;
   }

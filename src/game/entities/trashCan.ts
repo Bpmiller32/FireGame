@@ -3,8 +3,9 @@ import GameObjectType from "../../engine/types/gameObjectType";
 import CollisionGroups from "../types/gameCollisionGroups";
 import EntityType from "../types/entityType";
 
+// TrashCan — the oil can; ignites when an enemy falls in.
 export default class TrashCan extends GameObject {
-  public IsOnFire: boolean;
+  public IsOnFire: boolean; // true once an enemy fell in and lit it
 
   constructor(
     size: { width: number; height: number; depth: number },
@@ -21,9 +22,9 @@ export default class TrashCan extends GameObject {
       rotation
     );
 
-    // this.createObjectGraphicsDebug("cyan");
     this.IsOnFire = false;
 
+    // Collide with the default world so enemies can fall in.
     this.setCollisionGroup(CollisionGroups.DEFAULT);
     this.setCollisionMask(CollisionGroups.DEFAULT);
   }

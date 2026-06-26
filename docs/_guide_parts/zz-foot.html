@@ -1,0 +1,191 @@
+  </main>
+</div>
+
+<button class="to-top" id="toTop" title="Back to top">↑</button>
+
+<!-- Prism: syntax highlighting -->
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+
+<!-- Mermaid: diagrams -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  // Reading order of section groups, keyed by <section> id.
+  var GROUPS = [
+    ["Overview", ["intro"]],
+    ["Architecture", ["arch-overview", "arch-loop", "arch-contacts", "arch-fsm"]],
+    ["Assessment", ["assessment-wins", "assessment-improvements"]],
+    ["Engine Layer", ["engine-core", "engine-events-input", "engine-rendering", "engine-camera",
+      "engine-physics", "engine-entities", "engine-resources", "engine-helpers", "engine-debug", "engine-types"]],
+    ["Game Layer", ["game-director", "game-ui", "game-config", "game-feel", "game-player",
+      "game-player-states", "game-enemy", "game-entities", "game-debug-types"]],
+    ["Recipes & Reference", ["cookbook", "reference"]]
+  ];
+
+  var content = document.getElementById("content");
+  var toc = document.getElementById("toc");
+
+  function titleOf(section) {
+    if (section.id === "intro") return "Introduction";
+    var h = section.querySelector(".section-title, h1, h2");
+    return h ? h.textContent.trim() : section.id;
+  }
+
+  // Build the table of contents from the sections actually present.
+  var allLinks = [];     // {a, id} for scroll-spy (sections)
+  var subLinks = [];     // {a, id} for scroll-spy (articles)
+
+  GROUPS.forEach(function (g) {
+    var groupName = g[0], ids = g[1];
+    var present = ids.filter(function (id) { return document.getElementById(id); });
+    if (!present.length) return;
+
+    var gWrap = document.createElement("div");
+    gWrap.className = "toc-group";
+    var gLabel = document.createElement("div");
+    gLabel.className = "toc-group-label";
+    gLabel.textContent = groupName;
+    gWrap.appendChild(gLabel);
+
+    present.forEach(function (id) {
+      var section = document.getElementById(id);
+      var item = document.createElement("div");
+      item.className = "toc-item";
+      item.setAttribute("data-id", id);
+
+      var a = document.createElement("a");
+      a.className = "toc-link";
+      a.href = "#" + id;
+      a.textContent = titleOf(section);
+      item.appendChild(a);
+      allLinks.push({ a: item, id: id, text: a.textContent.toLowerCase() });
+
+      // sub-links: documented files / recipe articles
+      var articles = section.querySelectorAll(".file-block[id]");
+      if (articles.length) {
+        var sub = document.createElement("div");
+        sub.className = "toc-sub";
+        articles.forEach(function (art) {
+          var name = art.querySelector(".file-name, h3, h4");
+          var label = name ? name.textContent.replace(/\s+/g, " ").trim() : art.id;
+          // keep it short: drop any trailing LOC chip text
+          label = label.replace(/\s*\d+\s*LOC\s*$/i, "");
+          var sa = document.createElement("a");
+          sa.href = "#" + art.id;
+          sa.textContent = label;
+          sa.setAttribute("data-id", art.id);
+          sub.appendChild(sa);
+          subLinks.push({ a: sa, id: art.id, text: label.toLowerCase() });
+        });
+        item.appendChild(sub);
+      }
+      gWrap.appendChild(item);
+    });
+    toc.appendChild(gWrap);
+  });
+
+  // ---- Scroll-spy ----
+  var sections = allLinks.map(function (l) { return document.getElementById(l.id); });
+  function setActiveSection(id) {
+    allLinks.forEach(function (l) { l.a.classList.toggle("active", l.id === id); });
+  }
+  function setActiveSub(id) {
+    subLinks.forEach(function (l) { l.a.classList.toggle("active", l.id === id); });
+  }
+
+  var secObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) setActiveSection(e.target.id);
+    });
+  }, { rootMargin: "-12% 0px -75% 0px", threshold: 0 });
+  sections.forEach(function (s) { if (s) secObserver.observe(s); });
+
+  var artEls = subLinks.map(function (l) { return document.getElementById(l.id); }).filter(Boolean);
+  var artObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) setActiveSub(e.target.id);
+    });
+  }, { rootMargin: "-15% 0px -70% 0px", threshold: 0 });
+  artEls.forEach(function (a) { artObserver.observe(a); });
+
+  // Keep the active TOC item scrolled into view within the rail.
+  var lastActive = null;
+  setInterval(function () {
+    var act = document.querySelector(".toc-item.active");
+    if (act && act !== lastActive) {
+      lastActive = act;
+      var rail = document.querySelector(".sidebar");
+      var r = act.getBoundingClientRect(), rr = rail.getBoundingClientRect();
+      if (r.top < rr.top + 60 || r.bottom > rr.bottom - 60) {
+        act.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, 400);
+
+  // ---- Search / filter ----
+  var search = document.getElementById("toc-search");
+  search.addEventListener("input", function () {
+    var q = search.value.trim().toLowerCase();
+    allLinks.forEach(function (l) {
+      var item = l.a;
+      if (!q) { item.classList.remove("toc-hidden"); return; }
+      var hit = l.text.indexOf(q) !== -1;
+      var subHit = false;
+      item.querySelectorAll(".toc-sub a").forEach(function (sa) {
+        var m = sa.textContent.toLowerCase().indexOf(q) !== -1;
+        sa.style.display = (!q || m || hit) ? "" : "none";
+        if (m) subHit = true;
+      });
+      item.classList.toggle("toc-hidden", !(hit || subHit));
+    });
+    // hide empty group labels
+    document.querySelectorAll(".toc-group").forEach(function (g) {
+      var any = g.querySelector(".toc-item:not(.toc-hidden)");
+      g.style.display = any ? "" : "none";
+    });
+  });
+
+  // ---- Back-to-top + progress bar ----
+  var toTop = document.getElementById("toTop");
+  var progress = document.getElementById("progress");
+  toTop.addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
+  function onScroll() {
+    var h = document.documentElement;
+    var scrolled = h.scrollTop, max = h.scrollHeight - h.clientHeight;
+    progress.style.width = (max > 0 ? (scrolled / max) * 100 : 0) + "%";
+    toTop.classList.toggle("show", scrolled > 600);
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
+  // ---- Mermaid ----
+  if (window.mermaid) {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "dark",
+      securityLevel: "loose",
+      themeVariables: {
+        background: "#11151f", primaryColor: "#1b2233", primaryBorderColor: "#2c3650",
+        primaryTextColor: "#d7dce6", lineColor: "#5a678a",
+        fontFamily: "Inter, sans-serif", fontSize: "14px"
+      }
+    });
+    try { mermaid.run({ querySelector: "pre.mermaid" }); }
+    catch (e) { console.warn("Mermaid render issue:", e); }
+  }
+
+  // ---- Prism ----
+  if (window.Prism) { try { Prism.highlightAll(); } catch (e) {} }
+})();
+</script>
+</body>
+</html>

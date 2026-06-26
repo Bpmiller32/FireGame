@@ -1,16 +1,32 @@
-/* -------------------------------------------------------------------------- */
-/*             The camera and camera controls for the webgl scene             */
-/* -------------------------------------------------------------------------- */
+// The camera and camera controls for the webgl scene
 
 import * as THREE from "three";
 import Experience from "../core/experience";
 import Sizes from "../core/sizes";
-import SpriteAnimations from "../../game/entities/player/spriteAnimations";
-import Debug from "../debug";
-import Player from "../../game/entities/player/player";
+import Debug from "../debug/debug";
+import { CameraFollowState, CameraTarget } from "../types/cameraTarget";
 import Input from "../input/input";
 import Time from "../core/time";
 import Emitter from "../events/eventBus";
+
+// Camera-follow tuning knobs (live-editable via the Camera Debug GUI folder).
+// Mario-Wonder-style pan: X eases a look-ahead toward travel direction; Y follows only
+// sustained/intentional vertical motion (climb, fall past buffer, land), ignores jump arcs.
+// *Rate = responsiveness for exponential smoothing (alpha = 1 - e^(-rate*dt)); distances in world units.
+interface CameraTuning {
+  lookaheadX: number; // horizontal offset placed ahead of the player
+  lookaheadRate: number; // how fast the look-ahead eases toward its goal
+  horizontalRate: number; // X follow responsiveness
+  verticalRateGround: number; // grounded vertical follow (gentle)
+  verticalRateUp: number; // climbing — track up briskly
+  verticalRateDown: number; // falling — slower / capped descent
+  climbLeadY: number; // look-ahead ABOVE the player while climbing
+  fallBufferY: number; // player must drop this far below the camera before it follows
+  fallLeadY: number; // lead relative to the player while falling (negative = below)
+}
+
+// Below this |velocity| the player counts as "not moving" → X look-ahead eases to 0.
+const MOVE_EPSILON = 0.01;
 
 export default class Camera {
   private experience: Experience;
@@ -22,27 +38,30 @@ export default class Camera {
   private debug?: Debug;
 
   public InitialPosition: THREE.Vector3;
-  private currentPositionX!: THREE.Vector3;
-  private currentPositionY!: THREE.Vector3;
-  private currentPositionZ!: THREE.Vector3;
-  private targetPosition!: THREE.Vector3;
 
+  // Follow state
   private isCameraFollowOn!: boolean;
-  private xLookahead!: number;
-  private lerpTimings!: THREE.Vector3;
+  private currentPosition!: THREE.Vector3; // the smoothed camera position we write each frame
+  private currentLookaheadX!: number; // smoothed horizontal look-ahead offset
+  private baselineX!: number; // horizontal rest anchor (CameraStart / CameraSensor zone)
+  private baselineY!: number; // vertical rest anchor (player Y, or a pinned CameraSensor zone)
+  private hasSensorBaseline!: boolean; // true while a CameraSensor has pinned the baseline
+
+  public Tuning!: CameraTuning;
 
   public ManualControl: boolean;
   public LastToggleTime: number;
   public Instance: THREE.Camera;
   public CameraType!: string;
-  public PerspectiveCamera!: THREE.PerspectiveCamera;
+  private PerspectiveCamera!: THREE.PerspectiveCamera;
   public OrthographicCamera?: THREE.OrthographicCamera;
   public AspectRatio: number;
   public FrustumSize!: number;
   public ZoomFactor!: number;
 
-  private onManualCameraControl!: () => void;
+  private onManualCameraControl!: () => void; // handler ref, removed in Destroy()
 
+  // build cameras, follow state, debug, and events
   constructor(initialPosition: THREE.Vector3) {
     this.experience = Experience.GetInstance();
     this.sizes = this.experience.Sizes;
@@ -51,8 +70,8 @@ export default class Camera {
 
     this.InitialPosition = initialPosition;
 
-    this.initalizePerspectiveInstance();
-    this.initializeCameraLookAhead();
+    this.initializePerspectiveInstance();
+    this.initializeCameraFollow();
 
     // Default use the perspective camera
     this.Instance = this.PerspectiveCamera;
@@ -70,11 +89,14 @@ export default class Camera {
     }
 
     // Events — store ref for cleanup in destroy()
-    this.onManualCameraControl = () => { this.ManualControl = !this.ManualControl; };
+    this.onManualCameraControl = () => {
+      this.ManualControl = !this.ManualControl;
+    };
     Emitter.on("manualCameraControl", this.onManualCameraControl);
   }
 
-  private initalizePerspectiveInstance() {
+  // create the default perspective camera
+  private initializePerspectiveInstance() {
     this.PerspectiveCamera = new THREE.PerspectiveCamera(
       35,
       this.sizes.Width / this.sizes.Height,
@@ -85,6 +107,7 @@ export default class Camera {
     this.scene.add(this.PerspectiveCamera);
   }
 
+  // create the debug-only orthographic camera
   private initializeOrthographicInstance() {
     this.FrustumSize = 40;
     this.ZoomFactor = 0.5;
@@ -101,29 +124,35 @@ export default class Camera {
     this.scene.add(this.OrthographicCamera);
   }
 
-  private initializeCameraLookAhead() {
-    // Using Vector3's from THREE because they have built in lerping function, save needing to import a library
-    this.currentPositionX = new THREE.Vector3().copy(this.InitialPosition);
-    this.currentPositionY = new THREE.Vector3().copy(this.InitialPosition);
-    this.currentPositionZ = new THREE.Vector3().copy(this.InitialPosition);
-    this.targetPosition = new THREE.Vector3().copy(this.InitialPosition);
-
+  // seed follow state and default tuning knobs
+  private initializeCameraFollow() {
     this.isCameraFollowOn = false;
-    // this.xLookahead = 12.5;
-    this.xLookahead = 0;
-    this.lerpTimings = new THREE.Vector3(1, 3, 1);
+    this.currentPosition = new THREE.Vector3().copy(this.InitialPosition);
+    this.currentLookaheadX = 0;
+    this.baselineX = this.InitialPosition.x;
+    this.baselineY = this.InitialPosition.y;
+    this.hasSensorBaseline = false;
+
+    // Starting feel values (dial live via the Camera Debug GUI folder).
+    this.Tuning = {
+      lookaheadX: 8,
+      lookaheadRate: 3,
+      horizontalRate: 6,
+      verticalRateGround: 4,
+      verticalRateUp: 6,
+      verticalRateDown: 3,
+      climbLeadY: 2,
+      fallBufferY: 3,
+      fallLeadY: -2,
+    };
   }
 
+  // toggle player-follow vs fixed-zone mode
   public SetCameraFollow(value: boolean) {
-    if (value) {
-      this.xLookahead = 12.5;
-      this.isCameraFollowOn = true;
-    } else {
-      this.xLookahead = 0;
-      this.isCameraFollowOn = false;
-    }
+    this.isCameraFollowOn = value;
   }
 
+  // flip between perspective and orthographic
   public SwitchCamera() {
     if (this.Instance instanceof THREE.OrthographicCamera) {
       this.Instance = this.PerspectiveCamera;
@@ -136,18 +165,17 @@ export default class Camera {
     }
   }
 
-  public ChangePositionY(newValue: number) {
-    if (this.targetPosition.y !== newValue) {
-      this.targetPosition.setY(newValue);
-    }
+  // Pin the camera's rest anchor to an authored CameraSensor zone (CameraSensor enter rule).
+  // Non-follow level: eases to this anchor on BOTH axes (authored x,y spots).
+  // Follow level: only Y matters — pins the grounded vertical baseline (follow drives X off the player);
+  // an intentional vertical move (climb / real fall) releases the pin.
+  public SetBaselinePosition(x: number, y: number) {
+    this.baselineX = x;
+    this.baselineY = y;
+    this.hasSensorBaseline = true;
   }
 
-  public ChangePositionZ(newValue: number) {
-    if (this.targetPosition.z !== newValue) {
-      this.targetPosition.setZ(newValue);
-    }
-  }
-
+  // recompute aspect and projection on viewport change
   public Resize() {
     // Needed for both cameras
     this.AspectRatio = this.sizes.Width / this.sizes.Height;
@@ -171,21 +199,28 @@ export default class Camera {
     }
   }
 
+  // snap camera and baseline to a position
   public TeleportToPosition(x: number, y: number, z: number) {
-    this.currentPositionX.set(x, y, z);
-    this.currentPositionY.set(x, y, z);
-    this.currentPositionZ.set(x, y, z);
-
-    this.targetPosition.set(x, y, z);
-
+    this.currentPosition.set(x, y, z);
+    this.baselineX = x;
+    this.baselineY = y;
+    this.hasSensorBaseline = false;
     this.Instance.position.set(x, y, z);
   }
 
-  public Update(player?: Player) {
-    // Guard against player not loaded yet
-    if (!player || !player.CurrentTranslation) {
-      // Slightly prevents initial camera X movement positioning, better would be to not go into switch statement below until check but this is fine
-      this.currentPositionX.x = 0;
+  // Frame-rate-correct exponential smoothing toward a target value. Uses FrameDelta
+  // (real per-frame time) because the camera runs in the per-frame RENDER pass, not
+  // the fixed-step sim — so it follows the interpolated player smoothly at the
+  // display's refresh rate.
+  private smooth(current: number, target: number, rate: number): number {
+    const alpha = 1 - Math.exp(-rate * this.Time.FrameDelta);
+    return current + (target - current) * alpha;
+  }
+
+  // per-frame follow or fixed-anchor positioning
+  public Update(target?: CameraTarget) {
+    // Guard against the follow target not being ready yet
+    if (!target) {
       return;
     }
 
@@ -193,70 +228,106 @@ export default class Camera {
     if (this.debug) {
       this.debug.UpdateCameraDebug(this);
 
-      if (!this.ManualControl) {
-        this.PerspectiveCamera.rotation.y = 0;
-      } else {
+      // Manual fly-cam fully owns the camera while engaged
+      if (this.ManualControl) {
         return;
       }
+      this.PerspectiveCamera.rotation.y = 0;
     }
 
-    // Update the targetPosition based on player location
+    let targetX: number;
+    let targetY: number;
+    let verticalRate: number;
+
     if (this.isCameraFollowOn) {
-      this.targetPosition.setX(player.CurrentPosition.x);
-
-      // Set X lookahead and lerpTimings based on player state
-      switch (player.SpriteAnimator.State) {
-        case SpriteAnimations.IDLE_LEFT:
-        case SpriteAnimations.IDLE_RIGHT:
-          // this.targetPosition.x = 0;
-          this.lerpTimings.x = 0.5; // Slower x lerp for resting/idle transition that movement
-          break;
-        case SpriteAnimations.RUN_LEFT:
-        case SpriteAnimations.JUMP_LEFT:
-        case SpriteAnimations.FALL_LEFT:
-          if (player.NextTranslation.x > 0) {
-            return;
-          }
-          this.targetPosition.x -= this.xLookahead;
-          this.lerpTimings.x = 1;
-          break;
-        case SpriteAnimations.RUN_RIGHT:
-        case SpriteAnimations.JUMP_RIGHT:
-        case SpriteAnimations.FALL_RIGHT:
-          if (Math.abs(player.NextTranslation.x) <= 0) {
-            return;
-          }
-          this.targetPosition.x += this.xLookahead;
-          this.lerpTimings.x = 1;
-          break;
-        default:
-          this.targetPosition.x += this.xLookahead;
-          this.lerpTimings.x = 1;
+      // X: velocity-driven look-ahead, eased
+      let lookaheadGoal = 0;
+      if (target.velocityX > MOVE_EPSILON) {
+        lookaheadGoal = this.Tuning.lookaheadX;
+      } else if (target.velocityX < -MOVE_EPSILON) {
+        lookaheadGoal = -this.Tuning.lookaheadX;
       }
+      this.currentLookaheadX = this.smooth(
+        this.currentLookaheadX,
+        lookaheadGoal,
+        this.Tuning.lookaheadRate
+      );
+      targetX = target.x + this.currentLookaheadX;
+
+      // Y: follow sustained / intentional vertical motion only
+      // Transient motion (jump arcs) is ignored; climbing / falling / landing tracked.
+      targetY = this.baselineY;
+      verticalRate = this.Tuning.verticalRateGround;
+
+      switch (target.followState) {
+        case CameraFollowState.CLIMBING:
+          // Intent to ascend/descend: track the player with an upward lead so the
+          // next handhold is visible. Re-baseline + release any sensor pin.
+          targetY = target.y + this.Tuning.climbLeadY;
+          verticalRate = this.Tuning.verticalRateUp;
+          this.baselineY = target.y;
+          this.hasSensorBaseline = false;
+          break;
+
+        case CameraFollowState.FALLING: {
+          // Follow down only once the player drops past a buffer below the camera;
+          // lead slightly into the fall so the landing zone is visible. Capped rate.
+          const fallThreshold = this.currentPosition.y - this.Tuning.fallBufferY;
+          if (target.y < fallThreshold) {
+            targetY = target.y + this.Tuning.fallLeadY;
+            verticalRate = this.Tuning.verticalRateDown;
+            this.baselineY = target.y;
+            this.hasSensorBaseline = false;
+          } else {
+            // Small drops / early fall: hold vertical (don't yank the camera).
+            targetY = this.currentPosition.y;
+            verticalRate = this.Tuning.verticalRateDown;
+          }
+          break;
+        }
+
+        case CameraFollowState.JUMPING:
+          // Don't chase the jump arc — hold the vertical baseline.
+          targetY = this.baselineY;
+          verticalRate = this.Tuning.verticalRateGround;
+          break;
+
+        default:
+          // IDLE / RUNNING (grounded). Rest at the authored baseline if a
+          // CameraSensor pinned one; otherwise re-baseline to the player's standing
+          // Y so walking up terrain pans the camera up (platform-snap on landing).
+          if (target.isGrounded && !this.hasSensorBaseline) {
+            this.baselineY = target.y;
+          }
+          targetY = this.baselineY;
+          verticalRate = this.Tuning.verticalRateGround;
+      }
+    } else {
+      // Non-follow level: the camera is a fixed/zone camera positioned by
+      // CameraStart + CameraSensor zones (SetBaselinePosition). Ease toward the
+      // authored anchor on BOTH axes (full x,y zones); the player is not tracked.
+      targetX = this.baselineX;
+      targetY = this.baselineY;
+      verticalRate = this.Tuning.verticalRateGround;
     }
 
-    // Individual vector lerps for different axis speed
-    this.currentPositionX.lerp(
-      this.targetPosition,
-      this.lerpTimings.x * this.experience.Time.Delta
+    // Smooth + write
+    this.currentPosition.x = this.smooth(
+      this.currentPosition.x,
+      targetX,
+      this.Tuning.horizontalRate
     );
-    this.currentPositionY.lerp(
-      this.targetPosition,
-      this.lerpTimings.y * this.experience.Time.Delta
+    this.currentPosition.y = this.smooth(
+      this.currentPosition.y,
+      targetY,
+      verticalRate
     );
-    this.currentPositionZ.lerp(
-      this.targetPosition,
-      this.lerpTimings.z * this.experience.Time.Delta
-    );
+    // z stays fixed at the initial depth
 
-    // Set camera position after lerp calculations
-    this.Instance.position.set(
-      this.currentPositionX.x,
-      this.currentPositionY.y,
-      this.currentPositionZ.z
-    );
+    this.Instance.position.copy(this.currentPosition);
   }
 
+  // unsubscribe events and remove the camera
   public Destroy() {
     Emitter.off("manualCameraControl", this.onManualCameraControl);
     this.scene.remove(this.Instance);

@@ -4,18 +4,14 @@ import SpriteAnimations from "../spriteAnimations";
 import PlayerDirection from "../../../../engine/types/playerDirection";
 import applyHorizontalMovement from "../applyHorizontalMovement";
 
+// Running state: transitions, horizontal movement, run animation timing
 const handlePlayerRunning = (player: Player) => {
-  /* -------------------------------------------------------------------------- */
-  /*                                Change state                                */
-  /* -------------------------------------------------------------------------- */
+  // Change state
   // Transition to falling state
   if (!player.IsTouching.ground) {
     if (player.IsTouching.edgePlatform) {
       player.NextTranslation.y = 0;
     }
-
-    // // Make the collider smaller in air for better feel
-    // player.changeColliderSize({ width: 1.75, height: 2.5 });
 
     player.TimeFallWasEntered = player.Time.Elapsed;
     player.State = PlayerStates.FALLING;
@@ -36,11 +32,10 @@ const handlePlayerRunning = (player: Player) => {
 
   // Transition to jumping state
   if (player.Input.isJump && player.BufferJumpAvailable) {
-    // TODO: remove?
-    // // Make the collider smaller in air for better feel
-    // player.changeColliderSize({ width: 1.75, height: 2.5 });
-
-    player.NextTranslation.y = 0;
+    // Launch impulse + reset the early-end latch so every jump starts at full
+    // height (a buffered jump fired on landing skips the grounded reset below).
+    player.NextTranslation.y = player.JumpPower;
+    player.EndedJumpEarly = false;
 
     player.TimeJumpWasEntered = player.Time.Elapsed;
     player.State = PlayerStates.JUMPING;
@@ -61,9 +56,7 @@ const handlePlayerRunning = (player: Player) => {
     return;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                            Handle Running state                            */
-  /* -------------------------------------------------------------------------- */
+  // Handle Running state
   // In a grounded state, give coyote and reset early jump gravity
   player.CoyoteAvailable = true;
   player.EndedJumpEarly = false;
@@ -71,9 +64,7 @@ const handlePlayerRunning = (player: Player) => {
     player.BufferJumpAvailable = true;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                             Input and animation                            */
-  /* -------------------------------------------------------------------------- */
+  // Input and animation
   // Left
   if (player.Input.isLeft) {
     player.Direction = PlayerDirection.LEFT;
@@ -88,32 +79,31 @@ const handlePlayerRunning = (player: Player) => {
   else if (isIdleInput) {
     player.Direction = PlayerDirection.NEUTRAL;
 
+    // Neutral input: keep run anim matching last facing
     const currentState = player.SpriteAnimator.State;
 
     if (
-      currentState == SpriteAnimations.JUMP_LEFT ||
-      currentState == SpriteAnimations.FALL_LEFT
+      currentState === SpriteAnimations.JUMP_LEFT ||
+      currentState === SpriteAnimations.FALL_LEFT
     ) {
       player.SpriteAnimator.ChangeState(SpriteAnimations.RUN_LEFT);
     }
     if (
-      currentState == SpriteAnimations.JUMP_RIGHT ||
-      currentState == SpriteAnimations.FALL_RIGHT
+      currentState === SpriteAnimations.JUMP_RIGHT ||
+      currentState === SpriteAnimations.FALL_RIGHT
     ) {
       player.SpriteAnimator.ChangeState(SpriteAnimations.RUN_RIGHT);
     }
   }
 
-  // Controls accelerating or decellerating the sprite animation transitions
+  // Controls accelerating or decelerating the sprite animation transitions
   // Denominator determines the scaling factor relative to player speed, faster/slower move horizontally - faster/slower animation updates
   // Numerator inverts the scaling factor so that larger movements == faster animation, slower movements == slower animations
   player.SpriteAnimator.ChangeAnimationTiming(
     1 / (Math.abs(player.NextTranslation.x) / player.AnimationScalingFactor)
   );
 
-  /* -------------------------------------------------------------------------- */
-  /*                           Gravity Logic (Y Axis)                           */
-  /* -------------------------------------------------------------------------- */
+  // Gravity Logic (Y Axis)
   if (player.IsTouching.edgePlatform) {
     // Exception to simple gravity when about to run off an edge
     player.NextTranslation.y = 0;
@@ -122,9 +112,7 @@ const handlePlayerRunning = (player: Player) => {
     player.NextTranslation.y = -player.MaxFallSpeed;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                           Movement Logic (X Axis)                          */
-  /* -------------------------------------------------------------------------- */
+  // Movement Logic (X Axis)
   // Shared accel/decel + wall-stop; returns true on a wall hit, which running
   // uses to keep its wall animation playing.
   if (applyHorizontalMovement(player)) {

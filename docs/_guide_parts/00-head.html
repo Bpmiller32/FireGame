@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FireGame · Engine Guide</title>
+<meta name="description" content="The definitive, line-by-line teaching guide to the FireGame platformer engine — Three.js + Rapier2D + Vue." />
+
+<!-- Syntax highlighting (Prism) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" />
+<!-- Fonts (graceful fallback to system stack if offline) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    --bg:        #0b0e14;
+    --bg-2:      #11151f;
+    --bg-3:      #161b27;
+    --panel:     #131826;
+    --border:    #222a3a;
+    --border-2:  #2c3650;
+    --ink:       #d7dce6;
+    --ink-soft:  #aab2c5;
+    --ink-faint: #7c869b;
+    --accent:    #ff7a45;   /* fire orange */
+    --accent-2:  #ffb454;   /* ember */
+    --blue:      #59a9ff;
+    --green:     #57d9a3;
+    --purple:    #b48ef0;
+    --red:       #ff6b6b;
+    --yellow:    #ffd166;
+    --code-bg:   #0d1119;
+    --radius:    12px;
+    --maxw:      1180px;
+    --rail:      300px;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 80% -10%, #15233b 0%, transparent 60%), var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ----- Layout ----- */
+  .layout { display: flex; align-items: flex-start; }
+
+  .sidebar {
+    position: sticky; top: 0;
+    width: var(--rail); min-width: var(--rail);
+    height: 100vh; overflow-y: auto;
+    background: linear-gradient(180deg, #0c1019, #0a0d15);
+    border-right: 1px solid var(--border);
+    padding: 18px 12px 60px;
+  }
+  .sidebar::-webkit-scrollbar { width: 9px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #232c40; border-radius: 8px; }
+
+  .brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 12px; }
+  .brand .logo {
+    width: 30px; height: 30px; border-radius: 8px; flex: none;
+    background: conic-gradient(from 210deg, var(--accent), var(--accent-2), #ff5e62, var(--accent));
+    box-shadow: 0 0 18px rgba(255,122,69,.5);
+  }
+  .brand b { font-size: 15px; letter-spacing: .2px; }
+  .brand span { color: var(--ink-faint); font-size: 12px; display: block; font-weight: 500; }
+
+  .search { padding: 4px 8px 10px; }
+  .search input {
+    width: 100%; padding: 9px 11px; border-radius: 9px;
+    background: var(--bg-3); border: 1px solid var(--border);
+    color: var(--ink); font-family: var(--sans); font-size: 13px; outline: none;
+  }
+  .search input:focus { border-color: var(--border-2); }
+
+  nav#toc { font-size: 13.5px; }
+  .toc-group { margin: 14px 6px 2px; }
+  .toc-group > .toc-group-label {
+    text-transform: uppercase; letter-spacing: .12em; font-size: 10.5px;
+    color: var(--ink-faint); font-weight: 700; padding: 4px 8px; margin-top: 6px;
+  }
+  .toc-item > a.toc-link {
+    display: block; padding: 6px 10px; border-radius: 8px; color: var(--ink-soft);
+    border-left: 2px solid transparent; line-height: 1.35;
+  }
+  .toc-item > a.toc-link:hover { background: var(--bg-3); text-decoration: none; color: var(--ink); }
+  .toc-item.active > a.toc-link {
+    color: #fff; background: rgba(255,122,69,.10);
+    border-left-color: var(--accent);
+  }
+  .toc-sub { display: none; margin: 2px 0 6px 12px; padding-left: 8px; border-left: 1px solid var(--border); }
+  .toc-item.active .toc-sub { display: block; }
+  .toc-sub a {
+    display: block; padding: 3px 8px; border-radius: 6px; color: var(--ink-faint);
+    font-size: 12.5px; font-family: var(--mono); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .toc-sub a:hover { color: var(--ink); background: var(--bg-3); text-decoration: none; }
+  .toc-sub a.active { color: var(--accent-2); }
+  .toc-hidden { display: none !important; }
+
+  /* ----- Content ----- */
+  .content { flex: 1 1 auto; min-width: 0; padding: 0 0 140px; }
+  .content-inner, .doc-section { max-width: var(--maxw); margin: 0 auto; padding: 0 40px; }
+  .doc-section { padding-top: 46px; padding-bottom: 10px; scroll-margin-top: 18px; }
+  .doc-section + .doc-section { border-top: 1px solid var(--border); margin-top: 30px; }
+
+  h1,h2,h3,h4 { line-height: 1.25; font-weight: 700; }
+  .section-title { font-size: 27px; margin: 6px 0 6px; letter-spacing: -.01em; }
+  .section-title::before {
+    content: ""; display: inline-block; width: 9px; height: 22px; margin-right: 12px;
+    vertical-align: -3px; border-radius: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  }
+  .section-blurb { color: var(--ink-soft); font-size: 16px; margin: 0 0 14px; max-width: 78ch; }
+  .file-chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0 8px; }
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft);
+    background: var(--bg-3); border: 1px solid var(--border);
+    padding: 3px 9px; border-radius: 999px;
+  }
+
+  .file-block {
+    background: linear-gradient(180deg, var(--panel), #10141f);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 22px; margin: 22px 0; scroll-margin-top: 18px;
+  }
+  .file-name {
+    font-family: var(--mono); font-size: 16.5px; color: #fff; margin: 0 0 4px;
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px;
+    word-break: break-word;
+  }
+  .file-name .loc {
+    font-size: 11px; color: var(--ink-faint); background: var(--bg);
+    border: 1px solid var(--border); padding: 1px 8px; border-radius: 999px; font-weight: 500;
+  }
+  .file-role { color: var(--ink-soft); margin: 6px 0 14px; }
+
+  .member { border-top: 1px dashed var(--border); padding: 14px 0 4px; margin-top: 8px; }
+  .member:first-of-type { border-top: 0; }
+  .member-sig { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+  .member-sig code {
+    font-family: var(--mono); color: var(--accent-2); background: rgba(255,180,84,.07);
+    border: 1px solid rgba(255,180,84,.16); padding: 2px 8px; border-radius: 7px;
+    font-size: 13px; white-space: pre-wrap;
+  }
+
+  p { margin: 8px 0; }
+  .content p, .content li { color: var(--ink); }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  strong, b { color: #fff; font-weight: 600; }
+
+  /* inline code */
+  :not(pre) > code {
+    font-family: var(--mono); font-size: .86em; color: #ffd9c2;
+    background: #1a1320; border: 1px solid #34232f; padding: 1px 6px; border-radius: 6px;
+  }
+
+  /* code blocks */
+  pre.code, pre[class*="language-"] {
+    background: var(--code-bg) !important; border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px !important; overflow-x: auto;
+    font-size: 13px; line-height: 1.55; margin: 12px 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.01);
+  }
+  pre.code code, pre[class*="language-"] code { font-family: var(--mono); background: none !important; border: 0; padding: 0; color: #e6e6e6; font-size: 13px; }
+  pre.code::-webkit-scrollbar, pre[class*="language-"]::-webkit-scrollbar { height: 9px; }
+  pre.code::-webkit-scrollbar-thumb, pre[class*="language-"]::-webkit-scrollbar-thumb { background: #232c40; border-radius: 8px; }
+
+  /* callouts */
+  .callout {
+    border: 1px solid var(--border); border-left-width: 4px;
+    background: var(--bg-2); border-radius: 8px; padding: 11px 15px; margin: 13px 0;
+    color: var(--ink-soft); font-size: 14.5px;
+  }
+  .callout b { color: #fff; }
+  .callout::before { font-weight: 700; margin-right: 6px; }
+  .callout.victory { border-left-color: var(--green);  background: rgba(87,217,163,.05); }
+  .callout.victory::before { content: "🏆"; }
+  .callout.gotcha  { border-left-color: var(--yellow); background: rgba(255,209,102,.05); }
+  .callout.gotcha::before { content: "⚠️"; }
+  .callout.warning { border-left-color: var(--red);    background: rgba(255,107,107,.05); }
+  .callout.warning::before { content: "⛔"; }
+  .callout.note    { border-left-color: var(--blue);   background: rgba(89,169,255,.05); }
+  .callout.note::before { content: "📝"; }
+  .callout.tip     { border-left-color: var(--purple); background: rgba(180,142,240,.05); }
+  .callout.tip::before { content: "💡"; }
+
+  .modify {
+    margin-top: 14px; padding: 10px 14px; border-radius: 8px;
+    background: rgba(89,169,255,.06); border: 1px dashed var(--border-2);
+    font-size: 14px; color: var(--ink-soft);
+  }
+  .modify b { color: var(--blue); }
+
+  /* tables */
+  table.tbl { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px; }
+  table.tbl th, table.tbl td { border: 1px solid var(--border); padding: 7px 11px; text-align: left; vertical-align: top; }
+  table.tbl thead th { background: var(--bg-3); color: #fff; font-weight: 600; }
+  table.tbl tbody tr:nth-child(even), table.tbl tbody tr:nth-child(even) { background: rgba(255,255,255,.015); }
+  table.tbl code { white-space: nowrap; }
+
+  /* figures / images */
+  img.figure, .figure img { max-width: 100%; border: 1px solid var(--border); border-radius: 10px; background: #1b2233; padding: 6px; display: block; margin: 14px auto; image-rendering: pixelated; }
+  figure { margin: 16px 0; }
+  figcaption { color: var(--ink-faint); font-size: 12.5px; text-align: center; margin-top: 6px; }
+
+  /* mermaid */
+  pre.mermaid {
+    background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; margin: 16px 0; text-align: center; overflow-x: auto;
+  }
+  pre.mermaid svg { max-width: 100%; height: auto; }
+
+  /* ----- Hero / intro ----- */
+  .hero { padding-top: 54px; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600;
+    color: var(--accent-2); background: rgba(255,122,69,.08); border: 1px solid rgba(255,122,69,.25);
+    padding: 5px 12px; border-radius: 999px; letter-spacing: .04em;
+  }
+  .hero h1 {
+    font-size: 52px; line-height: 1.05; margin: 18px 0 10px; letter-spacing: -.02em;
+    background: linear-gradient(180deg, #fff 30%, #ffcaa8);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero .lead { font-size: 19px; color: var(--ink-soft); max-width: 70ch; }
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 8px; }
+  .stack .tech {
+    font-family: var(--mono); font-size: 12px; color: var(--ink);
+    background: var(--bg-3); border: 1px solid var(--border-2); padding: 5px 11px; border-radius: 8px;
+  }
+  .stack .tech b { color: var(--accent-2); }
+
+  .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; margin: 22px 0; }
+  .card {
+    background: linear-gradient(180deg, var(--panel), #10141f); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+  }
+  .card h4 { margin: 0 0 6px; font-size: 15px; color: #fff; }
+  .card h4 .ico { margin-right: 8px; }
+  .card p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+
+  .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 10px; margin: 12px 0; }
+  .legend .lg { font-size: 13.5px; color: var(--ink-soft); border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; padding: 8px 12px; background: var(--bg-2); }
+
+  hr.rule { border: 0; border-top: 1px solid var(--border); margin: 26px 0; }
+  .kbd { font-family: var(--mono); font-size: 12px; background: var(--bg-3); border: 1px solid var(--border-2); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; color: #fff; }
+
+  /* ----- Assessment sections (wins / improvements) ----- */
+  .statband { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; margin: 16px 0 18px; }
+  .statband .stat { background: linear-gradient(180deg, var(--panel), #10141f); border: 1px solid var(--border); border-radius: 12px; padding: 16px 14px; text-align: center; }
+  .statband .stat .big { font-size: 27px; font-weight: 800; color: var(--accent-2); line-height: 1.05; letter-spacing: -.01em; }
+  .statband .stat .lbl { font-size: 12px; color: var(--ink-faint); margin-top: 6px; line-height: 1.35; }
+
+  .finding { border: 1px solid var(--border); border-radius: 10px; padding: 13px 16px; margin: 13px 0; background: var(--bg-2); }
+  .finding h4 { margin: 0 0 7px; font-size: 15px; color: #fff; display: flex; gap: 9px; align-items: center; flex-wrap: wrap; line-height: 1.35; }
+  .finding p { margin: 6px 0; font-size: 14.5px; }
+  .finding .dir b { color: var(--green); }
+
+  .sev { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+  .sev-high   { color: #ff9a9a; border-color: #5a2a2a; background: rgba(255,107,107,.13); }
+  .sev-medium { color: #ffdd95; border-color: #5a4a22; background: rgba(255,209,102,.11); }
+  .sev-low    { color: #a6d3ff; border-color: #26425e; background: rgba(89,169,255,.11); }
+  .sev-nit    { color: #9aa3b5; border-color: var(--border-2); background: var(--bg-3); }
+
+  .verified { color: var(--green); font-size: 10.5px; font-weight: 800; border: 1px solid #2f6a52; background: rgba(87,217,163,.10); padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+
+  .evi { font-family: var(--mono); font-size: 11.5px; color: #9fb0c8; background: var(--code-bg); border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; margin: 7px 0; display: block; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+
+  .prio .pitem { display: flex; gap: 13px; padding: 12px 0; border-top: 1px dashed var(--border); align-items: flex-start; }
+  .prio .pitem:first-child { border-top: 0; }
+  .prio .pnum { flex: none; width: 27px; height: 27px; border-radius: 50%; background: var(--accent); color: #1a0d06; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 0 12px rgba(255,122,69,.35); }
+  .prio .pitem > div:last-child { font-size: 14.5px; padding-top: 2px; }
+
+  /* to-top */
+  .to-top {
+    position: fixed; right: 22px; bottom: 22px; z-index: 40;
+    width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
+    background: var(--accent); color: #1a0d06; border: 0; font-size: 19px; font-weight: 800;
+    box-shadow: 0 6px 20px rgba(255,122,69,.4); opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .to-top.show { opacity: 1; pointer-events: auto; }
+
+  /* scroll progress */
+  .progress { position: fixed; top: 0; left: 0; height: 3px; z-index: 60; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width: 0; }
+
+  @media (max-width: 980px) {
+    .sidebar { display: none; }
+    .doc-section, .content-inner { padding-left: 18px; padding-right: 18px; }
+    .hero h1 { font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo"></div><div><b>FireGame</b><span>Engine Guide</span></div></div>
+    <div class="search"><input id="toc-search" type="search" placeholder="Filter sections &amp; files…" autocomplete="off" /></div>
+    <nav id="toc"></nav>
+  </aside>
+  <main class="content" id="content">
+
+  <section class="doc-section hero" id="intro">
+    <span class="hero-badge">🔥 Line-by-line engine reference</span>
+    <h1>The FireGame Engine</h1>
+    <p class="lead">A hand-built 2D <b>Donkey&nbsp;Kong</b>-style platformer engine — a singleton core wiring Three.js rendering, a Rapier2D physics world, and a Vue presentation shell, all glued together by an event bus and a contact-table collision system. This document walks <b>every file, every function, and every hard-won line</b> so you can open any source file and know exactly what it does and how to change it.</p>
+
+    <div class="stack">
+      <span class="tech"><b>TypeScript</b> · strict</span>
+      <span class="tech"><b>Three.js</b> r162 · WebGL</span>
+      <span class="tech"><b>Rapier2D</b> · @dimforge compat</span>
+      <span class="tech"><b>Vue 3</b> · UI shell</span>
+      <span class="tech"><b>mitt</b> · event bus</span>
+      <span class="tech"><b>dat.gui</b> + <b>stats.js</b> · debug</span>
+      <span class="tech"><b>Vite</b> · bundler</span>
+    </div>
+
+    <h2 class="section-title" style="margin-top:30px">The one idea: a clean engine / game seam</h2>
+    <p class="section-blurb">Everything in this codebase serves a single architectural conviction: the <b>engine layer</b> (<code>src/engine/</code>) is a reusable platformer engine that never names a single Donkey-Kong concept, and the <b>game layer</b> (<code>src/game/</code>) supplies all the rules, entities, feel and content, wiring itself into the engine from the outside. The whole guide is organised around that seam.</p>
+
+    <div class="grid-cards">
+      <div class="card"><h4><span class="ico">🧩</span>Singleton core</h4><p><code>Experience</code> owns the canvas, scene, camera, renderer, physics, input, resources and debug — created once via <code>GetInstance()</code>/<code>Configure()</code>.</p></div>
+      <div class="card"><h4><span class="ico">📡</span>Event bus</h4><p>A typed <code>mitt</code> emitter decouples subsystems. The engine emits <code>tick</code>/<code>resize</code>; the game speaks <code>gameStart</code>, <code>gameOver</code>, <code>switchLevel</code>, loading events and more.</p></div>
+      <div class="card"><h4><span class="ico">💥</span>Contact table</h4><p>Physics contacts are routed through a generic <code>(typeA,typeB) → handler</code> registry. The game registers concrete rules; the engine never hard-codes a reaction.</p></div>
+      <div class="card"><h4><span class="ico">🔁</span>Finite-state machines</h4><p>A tiny generic <code>StateMachine</code> drives the player (idle/run/jump/fall/climb) and the barrels (roll/descend/bounce) through pure handler functions.</p></div>
+      <div class="card"><h4><span class="ico">🏗️</span>GLB-driven levels</h4><p>Levels are modelled in Shapr3D/Blender, exported to GLB; a parser turns folder names + glTF <code>extras</code> into typed <code>LevelData</code> the factories spawn.</p></div>
+      <div class="card"><h4><span class="ico">🎚️</span>Config-driven game</h4><p>Entity factories, contact rules, the level registry, input bindings and "feel" profiles live in <code>src/game/config</code> &amp; <code>attributes</code> — the control panel.</p></div>
+    </div>
+
+    <h2 class="section-title" style="margin-top:30px">How to read this guide</h2>
+    <p class="section-blurb">Start with <a href="#arch-overview">Architecture</a> for the map and the diagrams. Want the editorial take first? Jump to <a href="#assessment-wins">What's Impressive</a> and <a href="#assessment-improvements">What Could Be Better</a> — an honest, evidence-backed assessment of the engine's wins and its roadmap. Then dive into the <b>Engine Layer</b> and <b>Game Layer</b> sections — each documents its files function-by-function with real, quoted source. Finish in <a href="#cookbook">Recipes &amp; Reference</a> for step-by-step "how to add X" guides, the full event catalog, and the decision-log decoder.</p>
+
+    <p class="section-blurb"><b>The decision-log codes.</b> Throughout the source you'll see comments like <code>(C5)</code>, <code>(D3)</code>, <code>(D28)</code>. These reference the author's private decision log — each marks a deliberate, hard-won choice (e.g. <b>C5</b> = the camera consumes a plain snapshot, never the game <code>Player</code>; <b>D3</b> = the engine never names a game type, the game injects its palette). This guide surfaces and decodes every one — see <a href="#reference--decisions">the decision log</a>.</p>
+
+    <h3 style="margin-top:22px;font-size:16px;color:#fff">Callout legend</h3>
+    <div class="legend">
+      <div class="lg" style="border-left-color:#57d9a3">🏆 <b style="color:#fff">Hard-won victory</b> — a clever fix or a decision-code rationale.</div>
+      <div class="lg" style="border-left-color:#ffd166">⚠️ <b style="color:#fff">Gotcha</b> — an ordering dependency or footgun.</div>
+      <div class="lg" style="border-left-color:#ff6b6b">⛔ <b style="color:#fff">Warning</b> — something that will bite if ignored.</div>
+      <div class="lg" style="border-left-color:#59a9ff">📝 <b style="color:#fff">Note</b> — context worth knowing.</div>
+      <div class="lg" style="border-left-color:#b48ef0">💡 <b style="color:#fff">Tip</b> — a practical pointer.</div>
+    </div>
+
+    <div class="callout note" style="margin-top:18px"><b>Rendering this file.</b> Diagrams (Mermaid) and code highlighting (Prism) load from a CDN, so view this guide with an internet connection for the full experience. The content is fully readable without it.</div>
+  </section>
+

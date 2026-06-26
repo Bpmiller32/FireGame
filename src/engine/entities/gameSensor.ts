@@ -1,40 +1,15 @@
 import * as RAPIER from "@dimforge/rapier2d-compat";
 import GameObject from "./gameObject";
 
-/**
- * GameSensor - A sensor-based GameObject that detects other GameObjects
- * 
- * Sensors are non-solid colliders that detect when other objects enter/exit them.
- * Use the onSensorEnter() and onSensorExit() callbacks to respond to detections.
- * 
- * MODERN EVENT-DRIVEN VERSION:
- * - Override onSensorEnter(other: GameObject) to handle when objects enter
- * - Override onSensorExit(other: GameObject) to handle when objects exit
- * - No more manual polling needed!
- * 
- * Example:
- * ```typescript
- * export class MyCameraSensor extends GameSensor {
- *   public onSensorEnter(other: GameObject) {
- *     if (other instanceof Player) {
- *       console.log("Player entered camera zone!");
- *       // Do something with the camera
- *     }
- *   }
- * }
- * ```
- */
+// GameSensor — a sensor (non-solid) GameObject that detects others entering/exiting.
+// Override OnSensorEnter(other)/OnSensorExit(other) to respond. Some sensors are
+// ALSO polled every frame (GameDirector's IsAnySensorTriggered* / IsFullyInside) —
+// the D9 ladder "fully inside" climb path depends on that continuous polling, not
+// on enter/exit events.
 export default class GameSensor extends GameObject {
-  constructor() {
-    super();
-  }
-
-  /**
-   * Set this GameObject's collider as a sensor
-   * Sensors don't create solid collisions but still trigger collision events
-   * 
-   * @param value - true to make this a sensor, false to make it solid
-   */
+  // Set this GameObject's collider as a sensor
+  // Sensors don't create solid collisions but still trigger collision events
+  // value: true to make this a sensor, false to make it solid
   protected setAsSensor(value: boolean) {
     if (!this.PhysicsBody) {
       return;
@@ -48,14 +23,10 @@ export default class GameSensor extends GameObject {
       .setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED);
   }
 
-  /**
-   * Helper: Check if a GameObject is fully inside this sensor's bounds
-   * Useful for "must be completely inside" logic
-   * 
-   * @param other - The GameObject to check
-   * @returns true if the GameObject is completely inside this sensor
-   */
+  // True only if `other` is fully inside this sensor HORIZONTALLY (X axis only).
+  // The ladder "fully inside" climb gate relies on this X-axis containment check.
   public IsFullyInside(other: GameObject): boolean {
+    // X-axis AABB: object edges must fall within the sensor edges
     const sensorMinX = this.CurrentTranslation.x - this.CurrentSize.x / 2;
     const sensorMaxX = this.CurrentTranslation.x + this.CurrentSize.x / 2;
 

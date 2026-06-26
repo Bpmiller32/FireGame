@@ -5,10 +5,9 @@ import PlayerDirection from "../../../../engine/types/playerDirection";
 import GameUtils from "../../../gameUtils";
 import applyHorizontalMovement from "../applyHorizontalMovement";
 
+// Falling state: coyote/buffer jumps, terminal-speed gravity, fall anim
 const handlePlayerFalling = (player: Player) => {
-  /* -------------------------------------------------------------------------- */
-  /*                                Change state                                */
-  /* -------------------------------------------------------------------------- */
+  // Change state
   // Transition to idle or running state
   if (player.IsTouching.ground) {
     if (
@@ -23,8 +22,6 @@ const handlePlayerFalling = (player: Player) => {
     // Reset gating mechanism for counting buffer jumps
     player.WasBufferJumpUsed = false;
 
-    // Reset gating mechanism for changing collider size
-    player.HasColliderUpdated = false;
     return;
   }
 
@@ -34,34 +31,20 @@ const handlePlayerFalling = (player: Player) => {
     player.CoyoteAvailable &&
     player.Time.Elapsed < player.TimeFallWasEntered + player.CoyoteTime
   ) {
-    // Reset gating mechanism for changing collider size
-    player.HasColliderUpdated = false;
-
     player.CoyoteCount += 1;
 
-    player.NextTranslation.y = 0;
+    // Launch impulse + reset the early-end latch so every jump starts un-cut.
+    player.NextTranslation.y = player.JumpPower;
+    player.EndedJumpEarly = false;
     player.CoyoteAvailable = false;
     player.TimeJumpWasEntered = player.Time.Elapsed;
     player.State = PlayerStates.JUMPING;
     return;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                            Handle Falling state                            */
-  /* -------------------------------------------------------------------------- */
+  // Handle Falling state
   // Check if ground is within buffer range
   if (player.GroundWithinBufferRange) {
-    // // TODO: remove?
-    // // Return collider to initial size, gate to only do this once instead of creating multiple colliders per tick in this state
-    // if (!player.hasColliderUpdated) {
-    //   player.hasColliderUpdated = true;
-
-    //   player.changeColliderSize({
-    //     width: player.initialSize.x,
-    //     height: player.initialSize.y,
-    //   });
-    // }
-
     // Give buffer jump
     if (!player.Input.isJump) {
       player.BufferJumpAvailable = true;
@@ -83,9 +66,7 @@ const handlePlayerFalling = (player: Player) => {
     player.CoyoteAvailable = false;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                             Input and animation                            */
-  /* -------------------------------------------------------------------------- */
+  // Input and animation
   // Left
   if (player.Input.isLeft) {
     player.Direction = PlayerDirection.LEFT;
@@ -103,6 +84,7 @@ const handlePlayerFalling = (player: Player) => {
   ) {
     player.Direction = PlayerDirection.NEUTRAL;
 
+    // Neutral input: pick fall anim from current facing
     const isFacingLeft =
       player.SpriteAnimator.State === SpriteAnimations.IDLE_LEFT ||
       player.SpriteAnimator.State === SpriteAnimations.RUN_LEFT ||
@@ -122,29 +104,21 @@ const handlePlayerFalling = (player: Player) => {
     }
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                           Gravity Logic (Y Axis)                           */
-  /* -------------------------------------------------------------------------- */
-  let inAirGravity = player.FallAcceleration;
-
-  // Apply early jump gravity modifier if the jump ended early and player is moving up
-  if (player.EndedJumpEarly && player.NextTranslation.y > 0) {
-    inAirGravity *= player.JumpEndedEarlyGravityModifier;
-  }
-
-  // Move player in the Y direction if coyote time is not available
+  // Gravity Logic (Y Axis)
+  // Variable jump height now lives entirely in the JUMPING state (early release
+  // boosts rise gravity), so the fall is a plain accel toward terminal speed.
+  // (The old early-release branch here was dead: FALLING is always entered at
+  // the apex with y <= 0, so its `y > 0` guard never fired.)
   if (!player.CoyoteAvailable) {
     player.NextTranslation.y = GameUtils.MoveTowardsPoint(
       player.NextTranslation.y,
       -player.MaxFallSpeed,
-      inAirGravity * player.Time.Delta
+      player.FallAcceleration * player.Time.Delta
     );
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                           Movement Logic (X axis)                          */
-  /* -------------------------------------------------------------------------- */
-  applyHorizontalMovement(player);
+  // Movement Logic (X axis)
+  applyHorizontalMovement(player, true);
 };
 
 export default handlePlayerFalling;

@@ -3,11 +3,10 @@ import PlayerStates from "../../../../engine/types/playerStates";
 import SpriteAnimations from "../spriteAnimations";
 import PlayerDirection from "../../../../engine/types/playerDirection";
 
+// Idle state: transitions, grounded coyote/buffer resets, idle anim
 const handlePlayerIdle = (player: Player) => {
-  /* -------------------------------------------------------------------------- */
-  /*                                Change state                                */
-  /* -------------------------------------------------------------------------- */
-  // Check for edge case where verical direction is positive before entering idle
+  // Change state
+  // Check for edge case where vertical direction is positive before entering idle
   if (
     player.NextTranslation.y >= 0 &&
     (player.Input.isLeft || player.Input.isRight)
@@ -31,10 +30,10 @@ const handlePlayerIdle = (player: Player) => {
 
   // Transition to jumping state
   if (player.Input.isJump && player.BufferJumpAvailable) {
-    // TODO: remove?
-    // // Make the collider smaller in air for better feel
-    // player.changeColliderSize({ width: 1.75, height: 2.5 });
-
+    // Launch impulse + reset the early-end latch so every jump starts at full
+    // height (a buffered jump fired on landing skips the grounded reset below).
+    player.NextTranslation.y = player.JumpPower;
+    player.EndedJumpEarly = false;
     player.TimeJumpWasEntered = player.Time.Elapsed;
     player.State = PlayerStates.JUMPING;
     return;
@@ -54,9 +53,7 @@ const handlePlayerIdle = (player: Player) => {
     return;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                              Handle Idle state                             */
-  /* -------------------------------------------------------------------------- */
+  // Handle Idle state
   // In a grounded state, give coyote and reset early jump gravity
   player.CoyoteAvailable = true;
   player.EndedJumpEarly = false;
@@ -67,9 +64,7 @@ const handlePlayerIdle = (player: Player) => {
   // Simple max gravity in non-vertical state to fix downward movement on slopes, maintain touching ground
   player.NextTranslation.y = -player.MaxFallSpeed;
 
-  /* -------------------------------------------------------------------------- */
-  /*                                  Animation                                 */
-  /* -------------------------------------------------------------------------- */
+  // Animation
   switch (player.Direction) {
     case PlayerDirection.LEFT:
       player.SpriteAnimator.ChangeState(SpriteAnimations.IDLE_LEFT);

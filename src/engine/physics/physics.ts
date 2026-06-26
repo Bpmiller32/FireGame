@@ -1,22 +1,20 @@
-/* -------------------------------------------------------------------------- */
-/*          2d Physics world that meshes are bound to, using Rapier2d         */
-/* -------------------------------------------------------------------------- */
+// 2d Physics world that meshes are bound to, using Rapier2d
 
 import * as THREE from "three";
 import Experience from "../core/experience";
 import RAPIER from "@dimforge/rapier2d-compat";
-import Debug from "../debug";
+import Debug from "../debug/debug";
 import GameObject from "../entities/gameObject";
 import ContactRegistry from "../entities/contactRegistry";
 
 export default class Physics {
-  private experience!: Experience;
-  private debug?: Debug;
-  public Scene!: THREE.Scene;
+  private experience!: Experience; // engine singleton back-reference
+  private debug?: Debug; // optional debug overlay helper
+  public Scene!: THREE.Scene; // Three.js scene physics meshes bind to
 
-  public World!: RAPIER.World;
-  public EventQueue!: RAPIER.EventQueue;
-  public IsPaused!: boolean;
+  public World!: RAPIER.World; // Rapier 2d physics world
+  public EventQueue!: RAPIER.EventQueue; // per-step collision event buffer
+  public IsPaused!: boolean; // when true, Update() skips the step
 
   // Declarative "when an A contacts a B, run this" table. The game fills it; the
   // engine just dispatches contact events into it (see handleCollisionEvents).
@@ -25,10 +23,7 @@ export default class Physics {
   // GameObject registration system - maps collider handles to GameObjects
   private gameObjectRegistry!: Map<number, GameObject>;
 
-  public ActiveCollisionCount!: number;
-  public ActiveSensorCount!: number;
-
-  // Replacement constructor to accomodate async
+  // Replacement constructor to accommodate async
   public async Configure() {
     this.experience = Experience.GetInstance();
     this.Scene = this.experience.Scene;
@@ -44,10 +39,6 @@ export default class Physics {
     // Initialize GameObject registry for collision event mapping
     this.gameObjectRegistry = new Map<number, GameObject>();
 
-    // Initialize debug counters
-    this.ActiveCollisionCount = 0;
-    this.ActiveSensorCount = 0;
-
     // Debug
     if (this.experience.Debug.IsActive) {
       this.debug = this.experience.Debug;
@@ -55,10 +46,8 @@ export default class Physics {
     }
   }
 
-  /**
-   * Register a GameObject so it can receive collision/sensor callbacks
-   * Call this when a GameObject's physics body is created
-   */
+  // Register a GameObject so it can receive collision/sensor callbacks
+  // Call this when a GameObject's physics body is created
   public RegisterGameObject(gameObject: GameObject) {
     if (!gameObject.PhysicsBody) {
       console.warn("Cannot register GameObject without a physics body");
@@ -73,10 +62,8 @@ export default class Physics {
     }
   }
 
-  /**
-   * Unregister a GameObject when it's destroyed
-   * Call this during GameObject destruction
-   */
+  // Unregister a GameObject when it's destroyed
+  // Call this during GameObject destruction
   public UnregisterGameObject(gameObject: GameObject) {
     if (!gameObject.PhysicsBody) {
       return;
@@ -90,38 +77,28 @@ export default class Physics {
     }
   }
 
-  /**
-   * Get the GameObject associated with a collider handle
-   * Returns undefined if not found
-   */
+  // Get the GameObject associated with a collider handle
+  // Returns undefined if not found
   private getGameObject(colliderHandle: number): GameObject | undefined {
     return this.gameObjectRegistry.get(colliderHandle);
   }
 
-  /**
-   * Resolve a collider to its owning GameObject (or undefined if unregistered).
-   *
-   * Lets a kinematic character controller feed its OWN contacts into the contact
-   * registry: a kinematic body keeps a skin gap from solids it moves into, so
-   * Rapier emits no collision event for it as the mover — but the controller's
-   * computed collisions still report what it touched. The game can resolve those
-   * to GameObjects and Dispatch them, so the same contact rules fire either way.
-   */
+  // Resolve a collider to its owning GameObject (or undefined if unregistered).
+  // Lets a kinematic character controller feed its OWN contacts into the contact
+  // registry: a kinematic body keeps a skin gap from solids it moves into, so
+  // Rapier emits no collision event for it as the mover — but the controller's
+  // computed collisions still report what it touched. The game can resolve those
+  // to GameObjects and Dispatch them, so the same contact rules fire either way.
   public GetGameObjectFromCollider(
     collider: RAPIER.Collider
   ): GameObject | undefined {
     return this.gameObjectRegistry.get(collider.handle);
   }
 
-  /**
-   * Process collision events (handles both solid collisions and sensor intersections)
-   * In Rapier, sensors trigger collision events - we check the sensor flag to route appropriately
-   * Called automatically during physics update
-   */
+  // Process collision events (handles both solid collisions and sensor intersections)
+  // In Rapier, sensors trigger collision events - we check the sensor flag to route appropriately
+  // Called automatically during physics update
   private handleCollisionEvents() {
-    this.ActiveCollisionCount = 0;
-    this.ActiveSensorCount = 0;
-
     this.EventQueue.drainCollisionEvents((handle1, handle2, started) => {
       const collider1 = this.World.getCollider(handle1);
       const collider2 = this.World.getCollider(handle2);
@@ -151,8 +128,6 @@ export default class Physics {
 
       if (isSensorEvent) {
         // This is a sensor intersection event
-        this.ActiveSensorCount++;
-
         if (started) {
           // Sensor intersection started - call onSensorEnter callbacks
           if (isSensor1 && gameObject1.OnSensorEnter) {
@@ -188,8 +163,6 @@ export default class Physics {
         }
       } else {
         // This is a solid collision event
-        this.ActiveCollisionCount++;
-
         if (started) {
           // Collision started - call onCollisionEnter callbacks
           if (gameObject1.OnCollisionEnter) {
@@ -227,10 +200,8 @@ export default class Physics {
     });
   }
 
-  /**
-   * Pause or resume the physics simulation. The game decides WHEN to call this
-   * (e.g. on game over / reset); the engine just obeys — it names no game events.
-   */
+  // Pause or resume the physics simulation. The game decides WHEN to call this
+  // (e.g. on game over / reset); the engine just obeys — it names no game events.
   public SetPaused(paused: boolean): void {
     this.IsPaused = paused;
   }
@@ -240,8 +211,11 @@ export default class Physics {
       return;
     }
 
-    // Set the physics simulation timestep, advance the simulation one step
-    this.World.timestep = Math.min(this.experience.Time.Delta, 0.1);
+    // Time.Delta is the FIXED simulation timestep (set by the frame loop), so each
+    // physics step is constant and reproducible. No clamp needed — the frame loop
+    // bounds how often we step (the old Math.min(..., 0.1) was dead code anyway,
+    // since Time.Delta was already capped well below 0.1).
+    this.World.timestep = this.experience.Time.Delta;
     this.World.step(this.EventQueue);
 
     // Process collision and sensor events
@@ -255,8 +229,9 @@ export default class Physics {
   }
 
   public Destroy() {
-    // Dispose of the Rapier world
-    this.World.free();
+    // Dispose of the Rapier world (guarded so a Destroy after a half-failed
+    // Configure — e.g. RAPIER.init() threw before World was built — doesn't cascade).
+    this.World?.free();
 
     // Tear down the debug wireframe (PhysicsDebug owns its own mesh)
     if (this.debug) {

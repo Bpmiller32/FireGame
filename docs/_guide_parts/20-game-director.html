@@ -1,0 +1,560 @@
+<section class="doc-section" id="game-director">
+  <header class="section-head">
+    <h2 class="section-title">GameDirector &amp; GameUtils — the conductor</h2>
+    <p class="section-blurb"><b>GameDirector</b> is the single game-layer object that owns every Donkey-Kong rule: it holds the typed entity arrays, wires the lifecycle event bus, runs the per-frame update order, drives the registry-based level pipeline, and spawns barrels off the frame clock. <b>GameUtils</b> is the thin static facade game code calls instead of reaching into engine helpers directly — re-exporting pure math/physics helpers and adding a handful of game-flavoured array/sensor utilities the director leans on each frame.</p>
+    <div class="file-chips"><span class="chip">src/game/gameDirector.ts</span><span class="chip">src/game/gameUtils.ts</span></div>
+  </header>
+
+  <article class="file-block" id="game-director--gamedirector">
+    <h3 class="file-name">src/game/gameDirector.ts <span class="loc">607 LOC</span></h3>
+    <p class="file-role">The <em>"central controller for game state, entities, levels, spawning."</em> It is the one place that knows the game has a Player, barrels, ladders, trash cans (oil cans) and a win flag — the engine layer below it knows none of that. It is constructed once (by the game bootstrap) and grabs the <a href="#engine-core">Experience</a> singleton in its constructor to cache the <code>Scene</code>, <code>Time</code>, <code>Camera</code> and <code>ResourceLoader</code> handles it needs. From there its life has four phases: <b>constructor</b> (cache systems + <code>setupEventHandlers</code>), <b>Update</b> (the <em>sim</em> pass — runs inside the fixed-timestep loop, driving player, enemies, level entities and ladder polling), <b>RenderUpdate(alpha)</b> (the per-<em>frame</em> pass — interpolates the moving entities by <code>alpha</code> and then follows the interpolated player with the camera), and <b>Destroy</b> (off its event handlers by ref, unload the level). Almost everything else hangs off events: it never polls "is the game over?" — it reacts to <code>gameStart/gameOver/gameWin/gameReset</code> on the <a href="#engine-events-input">event bus</a>.</p>
+
+    <p>Its imports tell the whole story of the seam it straddles: from <code>engine/</code> it pulls <code>Experience</code>, <code>Camera</code>, <code>Time</code>, <code>ResourceLoader</code>, <code>GameObject</code>, <code>Emitter</code>, the engine-pure <code>CameraTarget</code>/<code>CameraFollowState</code> and <code>PlayerStates</code> types, and the seeded-PRNG helpers <code>seedRandom</code>/<code>randomRange</code> (from <a href="#engine-helpers">mathHelpers</a>); from <code>game/</code> it pulls every concrete entity class (<code>Player</code>, <code>Platform</code>, <code>Enemy</code>, <code>TrashCan</code>, <code>WinFlag</code>, <code>CameraSensor</code>, <code>LadderSensor</code>, <code>Teleporter</code>), the <code>GameUtils</code> facade, and the two config tables that make it data-driven: <code>ENTITY_FACTORIES</code> (with <code>FactoryContext</code>) and the <code>LEVEL_REGISTRY</code>/<code>FEEL_PROFILES</code> registry.</p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">type UpdatableEntity = { Update?(player: Player, trashCan?: TrashCan): void; }</code></h4>
+      <p>A structural type used by the uniform level-entity update loop. <code>Update</code> is <b>optional</b> so an array of mixed level entities can be ticked with optional chaining (<code>e.Update?.(...)</code>) — anything without an <code>Update</code> is simply skipped instead of needing a runtime guard. The second arg is the trash can the enemy reads; entities that don't need it ignore it. This is the type-level expression of the engine's "uniform update contract".</p>
+      <pre class="code"><code class="language-typescript">type UpdatableEntity = {
+  Update?(player: Player, trashCan?: TrashCan): void;
+};</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">// typed entity arrays</code></h4>
+      <p>The director's whole world is a set of strongly-typed arrays — the "derived query views" the rest of the game indexes by type. <code>Player</code> is a single instance (definite-assignment <code>!</code>, spawned from level data); the rest are arrays. Note the deliberate splits: <code>Platforms</code> vs <code>Walls</code> are both <code>Platform[]</code> but kept separate so the enemy can reverse on walls but ground on platforms; the three ladder sub-arrays (<code>LadderTopSensors</code>/<code>LadderCoreSensors</code>/<code>LadderBottomSensors</code>) are split because the player and barrel ask each set a different question.</p>
+      <pre class="code"><code class="language-typescript">public Player!: Player;
+// One unified barrel array now — normal and crazy barrels are both Enemy,
+// distinguished by their starting FSM state (D28 fold-in of the old CrazyEnemy).
+public Enemies: Enemy[] = [];
+public Platforms: Platform[] = [];
+public Walls: Platform[] = [];
+public TrashCans: TrashCan[] = [];
+public WinFlags: WinFlag[] = [];
+public Teleporters: Teleporter[] = [];
+public CameraSensors: CameraSensor[] = [];
+public LadderTopSensors: LadderSensor[] = [];
+public LadderCoreSensors: LadderSensor[] = [];
+public LadderBottomSensors: LadderSensor[] = [];</code></pre>
+      <div class="callout victory"><b>Hard-won victory (D28).</b> There is no <code>CrazyEnemy</code> class and no second array. Normal and crazy barrels are <em>both</em> <code>Enemy</code>, distinguished only by their starting FSM state (<code>ROLLING</code> vs <code>BOUNCING</code>). Folding the old <code>CrazyEnemy</code> into one data-driven <code>Enemy</code> is what fixed the long-standing barrel/enemy bug noted in the latest commit — one array, one update loop, one cleanup path, no chance of the two flavours drifting apart. See <a href="#game-enemy">enemy</a>, where <code>State === BOUNCING</code> is literally the "is this crazy?" discriminator.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">// level management + spawner fields</code></h4>
+      <p>The remaining state falls into level-management and spawner buckets. <code>CurrentLevelName</code> is public so the dat.gui <a href="#game-debug-types--leveldebug">LevelDebug</a> dropdown can bind to it with <code>.listen()</code> (it reflects F2 cycling live). <code>currentLevelIndex</code> drives the cycle math; <code>levelLoaded</code> gates the unload-before-load; <code>isLoading</code> is the re-entrancy lock <em>and</em> the Update freeze. The spawner counters are all in seconds (advanced by <code>Time.Delta</code>), not wall-clock.</p>
+      <pre class="code"><code class="language-typescript">public CurrentLevelName: string = LEVEL_REGISTRY[DEFAULT_LEVEL_INDEX].name;
+private currentLevelIndex = -1;
+private levelLoaded = false;
+private isLoading = false;
+
+private isSpawningEnemies = false;
+private timeSinceLastSpawn = 0;
+private currentSpawnInterval = 0;
+private enemyCount = 0;</code></pre>
+      <p>Line-level notes: <code>currentLevelIndex = -1</code> starts "before" index 0, so the first <code>switchToNextLevel</code> after a boot at index 0 still computes correctly (boot sets it explicitly). <code>playerHasBeenSpawned</code> (declared just above, default <code>false</code>) is the flag that makes <code>setPlayerStart</code> construct the Player exactly once and merely teleport it on every subsequent level — so the singleton Player survives level switches.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor()</code></h4>
+      <p>First seeds the gameplay PRNG deterministically (and logs the seed), then caches the engine subsystems off the <a href="#engine-core">Experience</a> singleton, creates the empty <code>GraphicsObject</code> overlay holder, then wires the event bus. No physics body or entity is created here — the world is empty until <code>resourcesReady</code> fires and the default level loads.</p>
+      <pre class="code"><code class="language-typescript">// Seed gameplay randomness deterministically (same seed -> same barrel sequence).
+seedRandom(RNG_SEED);
+console.log(`[FireGame] RNG seed = ${RNG_SEED} (deterministic run)`);
+
+this.experience = Experience.GetInstance();
+this.scene = this.experience.Scene;
+this.time = this.experience.Time;
+this.camera = this.experience.Camera;
+this.resources = this.experience.Resources;
+this.GraphicsObject = new GameObject();
+
+this.setupEventHandlers();</code></pre>
+      <div class="callout note"><b>Note.</b> Pulling everything from <code>Experience.GetInstance()</code> is the decoupling seam: the director never imports or constructs the renderer/physics/camera itself, it asks the singleton. That is how the same director could run under a test harness with stub systems.</div>
+      <div class="callout victory"><b>Hard-won victory (deterministic runs).</b> The module const <code>RNG_SEED = 1337</code> is fed to <code>seedRandom</code> here at construction, so every play replays the <em>identical</em> barrel sequence — and <code>resetGameState</code> re-seeds with the same value, so a reset replays it again from the top. All gameplay randomness (spawn cadence, the barrel's take-ladder dice) now flows through the one seeded <a href="#engine-helpers">mulberry32 PRNG</a> instead of the global unseeded <code>Math.random</code>, which is what makes a run reproducible. Swap to <code>seedRandom(Date.now())</code> for varied runs.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private setupEventHandlers()</code></h4>
+      <p>The director's nervous system — it <em>listens</em> on the <a href="#engine-events-input">event bus</a> and never calls these flows directly. Each handler is a tiny <b>stored arrow field</b> (<code>onResourcesReady</code>, <code>onGameStart</code>, <code>onGameOver</code>, <code>onGameWin</code>, <code>onGameReset</code>, <code>onSwitchLevel</code>, <code>onGameObjectRemoved</code>) — and <code>setupEventHandlers</code> just registers each one <em>by reference</em>. Storing the refs is what lets <code>Destroy</code> remove exactly these listeners (and no one else's) from the shared bus. There is no wall-clock timer anywhere in the director any more — destroyed-barrel cleanup moved into <code>Update</code> (see <a href="#game-director--gameutils">GameUtils.CompactDestroyedObjects</a>).</p>
+      <table class="tbl">
+        <thead><tr><th>Event</th><th>Handler does</th></tr></thead>
+        <tbody>
+          <tr><td><code>resourcesReady</code></td><td><code>await this.loadLevelByIndex(DEFAULT_LEVEL_INDEX)</code> — boots the default level. Loading emits <code>gameStart</code> on success.</td></tr>
+          <tr><td><code>gameStart</code></td><td><code>Physics.SetPaused(false)</code> + <code>isSpawningEnemies = true</code> — go live.</td></tr>
+          <tr><td><code>gameOver</code></td><td><code>Physics.SetPaused(true)</code> + <code>isSpawningEnemies = false</code> — freeze, stop barrels.</td></tr>
+          <tr><td><code>gameWin</code></td><td>Identical freeze to <code>gameOver</code> — so the win screen holds and a stray barrel can't flip "Game Win!" to "Game Over!".</td></tr>
+          <tr><td><code>gameReset</code></td><td><code>Physics.SetPaused(false)</code> + <code>resetGameState()</code>.</td></tr>
+          <tr><td><code>switchLevel</code></td><td><code>await this.switchToNextLevel()</code> — the F2 cycle.</td></tr>
+          <tr><td><code>gameObjectRemoved</code></td><td><code>removedGameObject.Destroy()</code> — the single teardown sink for any entity anyone wants gone.</td></tr>
+        </tbody>
+      </table>
+      <pre class="code"><code class="language-typescript">// Stored arrow fields capture `this`; they're only invoked on events.
+private onGameObjectRemoved = (removed: GameObject) =&gt; {
+  removed.Destroy();
+};
+
+// setupEventHandlers() — register every stored handler BY REFERENCE.
+Emitter.on("resourcesReady", this.onResourcesReady);
+Emitter.on("gameStart", this.onGameStart);
+Emitter.on("gameOver", this.onGameOver);
+Emitter.on("gameWin", this.onGameWin);
+Emitter.on("gameReset", this.onGameReset);
+Emitter.on("switchLevel", this.onSwitchLevel);
+Emitter.on("gameObjectRemoved", this.onGameObjectRemoved);</code></pre>
+      <p>Line-level notes: the <code>gameObjectRemoved</code> handler is the decoupling pivot — entities (or <code>resetGameState</code>/<code>UnloadLevelData</code>) emit "remove me" and the director is the only thing that actually calls <code>Destroy()</code>, so teardown is centralized. Registering each handler by its stored ref (instead of an inline closure) is the bit that makes <code>Destroy</code> able to <code>off</code> precisely <em>these</em> listeners off the shared bus — a bare <code>Emitter.off("gameStart")</code> would wipe other modules' handlers (e.g. App.vue's) too.</p>
+      <div class="callout victory"><b>Hard-won victory (bus hygiene).</b> Every handler is a captured-<code>this</code> arrow field, so the <code>on</code> here and the <code>off</code> in <code>Destroy</code> pass the <em>same</em> function reference. Registering all seven (including <code>gameWin</code>) means <code>Destroy</code> can later remove all seven — no leaked listener closing over a dead instance on HMR / unmount.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Update()</code></h4>
+      <p>The <b>sim</b> pass — run inside the engine's fixed-timestep loop (0..N times per frame, see <a href="#engine-core">Experience.onTick</a>), so all movement integrates at the constant step. Camera and visual interpolation are <em>not</em> here — they run once per frame in <code>RenderUpdate</code>, decoupled from the sim rate. The <em>order</em> of the steps is load-bearing — several downstream reads depend on running after the player has moved this step.</p>
+      <pre class="mermaid">flowchart TD
+  A["isLoading? -> return"] --> B["Player.PhysicsBody ready? -> return"]
+  B --> C["Player.Update()"]
+  C --> E["trySpawn()"]
+  E --> F["Enemies.forEach(e.Update(Player, firstTrashCan))"]
+  F --> CD["GameUtils.CompactDestroyedObjects(Enemies) — swap-remove in place"]
+  CD --> G["Platforms: e.Update?.(Player, firstTrashCan)"]
+  G --> H["Player.UpdateLadderState(top, core, bottom)"]</pre>
+      <pre class="code"><code class="language-typescript">if (this.isLoading) return;
+if (!this.Player?.PhysicsBody) return;
+
+this.Player.Update();
+
+// Spawn + update enemies, then compact destroyed barrels IN PLACE (stable ref).
+this.trySpawn();
+const firstTrashCan = this.TrashCans[0];
+this.Enemies.forEach((enemy) =&gt; enemy.Update(this.Player, firstTrashCan));
+GameUtils.CompactDestroyedObjects(this.Enemies);
+
+const updatableLevelEntities: UpdatableEntity[] = this.Platforms;
+for (const e of updatableLevelEntities) {
+  e.Update?.(this.Player, firstTrashCan);
+}
+
+this.Player.UpdateLadderState(
+  GameUtils.IsAnySensorTriggered(this.LadderTopSensors),
+  GameUtils.IsAnySensorTriggeredObjectFullyInside(this.LadderCoreSensors, this.Player),
+  GameUtils.IsAnySensorTriggered(this.LadderBottomSensors)
+);</code></pre>
+      <p>Line-level notes: the two guard returns matter — <code>isLoading</code> freezes <em>all</em> game logic while a level is being torn down/rebuilt (the Vue loading screen covers the canvas), and <code>!this.Player?.PhysicsBody</code> bails before the player exists (between boot and first spawn). <code>firstTrashCan = this.TrashCans[0]</code> is the oil can passed to both the enemies and the platform loop. <code>GameUtils.CompactDestroyedObjects(this.Enemies)</code> runs right after the enemy tick so a barrel flagged <code>IsBeingDestroyed</code> this step (hit the player, lit the can) is swept <em>this</em> frame — no array reallocation, the same array instance the spawner pushes into. The <code>Platforms</code> loop runs <em>after</em> <code>Player.Update()</code> so the one-way-platform toggle reads <em>this</em> step's player state. Ladder detection is the last step and is still polled manually (see the GameUtils helpers) — the comment flags it as a TODO to convert to sensor callbacks. The three arguments map to top/core/bottom: top &amp; bottom use plain <code>IsAnySensorTriggered</code>, but the core uses the fully-inside variant so the player must be horizontally centred on the ladder to climb (the D9 idiom).</p>
+      <div class="callout victory"><b>Hard-won victory (no per-frame allocations).</b> Destroyed barrels used to be rebuilt into a fresh array on a 5-second <code>setInterval</code> (<code>GameUtils.RemoveDestroyedObjects</code> returned a new array, reassigned). Now <code>CompactDestroyedObjects</code> swap-removes <em>in place</em> every frame — promptly, with no GC churn, and keeping the array reference stable (which <code>levelEntityArrays</code>/teardown rely on). The whole director is now timer-free.</div>
+      <div class="callout note"><b>Note.</b> <code>WinFlag</code> is conspicuously absent from the update loop — the comment records that it "no longer updates" because winning routes through the contact table (<a href="#arch-contacts">contactRules</a>), not a per-frame shapecast. And the camera no longer ticks here at all: it moved to <code>RenderUpdate</code> so it follows the smooth, interpolated player rather than the stepped sim position.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public RenderUpdate(alpha: number)</code></h4>
+      <p>The per-<b>frame</b> render pass, called by <a href="#engine-core">Experience.OnRenderUpdate</a> once per rendered frame with the interpolation <code>alpha</code> (the fraction <code>accumulator / dt</code> through the next sim step). It lerps the moving entities between their last two sim states so motion is smooth <em>above</em> the sim rate, then follows the interpolated player with the camera. Render and sim rates are fully decoupled — buttery on a 144&nbsp;Hz display, no judder on a 60&nbsp;Hz one.</p>
+      <pre class="code"><code class="language-typescript">if (this.isLoading) return;
+if (!this.Player?.PhysicsBody) return;
+
+this.Player.InterpolateGraphics(alpha);
+for (const enemy of this.Enemies) {
+  enemy.InterpolateGraphics(alpha);
+}
+
+// Camera follows the interpolated visual position (C5 decouple: plain snapshot).
+this.camera.Update(this.cameraTargetFromPlayer(this.Player));</code></pre>
+      <p>Line-level notes: same two guards as <code>Update</code> (loading freeze, player-ready). <code>InterpolateGraphics(alpha)</code> on the player and each enemy lerps the mesh between the previous and current sim translation/rotation and writes each entity's <code>RenderTranslation</code> — the interpolated position other systems read. The camera <code>Update</code> runs <em>last</em> and after the player's interpolation, so <code>cameraTargetFromPlayer</code> can hand it the freshly-computed <code>RenderTranslation</code>.</p>
+      <div class="callout victory"><b>Hard-won victory (render interpolation).</b> Splitting the per-step sim from the per-frame render is what removes the old one-frame camera lag for good: the player is no longer "updated before the camera in the same frame" (the previous fix) — instead the sim integrates at a fixed step and the render pass <em>interpolates</em> toward it, and the camera follows that interpolated player. Teleports/resets still snap because <code>TeleportToPosition</code> collapses the interpolation state (prev = current = render = target), so they jump instead of sliding.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private cameraTargetFromPlayer(player: Player): CameraTarget</code></h4>
+      <p>Maps the game <code>Player</code> into the engine's plain <a href="#engine-camera">CameraTarget</a> snapshot. The camera reads only these five scalars, never the game Player or <code>PlayerState</code> — so <code>camera.ts</code> imports nothing from <code>game/</code>. The <code>switch</code> translates the game's <code>PlayerStates</code> enum into the engine-neutral <code>CameraFollowState</code> (with <code>GROUNDED</code> as the default for idle/running). Called from <code>RenderUpdate</code>, it now reads the player's <em>interpolated</em> <code>RenderTranslation</code> (set by <code>InterpolateGraphics</code> a line earlier) so the camera tracks the smooth visual player, not the stepped sim position.</p>
+      <pre class="code"><code class="language-typescript">switch (player.State) {
+  case PlayerStates.CLIMBING: followState = CameraFollowState.CLIMBING; break;
+  case PlayerStates.FALLING:  followState = CameraFollowState.FALLING;  break;
+  case PlayerStates.JUMPING:  followState = CameraFollowState.JUMPING;  break;
+  default:                    followState = CameraFollowState.GROUNDED;
+}
+
+return {
+  // Follow the INTERPOLATED render position (set by InterpolateGraphics just
+  // before this in RenderUpdate), not the stepped sim position.
+  x: player.RenderTranslation.x,
+  y: player.RenderTranslation.y,
+  velocityX: player.NextTranslation.x,
+  followState,
+  isGrounded: player.IsTouching.ground,
+};</code></pre>
+      <div class="callout victory"><b>Hard-won victory (C5).</b> This single method is the camera decouple. Before C5 the engine <code>Camera</code> read <code>player.State</code>, <code>player.IsTouching.ground</code> etc. directly and thus imported game types. Now the <em>game</em> builds the snapshot and hands it in, so a different game (or a multi-player follow) just fills the struct differently. The five fields are exactly the scalars the camera's vertical-follow easing used to read off the player, so the easing branching is preserved unchanged. See the <a href="#engine-camera">Camera</a> section for how <code>followState</code> drives the GROUNDED/CLIMBING/FALLING/JUMPING easing.</div>
+    </div>
+
+    <h4 class="file-name" style="margin-top:1.5rem">Level pipeline</h4>
+    <p>Loading a level is a chain: <code>loadLevelByIndex</code> orchestrates — it now <code>resources.ParseLevel</code>s the GLB <em>first</em> (before any teardown), validates the optional graphics asset, then unloads the old level and calls <code>LoadLevelData</code> (spawn), which iterates the parsed rows through the <a href="#game-config--entityfactories">ENTITY_FACTORIES</a> registry using a <code>FactoryContext</code> built by <code>getFactoryContext</code>. (<code>LoadGLBLevel</code> is no longer on this internal path — it survives only as a public convenience API.)</p>
+    <pre class="mermaid">flowchart TD
+  R["loadLevelByIndex(index)"] --> P["resources.ParseLevel(entry.source) -> LevelData&lt;br/&gt;(parse FIRST, before unload)"]
+  P --> V["validate entry.graphics asset is loaded"]
+  V --> U["UnloadLevelData (if levelLoaded)"]
+  U --> L["LoadLevelData(levelData)"]
+  L --> SP["setPlayerStart() + setCameraStart()"]
+  SP --> CTX["getFactoryContext() aliases the typed arrays"]
+  CTX --> LOOP["for each row: ENTITY_FACTORIES[type]?(data, ctx, type)"]
+  LOOP --> RS["resetSpawner()"]
+  RS --> OV["GraphicsObject overlay (if entry.graphics)"]
+  OV --> FEEL["applyFeelProfile + camera.SetCameraFollow"]
+  FEEL --> GS["emit gameStart"]
+  GS -. on throw .-> RB["catch: roll back currentLevelIndex / CurrentLevelName"]</pre>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public async LoadGLBLevel(glbPath: string)</code></h4>
+      <p>Thin adapter: hands the bundled GLB URL to the <a href="#engine-resources">ResourceLoader</a> and awaits parsed <code>LevelData</code>, then forwards to <code>LoadLevelData</code>. Levels are GLB/glTF only (Blender/Blockbench export); <code>glbPath</code> is normally the registry entry's <code>source</code>. <b>No longer used on the internal load path</b> — <code>loadLevelByIndex</code> now parses the GLB itself (so it can parse <em>before</em> unloading); this stays as a public one-call convenience (parse + spawn) for callers outside the registry flow.</p>
+      <pre class="code"><code class="language-typescript">const parsedLevelData = await this.resources.ParseLevel(glbPath);
+await this.LoadLevelData(parsedLevelData);</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public async LoadLevelData(levelData: LevelData)</code></h4>
+      <p>The data-source-agnostic spawn pass — turns parsed rows into live entities. Stores the data, ensures a single ambient light exists (lazily created once, reused across levels), places the player and camera <em>first</em> (so sensors have a target), then runs the factory loop, then resets the spawn cadence.</p>
+      <pre class="code"><code class="language-typescript">this.LevelData = levelData;
+
+if (!this.ambientLight) {
+  this.ambientLight = new THREE.AmbientLight(0xffffff, 1);
+  this.scene.add(this.ambientLight);
+}
+
+this.setPlayerStart();
+this.setCameraStart();
+
+const ctx = this.getFactoryContext();
+for (const data of Object.values(this.LevelData)) {
+  const factory = ENTITY_FACTORIES[data.type];
+  if (factory) factory(data, ctx, data.type);
+}
+
+this.resetSpawner();</code></pre>
+      <p>Line-level notes: the factory loop is the heart of the data-driven spawn — <code>ENTITY_FACTORIES[data.type]</code> resolves the right builder by the <code>EntityType</code> string the parser emitted; <code>if (factory)</code> silently skips rows with no factory (<code>PlayerStart</code>/<code>CameraStart</code> handled just above, plus <code>GraphicsObject</code>/<code>Unknown</code>). Each factory <em>pushes</em> into <code>ctx</code>'s arrays — which alias the director's real query arrays (see <code>getFactoryContext</code>), so they're populated in place. <code>resetSpawner()</code> at the end means a fresh level starts the barrel cadence clean; whether it actually runs is gated separately by <code>isSpawningEnemies</code>.</p>
+      <div class="callout gotcha"><b>Gotcha.</b> Order matters: <code>setPlayerStart()</code> must run before the factory loop because some sensors (and the camera) are positioned/targeted relative to the player. The ambient light is created once and never per-level — <code>UnloadLevelData</code> removes it, and the next load recreates it.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private getFactoryContext(): FactoryContext</code></h4>
+      <p>Builds the plain struct the factories push into. Critically these are the <em>same array instances</em> the director queries (<code>trashCans[0]</code> for the enemy aim, the ladder sub-arrays for the climb checks) — not copies — so pushing in a factory mutates the director's live state.</p>
+      <pre class="code"><code class="language-typescript">return {
+  camera: this.camera,
+  walls: this.Walls,
+  platforms: this.Platforms,
+  trashCans: this.TrashCans,
+  winFlags: this.WinFlags,
+  teleporters: this.Teleporters,
+  cameraSensors: this.CameraSensors,
+  ladderTopSensors: this.LadderTopSensors,
+  ladderCoreSensors: this.LadderCoreSensors,
+  ladderBottomSensors: this.LadderBottomSensors,
+};</code></pre>
+      <p>The only non-array member is <code>camera</code>, handed in because the camera-sensor factory needs to wire each sensor to the engine camera. See <a href="#game-config--entityfactories">entityFactories</a> for what each factory does with this context.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private levelEntityArrays(): GameObject[][]</code></h4>
+      <p>The single list of every level-spawned entity array, returned as <code>GameObject[][]</code>. <code>UnloadLevelData</code> tears them <em>all</em> down by iterating this, so a new entity kind is wired in exactly three places — its typed field, the <code>FactoryContext</code>, and this list — and is <b>never</b> hand-listed in teardown again. The Player is deliberately absent (it survives level switches).</p>
+      <pre class="code"><code class="language-typescript">return [
+  this.Enemies,
+  this.TrashCans,
+  this.WinFlags,
+  this.CameraSensors,
+  this.LadderTopSensors,
+  this.LadderCoreSensors,
+  this.LadderBottomSensors,
+  this.Walls,
+  this.Platforms,
+  this.Teleporters,
+];</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public UnloadLevelData()</code></h4>
+      <p>Tears down the current level. A local <em>generic</em> <code>destroyAll&lt;T extends GameObject&gt;</code> helper emits <code>gameObjectRemoved</code> for every entity (routing teardown through the central sink) then truncates the array via <code>entities.length = 0</code> — and instead of hand-listing each array, it maps that helper over <code>levelEntityArrays()</code>, so every typed array is cleared from one place. Then the graphics overlay is destroyed and replaced with a fresh instance, and the ambient light is removed.</p>
+      <pre class="code"><code class="language-typescript">// emit removal for each entity, then empty the array in place (stable ref)
+const destroyAll = &lt;T extends GameObject&gt;(entities: T[]) =&gt; {
+  entities.forEach((entity) =&gt; Emitter.emit("gameObjectRemoved", entity));
+  entities.length = 0;
+};
+this.levelEntityArrays().forEach((arr) =&gt; destroyAll(arr));
+
+// Destroy() is idempotent now (latches IsBeingDestroyed), so swap in a fresh
+// GraphicsObject for the next level rather than destroying-then-reusing the old one.
+this.GraphicsObject.Destroy();
+this.GraphicsObject = new GameObject();
+if (this.ambientLight) {
+  this.scene.remove(this.ambientLight);
+  this.ambientLight = undefined;
+}</code></pre>
+      <p>Line-level notes: <code>destroyAll</code> is now <code>&lt;T extends GameObject&gt;</code>-generic (no more <code>any[]</code>) and is fed every array by <code>levelEntityArrays()</code>, so adding a new entity kind never means hand-editing teardown again. <code>entities.length = 0</code> empties the array <em>in place</em>, preserving the same array instance — important because <code>getFactoryContext</code> handed those instances out as aliases; reassigning to <code>[]</code> would orphan the alias. The Player is <b>not</b> in <code>levelEntityArrays()</code> and is <b>not</b> destroyed here — it persists across level switches and is merely teleported by <code>setPlayerStart</code>. The ambient light is removed and nulled so the lazy re-create in <code>LoadLevelData</code> fires again on the next load.</p>
+      <div class="callout victory"><b>Hard-won victory (idempotent Destroy).</b> <code><a href="#engine-entities">GameObject.Destroy()</a></code> now latches <code>IsBeingDestroyed</code> on its first line and no-ops on a second call. That makes the long-lived <code>GraphicsObject</code> un-reusable after teardown (a re-load would hit a dead, permanently-latched object), so each unload <em>replaces</em> it with <code>new GameObject()</code> — a clean overlay holder per level, and no never-resetting destroy latch.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private setPlayerStart()</code> &nbsp;/&nbsp; <code class="language-typescript">private setCameraStart()</code></h4>
+      <p>Scan the level data for the spawn-point rows. <code>setPlayerStart</code> reads <code>position[0]</code> (X) and <code>position[2]</code> (the glTF Z that maps to the game's vertical) — if the player already exists it teleports, otherwise it constructs the one Player and flips <code>playerHasBeenSpawned</code>. <code>setCameraStart</code> reads all three components and teleports the camera (note the argument order <code>(x, z, y)</code> mirroring the camera's signature).</p>
+      <pre class="code"><code class="language-typescript">// setPlayerStart
+if (this.playerHasBeenSpawned) {
+  this.Player.TeleportToPosition(x, z);
+  return;
+}
+this.Player = new Player({ width: 1.75, height: 4 }, { x, y: z });
+this.playerHasBeenSpawned = true;
+
+// setCameraStart
+this.camera.TeleportToPosition(x, z, y);</code></pre>
+      <p>Line-level notes: both loops <code>return</code> on the first matching row — there is exactly one spawn point of each kind. The axis swap (<code>position[2]</code> feeding the game's <code>y</code>) is the recurring glTF-Z-is-game-Y convention used throughout the factory registry too. The player is <code>1.75 &times; 4</code> world units — the DK box.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private resetGameState()</code> &nbsp;/&nbsp; <code class="language-typescript">private resetSpawner()</code></h4>
+      <p><code>resetGameState</code> (fired by <code>gameReset</code>) returns the world to its level-start: re-seed the PRNG with <code>RNG_SEED</code> (so the reset replays the identical barrel sequence), teleport player and camera back to their initial positions, emit <code>gameObjectRemoved</code> for every barrel, douse every trash can (<code>IsOnFire = false</code>), then re-enable spawning and reset the cadence. <code>resetSpawner</code> just zeroes the three cadence counters.</p>
+      <pre class="code"><code class="language-typescript">// resetGameState
+// Re-seed so a reset replays the identical sequence (deterministic restart).
+seedRandom(RNG_SEED);
+this.Player.TeleportToPosition(this.Player.InitialTranslation.x, this.Player.InitialTranslation.y);
+this.camera.TeleportToPosition(this.camera.InitialPosition.x, this.camera.InitialPosition.y, this.camera.InitialPosition.z);
+this.Enemies.forEach((enemy) =&gt; Emitter.emit("gameObjectRemoved", enemy));
+this.TrashCans.forEach((trashCan) =&gt; (trashCan.IsOnFire = false));
+this.isSpawningEnemies = true;
+this.resetSpawner();
+
+// resetSpawner
+this.timeSinceLastSpawn = 0;
+this.currentSpawnInterval = 0;
+this.enemyCount = 0;</code></pre>
+      <p>Line-level notes: dead barrels are flagged here but physically swept by the per-frame <code>CompactDestroyedObjects</code> in <code>Update</code> (and the next <code>UnloadLevelData</code>); reset doesn't wait. Setting <code>currentSpawnInterval = 0</code> is significant — it re-arms the "opening throw" branch in <code>trySpawn</code> (the first barrel after a reset is again Kong's oil-can shot).</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private async loadLevelByIndex(index: number)</code></h4>
+      <p>The single load path. Boot, the F2 cycle, and the dat.gui level select all funnel through here. It applies the registry entry's per-level setup (feel profile, camera follow, optional graphics overlay), and is the only method that emits <code>gameStart</code> on a successful load. The ordering is the key: it <b>parses the new GLB and validates the graphics asset BEFORE tearing down the current level</b>, and on any failure it <b>rolls back</b> the index/name bookkeeping — so a failed switch is a no-op, never a teardown into emptiness.</p>
+      <pre class="code"><code class="language-typescript">const entry = LEVEL_REGISTRY[index];
+if (!entry || this.isLoading) return;
+
+this.isLoading = true;
+Emitter.emit("loadingStarted");
+
+// Remember the current level so a failed load can roll back to it.
+const prevIndex = this.currentLevelIndex;
+const prevName = this.CurrentLevelName;
+
+try {
+  if (!entry.source) {
+    throw new Error(`level "${entry.name}" has no resolvable GLB source — is it in src/assets/levels?`);
+  }
+
+  // Parse the GLB FIRST, before tearing down the current level. A parse throw
+  // (missing/corrupt GLB) leaves the old level fully intact — we catch + roll back.
+  const parsedLevelData = await this.resources.ParseLevel(entry.source);
+
+  // Validate the optional graphics overlay is present BEFORE the unload too, so a
+  // missing/failed graphics item fails into the rollback while the old level is intact.
+  if (entry.graphics && !this.resources.Items[entry.graphics]) {
+    throw new Error(`level "${entry.name}" graphics asset "${entry.graphics}" failed to load`);
+  }
+
+  // Parse + validate succeeded — now it's safe to swap.
+  if (this.levelLoaded) {
+    this.UnloadLevelData();
+  }
+
+  this.currentLevelIndex = index;
+  this.CurrentLevelName = entry.name;
+
+  await this.LoadLevelData(parsedLevelData);
+
+  if (entry.graphics) {
+    await this.GraphicsObject.CreateObjectGraphics(this.resources.Items[entry.graphics]);
+  }
+
+  this.applyFeelProfile(entry.feelProfile);
+  this.camera.SetCameraFollow(entry.cameraFollow);
+
+  this.levelLoaded = true;
+  Emitter.emit("gameStart");
+} catch (error) {
+  // Roll back to the last good level so a failed switch is a no-op.
+  console.error(`Failed to load level "${entry.name}":`, error);
+  this.currentLevelIndex = prevIndex;
+  this.CurrentLevelName = prevName;
+} finally {
+  this.isLoading = false;
+  Emitter.emit("loadingFinished");
+}</code></pre>
+      <div class="callout victory"><b>Hard-won victory (failed-load rollback).</b> Parse-and-validate happen <em>before</em> the unload, and the <code>catch</code> restores <code>currentLevelIndex</code>/<code>CurrentLevelName</code> to the values it snapshotted into <code>prevIndex</code>/<code>prevName</code>. The two throwing steps that used to live <em>after</em> teardown (a bad GLB, a missing graphics overlay) now both fire while the old level is still standing — so a broken registry row no longer drops the player into an empty world with mismatched bookkeeping. <code>LoadLevelData</code>'s spawn pass is deterministic, so once parse+validate pass the swap is safe.</div>
+      <div class="callout victory"><b>Hard-won victory (D5 — the re-entrancy guard).</b> <code>if (!entry || this.isLoading) return;</code> plus <code>isLoading = true</code> is "one boolean, old-school". The GLB parse is async and callers are fire-and-forget, so without the guard a second load (mashing F2, or picking a level mid-load) would interleave teardown + respawn → double entities, a leaked ambient light, and a mismatched index. The same flag freezes <code>Update</code> (top of the frame loop) so logic doesn't tick against half-built state, and <code>loadingStarted/loadingFinished</code> bracket the window so the Vue loading screen covers the seam.</div>
+      <div class="callout gotcha"><b>Gotcha (fail loud, then fail safe).</b> Two deliberate error choices. (1) An empty <code>entry.source</code> (a <code>levelUrl()</code> miss) is thrown <em>here</em> rather than letting <code>""</code> reach the loader — <code>gltfLoader.load("")</code> would fetch the HTML page and throw a confusing parse error far from the cause. (2) That throw is caught locally and only <code>console.error</code>'d — it must <b>not</b> reject out of this method, because the boot handler awaits it; an unhandled rejection there would skip <code>gameStart</code> and leave a frozen, physics-paused game. The <code>finally</code> always clears <code>isLoading</code> and emits <code>loadingFinished</code>, so the overlay never hangs even on a failed load. And because <code>gameStart</code> is inside the <code>try</code> after the load steps, a failed load never wrongly unpauses.</div>
+      <div class="callout note"><b>Note.</b> This is the SINGLE place the game starts running. Switching out of a paused game-over or win screen by loading a level can't leave the new level frozen, because every entry point reaches <code>gameStart</code> here.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public LoadLevelByName(name: string)</code> &nbsp;/&nbsp; <code class="language-typescript">private async switchToNextLevel()</code></h4>
+      <p>Two thin entry points onto <code>loadLevelByIndex</code>. <code>LoadLevelByName</code> (used by the dat.gui level select) resolves the name to an index via <code>LEVEL_REGISTRY.findIndex</code> and fires-and-forgets the load (the <code>isLoading</code> guard serializes overlaps). <code>switchToNextLevel</code> (the F2 / <code>switchLevel</code> handler) cycles with modulo wrap.</p>
+      <pre class="code"><code class="language-typescript">// LoadLevelByName
+const index = LEVEL_REGISTRY.findIndex((level) =&gt; level.name === name);
+if (index &gt;= 0) this.loadLevelByIndex(index);
+
+// switchToNextLevel
+const next = (this.currentLevelIndex + 1) % LEVEL_REGISTRY.length;
+await this.loadLevelByIndex(next);</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private applyFeelProfile(profile: FeelProfile)</code></h4>
+      <p>Applies a feel profile to the current player by indexing the <code>FEEL_PROFILES</code> identity table (from <a href="#game-config--levelregistry">levelRegistry</a>) and calling the resolved setter (<code>setDkAttributes</code> or <code>setCelesteAttributes</code>) on the Player. Guards on the Player existing.</p>
+      <pre class="code"><code class="language-typescript">if (!this.Player) return;
+FEEL_PROFILES[profile](this.Player);</code></pre>
+      <div class="callout note"><b>Note.</b> Feel is the single source of truth: it is set <em>only</em> here, from the loading level's registry entry — no live debug swap bypasses it. The comment flags a future "a trigger sets the feel" mechanic that would promote this to a public hook. See <a href="#game-feel">baseFeel</a> for what the setters actually write.</div>
+    </div>
+
+    <h4 class="file-name" style="margin-top:1.5rem">Enemy spawning</h4>
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private trySpawn()</code></h4>
+      <p>Frame-driven barrel spawning, called once per frame from <code>Update</code>. It replaced an old wall-clock <code>setInterval</code> so there is now one clock (<code>Time.Delta</code>) and a fresh boot spawns without a reset. Bails immediately if spawning is off or physics is paused. The cadence: the <em>first</em> barrel is Kong's opening throw (a crazy barrel aimed at the oil can to light it); afterwards a normal/crazy mix every few seconds, every 8th one crazy.</p>
+      <pre class="code"><code class="language-typescript">if (!this.isSpawningEnemies || this.experience.Physics.IsPaused) return;
+
+this.timeSinceLastSpawn += this.time.Delta;
+
+// First barrel: Kong's opening throw — a crazy barrel aimed at the oil can.
+if (this.currentSpawnInterval === 0) {
+  this.timeSinceLastSpawn = 0;
+  this.currentSpawnInterval = randomRange(3, 4); // 3-4 seconds
+  this.spawnOilCanBarrel();
+  return;
+}
+
+// Subsequent barrels: mostly normal, every 8th crazy.
+if (this.timeSinceLastSpawn &gt;= this.currentSpawnInterval) {
+  this.timeSinceLastSpawn = 0;
+  this.currentSpawnInterval = randomRange(2, 3); // 2-3 seconds
+  this.enemyCount++;
+  if (this.enemyCount % 8 === 0) {
+    this.SpawnCrazyEnemy();
+  } else {
+    this.SpawnEnemy();
+  }
+}</code></pre>
+      <p>Line-level notes: <code>currentSpawnInterval === 0</code> is the one-shot opening-throw sentinel — it is only zero at boot/reset, fires the oil-can barrel, then sets a real 3–4s interval so it never re-enters. The interval values come from the seeded <code>randomRange(3, 4)</code> / <code>randomRange(2, 3)</code> (not the global <code>Math.random</code>), so the spawn cadence is part of the reproducible, seeded run. The cadence counters are advanced <em>before</em> the (async) spawn (<code>timeSinceLastSpawn = 0</code> is set first) so a stutter frame can't double-spawn. The double-guard against <code>Physics.IsPaused</code> belts-and-suspenders with <code>isSpawningEnemies</code> (both are cleared on gameOver/gameWin).</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private spawnOilCanBarrel()</code></h4>
+      <p>The opening crazy barrel Kong hurls at the oil can to light it. Spawns at the normal throw point <code>{ x: -13, y: 50 }</code> but aims its bounce drift toward the first trash can so it reaches and ignites it (igniting also consumes the barrel, via the contact table). Drift defaults rightward (<code>aim = 0</code> → <code>SpawnCrazyEnemy</code> treats <code>&gt;= 0</code> as <code>+1</code>) when the can is directly below or absent.</p>
+      <pre class="code"><code class="language-typescript">const spawn = { x: -13, y: 50 };
+const can = this.TrashCans[0];
+let aim = 0;
+if (can) aim = Math.sign(can.CurrentTranslation.x - spawn.x);
+this.SpawnCrazyEnemy(spawn, aim);</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public async SpawnEnemy(position = { x: -13, y: 50 })</code> &nbsp;/&nbsp; <code class="language-typescript">public async SpawnCrazyEnemy(position = { x: -13, y: 50 }, bounceDirection = 1)</code></h4>
+      <p>Both construct an <a href="#game-enemy">Enemy</a>, attach its graphics via <code>CreateObjectGraphics(this.resources.Items.enemy)</code>, and push into <code>this.Enemies</code>. The difference is the constructor args: a normal barrel is <code>new Enemy(1, position)</code> (rolls, may take ladders); a crazy barrel is <code>new Enemy(1, position, 0, true, bounceDirection)</code> — the <code>true</code> sets the crazy flag (starts BOUNCING), and <code>bounceDirection</code> is its horizontal drift sign.</p>
+      <pre class="code"><code class="language-typescript">// SpawnEnemy
+const enemy = new Enemy(1, position);
+await enemy.CreateObjectGraphics(this.resources.Items.enemy);
+this.Enemies.push(enemy);
+
+// SpawnCrazyEnemy
+const enemy = new Enemy(1, position, 0, true, bounceDirection);
+await enemy.CreateObjectGraphics(this.resources.Items.enemy);
+this.Enemies.push(enemy);</code></pre>
+      <div class="callout note"><b>Note.</b> These are <code>public</code> (and <code>async</code>) so the dat.gui <a href="#game-debug-types--leveldebug">debug</a> can spawn barrels on demand. They are the runtime spawner — deliberately <em>not</em> entity factories (the factory registry is for level-data-placed entities only); the director keeps barrel spawning as an explicit step.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Destroy()</code></h4>
+      <p>Tears the director down: <code>off</code>s every event handler <em>by reference</em>, then unloads the level. There is no timer to clear any more.</p>
+      <pre class="code"><code class="language-typescript">// Remove EXACTLY our handlers (pass the ref) so we don't wipe other modules'
+// listeners on the shared bus. gameWin is removed too now (it used to leak).
+Emitter.off("resourcesReady", this.onResourcesReady);
+Emitter.off("gameStart", this.onGameStart);
+Emitter.off("gameOver", this.onGameOver);
+Emitter.off("gameWin", this.onGameWin);
+Emitter.off("gameReset", this.onGameReset);
+Emitter.off("switchLevel", this.onSwitchLevel);
+
+// Tear down level entities BEFORE removing gameObjectRemoved: UnloadLevelData EMITS
+// gameObjectRemoved, and that handler is what turns it into the actual entity.Destroy().
+this.UnloadLevelData();
+Emitter.off("gameObjectRemoved", this.onGameObjectRemoved);</code></pre>
+      <div class="callout victory"><b>Hard-won victory (teardown hygiene).</b> Two fixes here. (1) Every <code>off</code> now passes the <em>stored handler ref</em> (matching the <code>on</code> in <code>setupEventHandlers</code>), so it removes only this director's listeners — a bare <code>Emitter.off("gameStart")</code> would wipe other modules' handlers off the shared bus. (2) <code>gameWin</code> — which previously had no matching <code>off</code> and leaked a listener closing over the dead instance — is now removed with the rest.</div>
+      <div class="callout gotcha"><b>Gotcha (order matters).</b> <code>UnloadLevelData()</code> runs <em>before</em> <code>Emitter.off("gameObjectRemoved", …)</code> on purpose: unload <em>emits</em> <code>gameObjectRemoved</code> for every entity, and the <code>onGameObjectRemoved</code> handler is what actually calls each entity's <code>Destroy()</code>. Off it first and the teardown emit would reach nobody — leaking every entity's physics body and meshes on unmount / HMR. So: tear down, <em>then</em> off the sink.</div>
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> to add a new <em>level-data-placed</em> entity, you almost never touch this file — add a factory in <a href="#game-config--entityfactories">entityFactories</a> and a typed array via <code>getFactoryContext</code>/the field block, and the factory loop picks it up. To add a new <em>level</em>, add a row to <a href="#game-config--levelregistry">LEVEL_REGISTRY</a>; everything funnels through <code>loadLevelByIndex</code>. To change game flow, add an <code>Emitter.on(...)</code> in <code>setupEventHandlers</code> (and a matching <code>off</code> in <code>Destroy</code>) rather than calling logic directly — the director's whole design is "react to events, never poll". To tune difficulty, the spawn cadence numbers live in <code>trySpawn</code>; the barrel physics live in <a href="#game-enemy">enemy</a>.</p>
+  </article>
+
+  <article class="file-block" id="game-director--gameutils">
+    <h3 class="file-name">src/game/gameUtils.ts <span class="loc">121 LOC</span></h3>
+    <p class="file-role">The <em>"game utilities facade — the single entry point for game-layer helpers; game code goes through here, not engine helpers directly."</em> It is a class with only <code>static</code> members — never instantiated, no lifecycle. Two jobs: (1) <b>re-export</b> the engine's pure helpers (<a href="#engine-helpers">mathHelpers</a> and <a href="#engine-helpers">physicsHelpers</a>) under game-friendly names so the whole game has one import surface, and (2) hold a few <b>game-flavoured helpers</b> the director and enemy call directly — array sweeping and the sensor "is it triggered / fully inside?" polling. It imports <code>RAPIER</code> (for the <code>Collider</code>/<code>Cuboid</code> types), <code>GameObject</code> and <code>GameSensor</code> from the engine, plus the two helper modules.</p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">static MoveTowardsPoint / CalculatePercentChance / IsColliderType</code></h4>
+      <p>Three re-export aliases — no logic, just the facade surface. They point at the engine functions so game code calls <code>GameUtils.MoveTowardsPoint(...)</code> instead of importing <code>mathHelpers</code> directly.</p>
+      <pre class="code"><code class="language-typescript">public static MoveTowardsPoint = MathHelpers.moveTowards;     // move a value toward a target by a max step
+public static CalculatePercentChance = MathHelpers.percentChance; // true with the given percent probability
+public static IsColliderType = PhysicsHelpers.isColliderType; // does a collider match a given entity type</code></pre>
+      <p><code>MoveTowardsPoint</code> drives the player's accel/decel ramps; <code>CalculatePercentChance</code> rolls the barrel's take-ladder dice (<code>enemy.ts</code> <code>DecideTakeLadder</code>); <code>IsColliderType</code> is used all over the enemy collision callbacks to match by <code>EntityType</code>. See <a href="#engine-helpers">Helpers</a> for the implementations.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public static RemoveDestroyedObjects&lt;T extends GameObject&gt;(existingArray: T[]): T[]</code></h4>
+      <p>Returns a <em>new</em> array containing only the objects <em>not</em> flagged <code>IsBeingDestroyed</code>. Generic over any <code>GameObject</code> subtype so it preserves the element type. <b>Returns:</b> the filtered (kept) array.</p>
+      <pre class="code"><code class="language-typescript">const kept: T[] = [];
+for (const object of existingArray) {
+  if (!object.IsBeingDestroyed) {
+    kept.push(object);
+  }
+}
+return kept;</code></pre>
+      <p><b>No longer called by the director.</b> It used to run on a 5-second cleanup interval (<code>this.Enemies = GameUtils.RemoveDestroyedObjects(this.Enemies)</code>), but because it returns a fresh array — reassigning the field — it could only be used on arrays the director didn't alias out through a <code>FactoryContext</code>. The director now sweeps barrels every frame with the in-place <code>CompactDestroyedObjects</code> below (stable array ref); this filtering variant remains as a general-purpose utility.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public static CompactDestroyedObjects&lt;T extends GameObject&gt;(arr: T[]): void</code></h4>
+      <p>Removes destroyed objects from an array <b>in place</b> via swap-remove, keeping the <em>same</em> array reference. Walks back-to-front, and for each entry flagged <code>IsBeingDestroyed</code> overwrites it with the last element and <code>pop()</code>s the tail. Returns nothing — it mutates the array. Cheaper than <code>RemoveDestroyedObjects</code> (no new array, no GC churn), and the stable reference is what lets long-lived systems keep holding the same array.</p>
+      <pre class="code"><code class="language-typescript">for (let i = arr.length - 1; i &gt;= 0; i--) {
+  if (arr[i].IsBeingDestroyed) {
+    arr[i] = arr[arr.length - 1];
+    arr.pop();
+  }
+}</code></pre>
+      <p><b>Where the director calls it.</b> Every frame in <code>Update</code>, right after the enemy tick — <code>GameUtils.CompactDestroyedObjects(this.Enemies)</code>. This replaced the old 5-second wall-clock sweep: dead barrels are dropped promptly, and because the array instance never changes, <code>levelEntityArrays()</code> and the teardown path can keep relying on the stable <code>Enemies</code> reference. Swap-remove is order-unstable (it reorders survivors), which is harmless for the barrel pool.</p>
+      <div class="callout victory"><b>Hard-won victory (allocation-free hot path).</b> Sweeping on a per-frame loop with a fresh-array filter would allocate (and GC) an array every frame; in-place swap-remove does zero allocation and runs in one backward pass. It's part of the same Batch-2 push that hoisted the player/enemy predicates and scratch vectors out of the per-frame path — the hot loop no longer churns the heap.</div>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public static IsObjectFullyInsideSensor&lt;T extends RAPIER.Collider, U extends GameObject&gt;(collider: T, gameObject: U): boolean</code></h4>
+      <p>X-axis-only AABB containment: true when the object's left/right edges fall strictly inside the collider's left/right edges. Computes the object edges from <code>CurrentTranslation.x ± CurrentSize.x / 2</code> and the collider edges from <code>collider.translation().x ± (collider.shape as RAPIER.Cuboid).halfExtents.x</code>.</p>
+      <pre class="code"><code class="language-typescript">return objectMinX &gt; colliderMinX &amp;&amp; objectMaxX &lt; colliderMaxX;</code></pre>
+      <p>Line-level notes: it casts <code>collider.shape</code> to <code>RAPIER.Cuboid</code> to read <code>halfExtents</code> — so it assumes the sensor collider is a box. This is the <em>collider</em>-based sibling of <code>GameSensor.IsFullyInside</code> (which works off a <code>GameObject</code>); it exists for Rapier intersection callbacks that hand you a raw <code>Collider</code>. The <a href="#game-enemy">Enemy</a> uses it in <code>checkLadderIntersections</code> to decide a barrel is centred enough on a ladder core to descend.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public static IsAnySensorTriggered&lt;T extends GameSensor&gt;(gameSensors: T[]): boolean</code></h4>
+      <p>True if <em>any</em> sensor in the list currently has an intersection. For each sensor it skips ones without a collider or world, then uses Rapier's <code>World.intersectionPairsWith</code> with a callback that flips a local <code>isIntersecting</code> flag; returns <code>true</code> on the first hit.</p>
+      <pre class="code"><code class="language-typescript">for (const sensor of gameSensors) {
+  if (!sensor.PhysicsBody?.collider(0) || !sensor.Physics?.World) continue;
+
+  let isIntersecting = false;
+  sensor.Physics.World.intersectionPairsWith(
+    sensor.PhysicsBody.collider(0),
+    () =&gt; { isIntersecting = true; }
+  );
+  if (isIntersecting) return true;
+}
+return false;</code></pre>
+      <p><b>Where the director calls it.</b> In <code>Update</code>'s ladder block, for the <code>LadderTopSensors</code> and <code>LadderBottomSensors</code> arms of <code>Player.UpdateLadderState(top, core, bottom)</code> — top/bottom only care that the player <em>touches</em> the sensor at all.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public static IsAnySensorTriggeredObjectFullyInside&lt;T extends GameObject, U extends GameSensor&gt;(gameSensors: U[], gameObject: T): boolean</code></h4>
+      <p>The stricter sibling: true only when a sensor is both intersecting <em>and</em> the given object is fully inside it (<code>sensor.IsFullyInside(gameObject)</code>). Same intersection scan as above, with the extra containment gate before returning <code>true</code>.</p>
+      <pre class="code"><code class="language-typescript">if (isIntersecting &amp;&amp; sensor.IsFullyInside(gameObject)) {
+  return true;
+}</code></pre>
+      <p><b>Where the director calls it.</b> The <em>core</em> arm of the ladder check — <code>GameUtils.IsAnySensorTriggeredObjectFullyInside(this.LadderCoreSensors, this.Player)</code>. The player must be horizontally centred on the ladder core before climbing is allowed, which is what stops you from grabbing a ladder while only clipping its edge.</p>
+      <div class="callout victory"><b>Hard-won victory (D9 — the "fully inside" climb gate).</b> The ladder climb path relies on <em>continuous polling</em> of the core sensor's containment, not on enter/exit events. As the <a href="#engine-physics">GameSensor</a> comment puts it, "the D9 ladder 'fully inside' climb path depends on that continuous polling." Both this helper (for the player) and <code>Enemy.checkLadderIntersections</code> (for barrels) implement the same idiom — touch isn't enough, you must be horizontally contained.</div>
+    </div>
+
+    <div class="callout note"><b>Note (TEMPORARY).</b> Both <code>IsAnySensorTriggered*</code> helpers are explicitly marked <em>TEMPORARY — remove once Player uses callbacks</em>. They are per-frame intersection polls; the intended end state is event-driven <code>OnSensorEnter/Exit</code> callbacks on the sensors. They work today and the climb gate genuinely needs continuous containment, so the poll stays for now — but it is the one place in the player's ladder logic that hasn't moved to the event model yet.</div>
+
+    <p class="modify"><b>Modifying this:</b> if a new helper references any game concept (entity types, the player, sensors), add it here — if it is pure number/Rapier math with no game knowledge, add it to the engine <a href="#engine-helpers">helpers</a> and re-export it here as a one-line alias. Keep the facade total: game code should never import <code>mathHelpers</code>/<code>physicsHelpers</code> directly. When the player finally moves to sensor callbacks, the two <code>IsAnySensorTriggered*</code> polls (and their call sites in <code>GameDirector.Update</code>) are the ones to delete.</p>
+  </article>
+</section>

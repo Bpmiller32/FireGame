@@ -1,20 +1,16 @@
 import Experience from "../../engine/core/experience";
 import GameObject from "../../engine/entities/gameObject";
-import { CollisionLogSink } from "../../engine/debug/Debug";
+import { CollisionLogSink } from "../../engine/debug/debug";
 
-/**
- * Logs collision and sensor events to the console with colored output.
- * Controlled by the logCollisions and logSensors flags on the Debug coordinator.
- *
- * Registered with the engine Debug coordinator as a CollisionLogSink by the
- * game — the engine Physics routes events here without naming this class.
- */
+// Logs collision/sensor events to the console with colored output; toggled by LogCollisions/LogSensors.
+// Registered with the engine Debug coordinator as a CollisionLogSink; engine Physics routes events here.
 export default class CollisionLogger implements CollisionLogSink {
   public LogCollisions = false;
   public LogSensors = false;
 
   private experience?: Experience;
 
+  // Print a colored collision enter/exit line to the console.
   public LogCollisionEvent(
     obj1: GameObject,
     obj2: GameObject,
@@ -23,8 +19,10 @@ export default class CollisionLogger implements CollisionLogSink {
     if (!this.LogCollisions) return;
 
     const timestamp = this.getTimestamp();
-    const color = eventType === "enter" ? "#00ff00" : "#ff6666";
-    const symbol = eventType === "enter" ? "💥" : "↔️";
+    let color = "#ff6666";
+    if (eventType === "enter") color = "#00ff00";
+    let symbol = "↔️";
+    if (eventType === "enter") symbol = "💥";
 
     console.log(
       `%c${symbol} [${timestamp}] COLLISION ${eventType.toUpperCase()}: %c${
@@ -37,6 +35,7 @@ export default class CollisionLogger implements CollisionLogSink {
     );
   }
 
+  // Print a colored sensor enter/exit line to the console.
   public LogSensorEvent(
     obj1: GameObject,
     obj2: GameObject,
@@ -45,8 +44,10 @@ export default class CollisionLogger implements CollisionLogSink {
     if (!this.LogSensors) return;
 
     const timestamp = this.getTimestamp();
-    const color = eventType === "enter" ? "#00ddff" : "#ff88ff";
-    const symbol = eventType === "enter" ? "📡" : "⚪";
+    let color = "#ff88ff";
+    if (eventType === "enter") color = "#00ddff";
+    let symbol = "⚪";
+    if (eventType === "enter") symbol = "📡";
 
     console.log(
       `%c${symbol} [${timestamp}] SENSOR ${eventType.toUpperCase()}: %c${
@@ -59,6 +60,7 @@ export default class CollisionLogger implements CollisionLogSink {
     );
   }
 
+  // Elapsed-time stamp from the engine clock, lazily resolved.
   private getTimestamp(): string {
     if (!this.experience) {
       try {

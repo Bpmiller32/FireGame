@@ -1,37 +1,6 @@
-/* -------------------------------------------------------------------------- */
-/*                          MATH HELPER FUNCTIONS                             */
-/* -------------------------------------------------------------------------- */
-/*
- * Generic math utility functions used throughout the game.
- * Pure functions with no dependencies on game state.
- */
-/* -------------------------------------------------------------------------- */
+// Generic pure math utility functions, no game-state dependencies.
 
-/**
- * Moves a value towards a target by a maximum delta
- * 
- * Useful for smooth interpolation and damping effects.
- * 
- * @param current - The current value
- * @param target - The target value to move towards
- * @param maxDelta - The maximum change that can be applied
- * @returns The new value after moving towards target
- * 
- * @example
- * ```typescript
- * // Smoothly move player velocity towards target speed
- * const currentSpeed = 5;
- * const targetSpeed = 10;
- * const acceleration = 2;
- * 
- * const newSpeed = moveTowards(currentSpeed, targetSpeed, acceleration);
- * // Result: 7 (moved 2 units towards 10)
- * 
- * // If close enough, snaps to target
- * const almostThere = moveTowards(9.5, 10, 2);
- * // Result: 10 (snapped to target since difference < maxDelta)
- * ```
- */
+// Move a value towards a target by at most maxDelta.
 export function moveTowards(
   current: number,
   target: number,
@@ -46,129 +15,35 @@ export function moveTowards(
   return current + Math.sign(target - current) * maxDelta;
 }
 
-/**
- * Converts radians to degrees
- * 
- * @param radians - Angle in radians
- * @returns Angle in degrees
- * 
- * @example
- * ```typescript
- * const degrees = radiansToDegrees(Math.PI);     // 180
- * const degrees2 = radiansToDegrees(Math.PI / 2); // 90
- * ```
- */
-export function radiansToDegrees(radians: number): number {
-  return radians * (180 / Math.PI);
+// ---- Seeded pseudo-random number generator (deterministic) ----------------
+// A tiny mulberry32 PRNG so gameplay randomness is REPRODUCIBLE: the same seed
+// always yields the same sequence. The game seeds it (see GameDirector); a replay,
+// a lockstep peer, or a deterministic test just pins the same seed. This is the
+// randomness half of the fixed-timestep determinism work — Math.random() has no
+// seed and would desync any replay on the first roll.
+let rngState = 0x9e3779b9;
+
+// Seed the generator. Same seed in -> same random() sequence out.
+export function seedRandom(seed: number): void {
+  rngState = seed >>> 0;
 }
 
-/**
- * Converts degrees to radians
- * 
- * @param degrees - Angle in degrees
- * @returns Angle in radians
- * 
- * @example
- * ```typescript
- * const radians = degreesToRadians(180); // Math.PI
- * const radians2 = degreesToRadians(90); // Math.PI / 2
- * ```
- */
-export function degreesToRadians(degrees: number): number {
-  return degrees * (Math.PI / 180);
+// Next deterministic value in [0, 1). Drop-in for Math.random().
+export function random(): number {
+  rngState = (rngState + 0x6d2b79f5) | 0;
+  let t = rngState;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-/**
- * Calculates if a random event should occur based on probability
- * 
- * @param probability - Probability of event occurring (0 to 1)
- * @returns true if event should occur, false otherwise
- * 
- * @example
- * ```typescript
- * // 50% chance
- * if (percentChance(0.5)) {
- *   console.log("Coin flip: Heads!");
- * }
- * 
- * // 25% chance for enemy to change direction
- * if (percentChance(0.25)) {
- *   enemy.changeDirection();
- * }
- * ```
- */
-export function percentChance(probability: number): boolean {
-  return Math.random() < probability;
-}
-
-/**
- * Returns a random number between min and max (inclusive)
- * 
- * @param min - Minimum value
- * @param max - Maximum value
- * @returns Random number between min and max
- * 
- * @example
- * ```typescript
- * const randomSpeed = randomRange(5, 10);      // 5.0 to 10.0
- * const randomX = randomRange(-100, 100);      // -100 to 100
- * const randomDelay = randomRange(0.5, 2.0);   // 0.5s to 2.0s
- * ```
- */
+// Deterministic value in [min, max).
 export function randomRange(min: number, max: number): number {
-  return Math.random() * (max - min) + min;
+  return min + random() * (max - min);
 }
 
-/**
- * Returns a random integer between min and max (inclusive)
- * 
- * @param min - Minimum integer value
- * @param max - Maximum integer value
- * @returns Random integer between min and max
- * 
- * @example
- * ```typescript
- * const dice = randomInt(1, 6);           // 1, 2, 3, 4, 5, or 6
- * const enemyCount = randomInt(3, 8);     // 3 to 8 enemies
- * ```
- */
-export function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-/**
- * Clamps a value between min and max
- * 
- * @param value - The value to clamp
- * @param min - Minimum allowed value
- * @param max - Maximum allowed value
- * @returns Clamped value
- * 
- * @example
- * ```typescript
- * const health = clamp(playerHealth, 0, 100);     // Keep health 0-100
- * const speed = clamp(velocity, -maxSpeed, maxSpeed);
- * ```
- */
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
-
-/**
- * Linear interpolation between two values
- * 
- * @param start - Starting value
- * @param end - Ending value
- * @param t - Interpolation factor (0 to 1)
- * @returns Interpolated value
- * 
- * @example
- * ```typescript
- * const midpoint = lerp(0, 100, 0.5);    // 50
- * const quarter = lerp(0, 100, 0.25);    // 25
- * const color = lerp(0, 255, 0.7);       // 178.5
- * ```
- */
-export function lerp(start: number, end: number, t: number): number {
-  return start + (end - start) * t;
+// True if a random event should occur given probability (0 to 1). Uses the
+// seeded generator so chance-based gameplay stays reproducible.
+export function percentChance(probability: number): boolean {
+  return random() < probability;
 }

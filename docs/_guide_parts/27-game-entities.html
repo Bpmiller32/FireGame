@@ -1,0 +1,702 @@
+<section class="doc-section" id="game-entities">
+  <header class="section-head">
+    <h2 class="section-title">World Entities — platforms, sensors, teleporter, trash can, win flag</h2>
+    <p class="section-blurb">
+      These six classes are the level furniture: the solid floors and one-way girders the player
+      walks on, the invisible trigger zones that move the camera and mark ladders, the teleporter,
+      the oil can the enemies dive into, and the goal flag. Each is a thin <em>game</em> subclass of
+      one of the two engine base classes — <code>GameObject</code> (solid) or <code>GameSensor</code>
+      (pass-through) — that adds a little named state and almost no behavior. The behavior that
+      <em>reacts</em> to these zones lives elsewhere: in the declarative contact table
+      (<b>Game Config — contactRules</b>) and in the per-frame loop in <b>Game Director</b>. None of
+      them are constructed directly; they are all built by the factory registry
+      (<b>Game Config — entityFactories</b>) from parsed GLB level rows.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/game/entities/platform.ts</span>
+      <span class="chip">src/game/entities/cameraSensor.ts</span>
+      <span class="chip">src/game/entities/ladderSensor.ts</span>
+      <span class="chip">src/game/entities/teleporter.ts</span>
+      <span class="chip">src/game/entities/trashCan.ts</span>
+      <span class="chip">src/game/entities/winFlag.ts</span>
+    </div>
+  </header>
+
+  <div class="callout note">
+    <b>Note — the two base classes, in one breath.</b> <code>GameObject</code> (see <b>Engine
+    Entities — gameObject</b>) owns the Rapier rigid body + collider, the THREE mesh, the cached
+    <code>CurrentTranslation</code>/<code>CurrentSize</code> mirrors, collision-group helpers, and the
+    <code>OnCollisionEnter/Exit</code> + <code>OnSensorEnter/Exit</code> override hooks.
+    <code>GameSensor</code> (see <b>Engine Entities — gameSensor</b>) extends it with two things only:
+    <code>setAsSensor(true)</code> (turns the collider non-solid and arms
+    <code>KINEMATIC_FIXED</code> active-collision-types so a fixed sensor still notices the kinematic
+    player) and <code>IsFullyInside(other)</code> (X-axis AABB containment). The split below is exact:
+    <b>Platform</b> and <b>TrashCan</b> are solid <code>GameObject</code>s; <b>CameraSensor</b>,
+    <b>LadderSensor</b>, <b>Teleporter</b> and <b>WinFlag</b> are <code>GameSensor</code>s.
+  </div>
+
+  <pre class="mermaid">
+flowchart TD
+  GO["GameObject (engine: body + collider + mesh)"]
+  GS["GameSensor (engine: setAsSensor + IsFullyInside)"]
+  GO --> GS
+  GO --> Platform
+  GO --> TrashCan
+  GS --> CameraSensor
+  GS --> LadderSensor
+  GS --> Teleporter
+  GS --> WinFlag
+  </pre>
+
+  <div class="callout tip">
+    <b>Tip — how a zone turns into an action.</b> A sensor entity here defines <em>no</em> callbacks of
+    its own. Instead its constructor calls <code>enableContactEvents()</code> to arm Rapier collision
+    events, and the rule "Player enters X → do Y" is registered once in
+    <b>Game Config — contactRules</b>. The engine's <code>Physics.Contacts</code> registry
+    (<b>Engine Entities — contactRegistry</b>) matches the two colliders by their <code>type</code>
+    flag and fires the rule's handler. That is why these files are so short: they own <em>data</em>
+    (a destination, a camera anchor, a direction, a fire flag) and expose <em>one action</em> — the
+    table owns the <em>when</em>.
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- PLATFORM -->
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-entities--platform">
+    <h3 class="file-name">src/game/entities/platform.ts <span class="loc">90 LOC</span></h3>
+    <p class="file-role">
+      The solid world geometry: every floor girder, every wall, and the special "one-way" girders you
+      can jump up <em>through</em> from below but stand on from above. It is the only entity in this
+      section with a real per-frame <code>Update</code>. One class covers three placed types
+      (<code>Platform</code>, <code>OneWayPlatform</code>, and <code>Wall</code>) — the factory
+      decides which by passing the <code>isOneWayPlatform</code> flag and, for walls, calling
+      <code>SetType(EntityType.WALL)</code> afterward (see <b>Game Config — entityFactories</b>,
+      <code>createPlatform</code>/<code>createWall</code>). It imports <code>GameObject</code> (base),
+      <code>GameObjectType</code> (collider-shape enum — always <code>CUBE</code> here),
+      <code>CollisionGroups</code> (puts it on the <code>PLATFORM</code> layer), <code>EntityType</code>
+      (routing strings), and <code>Player</code> (its <code>Update</code> reads the player's Y and
+      state). Lifecycle: constructed by the factory, driven each frame from
+      <code>GameDirector.Update</code>, destroyed with the level via <code>GameObject.Destroy()</code>.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private isOneWayPlatform: boolean
+private oneWayEnablePoint: number
+public FloorLevel = 0
+public IsEdge = false
+public IsOneWayActive = false</code></h4>
+      <p>
+        The named, typed metadata that replaced the old anonymous <code>userData.value0/1/3</code> bag.
+        <code>isOneWayPlatform</code> is the immutable kind flag set in the constructor.
+        <code>oneWayEnablePoint</code> is the Y threshold above which a one-way platform turns solid.
+        <code>FloorLevel</code> (which girder this is, 1..N) and <code>IsEdge</code> (does an enemy
+        turn around here) are read by enemy floor logic. <code>IsOneWayActive</code> is the live toggle
+        — <code>true</code> means "currently pass-through-from-below". The comment is load-bearing:
+        it is <em>only ever true for one-way platforms</em>; a regular platform never flips it.
+      </p>
+      <pre class="code"><code class="language-typescript">public FloorLevel: number = 0;
+public IsEdge: boolean = false;
+// For a one-way platform: is it currently pass-through-from-below active?
+// (Only ever true for one-way platforms — regular platforms never toggle it.)
+public IsOneWayActive: boolean = false;</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor(size: { width; height; depth }, position: { x; y }, rotation: number, isOneWayPlatform = false)</code></h4>
+      <p>
+        Builds the solid body. <b>Params:</b> <code>size</code> (the depth component is accepted but
+        the 2D collider only uses width/height), <code>position</code> in game X/Y, <code>rotation</code>
+        in radians (slopes are rotated cubes), and the <code>isOneWayPlatform</code> kind flag (default
+        <code>false</code> → a normal solid platform/wall). After <code>super()</code> wires the engine
+        singletons, the body of the constructor:
+      </p>
+      <pre class="code"><code class="language-typescript">// The Y above which a one-way platform becomes solid (= the platform's own
+// height); the player passes up through it from below.
+this.oneWayEnablePoint = position.y;
+
+// Determine platform's routing type
+let objectName: string = EntityType.PLATFORM;
+if (isOneWayPlatform) objectName = EntityType.ONE_WAY_PLATFORM;
+
+// Cuboid collider — this is a cuboid/sphere engine (slopes = rotated cubes).
+this.createObjectPhysics(objectName, GameObjectType.CUBE, size, position, rotation);
+
+this.isOneWayPlatform = isOneWayPlatform;
+this.SetType(objectName);
+
+// Set collision groups and masks
+this.setCollisionGroup(CollisionGroups.PLATFORM);
+this.setCollisionMask(CollisionGroups.DEFAULT);</code></pre>
+      <p>Line-level notes:</p>
+      <ul>
+        <li><b>Default enable point = <code>position.y</code>.</b> The threshold defaults to the
+          platform's own centre Y. The factory immediately overrides it with
+          <code>SetOneWayEnablePoint(metaNum(meta,"oneway") || data.position[2])</code>, so an author can
+          tune the pass-through line in Blender; absent that meta it falls back to the same Y.</li>
+        <li><b><code>objectName</code> picks the routing string</b> (<code>Platform</code> vs
+          <code>OneWayPlatform</code>), then <code>SetType(objectName)</code> stamps it onto the body's
+          <code>userData.type</code> so the contact table and collision logger can match it. Walls call
+          <code>SetType(EntityType.WALL)</code> afterward in the factory — same class, different flag.</li>
+        <li><b><code>CUBE</code> is hard-coded.</b> The comment ties back to the engine decision that
+          this is a cuboid/sphere-only physics world (see <b>Engine Types — gameObjectType</b>, the
+          D5 lean): no polyline/convex colliders, slopes are just rotated cubes.</li>
+        <li><b>Group <code>PLATFORM</code>, mask <code>DEFAULT</code>.</b> It lives on the platform layer
+          and collides with everything that lists it — the player bounding box and enemies both mask in
+          the platform bit (see <b>Game Types — gameCollisionGroups</b>). The group/mask helpers preserve
+          the other half of the bitfield, so order (group then mask) is safe here.</li>
+      </ul>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public SetPlatformFloorLevel(value?: number)
+public SetEdgePlatform(value?: number)
+public SetOneWayEnablePoint(value: number)</code></h4>
+      <p>
+        Three small setters the factory calls right after construction from the texture-name meta bag.
+        <code>SetPlatformFloorLevel(value ?? 0)</code> stores the floor index. <code>SetEdgePlatform</code>
+        coerces a number to a boolean — <code>IsEdge = (value ?? 0) &gt; 0</code> — because the meta
+        arrives as a number (<code>edge=1</code>) but the field is a flag. <code>SetOneWayEnablePoint</code>
+        overwrites the constructor's default threshold.
+      </p>
+      <pre class="code"><code class="language-typescript">public SetEdgePlatform(value?: number) {
+  this.IsEdge = (value ?? 0) > 0;
+}</code></pre>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Update(player: Player)</code></h4>
+      <p>
+        The heart of the one-way mechanic, called every frame for every platform from
+        <code>GameDirector.Update</code> (it pushes <code>this.Platforms</code> into a uniform
+        <code>UpdatableEntity[]</code> loop and calls <code>e.Update?.(this.Player, firstTrashCan)</code>).
+        It mutates <code>IsOneWayActive</code> based on where the player's feet are and whether the
+        player is climbing.
+      </p>
+      <pre class="code"><code class="language-typescript">public Update(player: Player) {
+  // Exit early if not a OneWayPlatform
+  if (!this.isOneWayPlatform) {
+    return;
+  }
+
+  // Solid once the player's feet rise above the enable point; pass-through below.
+  if (player.CurrentTranslation.y - player.CurrentSize.y / 2 > this.oneWayEnablePoint) {
+    this.IsOneWayActive = false;
+  } else {
+    this.IsOneWayActive = true;
+  }
+
+  // While the player is climbing, force this platform to pass-through so the
+  // player can move up/down a ladder without landing on one-way platforms.
+  if (player.State === "climbing") {
+    this.IsOneWayActive = true;
+  }
+}</code></pre>
+      <ul>
+        <li><b>Early-out for non-one-way platforms.</b> Regular platforms and walls share this class but
+          must never toggle, so the guard returns before touching <code>IsOneWayActive</code>. This is
+          why the field's comment promises it is "only ever true for one-way platforms".</li>
+        <li><b>Feet, not centre.</b> The comparison uses
+          <code>player.CurrentTranslation.y - player.CurrentSize.y / 2</code> — the bottom edge of the
+          player. Once the feet clear <code>oneWayEnablePoint</code> the platform becomes solid
+          (<code>IsOneWayActive = false</code>) so the player lands; while the feet are still below it,
+          it stays pass-through so the jump-up doesn't bonk.</li>
+        <li><b>Climbing override.</b> The <code>player.State === "climbing"</code> string compare forces
+          pass-through regardless of Y, so a player on a ladder never snags on a one-way girder mid-climb.</li>
+      </ul>
+
+      <div class="callout gotcha">
+        <b>Gotcha — ordering is mandatory.</b> <code>GameDirector.Update</code> calls
+        <code>Player.Update()</code> <em>first</em>, then the platform loop, precisely so this
+        <code>Update</code> reads <em>this</em> frame's player position and state (the inline comment at
+        the call site spells it out). If you ever reorder the director loop and update platforms before
+        the player, the one-way toggle goes one frame stale and the player will clip or bonce on girders.
+      </div>
+      <div class="callout note">
+        <b>Note — who consumes <code>IsOneWayActive</code>.</b> This <code>Update</code> only sets the
+        flag; the actual "let the player pass / stand" decision is made by the player/physics collision
+        path that reads it (see <b>Player — states</b>). The platform is a pure state holder per frame.
+      </div>
+    </div>
+
+    <pre class="mermaid">
+sequenceDiagram
+  participant GD as GameDirector.Update
+  participant P as Player.Update
+  participant PL as Platform.Update
+  GD->>P: Player.Update() (writes this frame pos + State)
+  GD->>PL: Platform.Update(player)
+  PL->>PL: feet > enablePoint ? solid : pass-through
+  PL->>PL: State == "climbing" ? force pass-through
+  </pre>
+
+    <p class="modify">
+      <b>Modifying this:</b> to add a new authored knob (say a moving platform's speed), add a private
+      field, a <code>SetX</code> setter, and read the meta in <code>createPlatform</code> — do not revive
+      the old <code>value0/1</code> index hop. To change one-way feel, the only tuning surface is
+      <code>oneWayEnablePoint</code> (per-instance via the <code>oneway=</code> meta) and the feet-vs-centre
+      comparison in <code>Update</code>. Keep the non-one-way early-return first or you will accidentally
+      make solid platforms pass-through.
+    </p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <!-- CAMERA SENSOR -->
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-entities--camerasensor">
+    <h3 class="file-name">src/game/entities/cameraSensor.ts <span class="loc">57 LOC</span></h3>
+    <p class="file-role">
+      An invisible trigger zone that re-anchors the camera when the player walks into it. It is a
+      <code>GameSensor</code> that holds two things: a <code>PositionData</code> anchor (authored in
+      Blender as <code>cam=x_y_z</code> on the mesh's texture) and a reference to the engine
+      <code>Camera</code>. The "Player enters → adjust camera" rule lives in the contact table
+      (<b>Game Config — contactRules</b>); this class only exposes the action. It imports THREE
+      (for the <code>Vector3</code> anchor), RAPIER (to pass an explicit fixed rigid-body desc),
+      <code>GameSensor</code>, <code>GameObjectType</code>, <code>Camera</code> (engine), and
+      <code>EntityType</code>. Built by <code>createCameraSensor</code> in the factory registry, which
+      hands it the shared <code>ctx.camera</code> and fills <code>PositionData</code> from the meta.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public PositionData: THREE.Vector3
+private camera: Camera</code></h4>
+      <p>
+        <code>PositionData</code> is the camera anchor to ease to on enter (public so the factory's
+        <code>SetCameraPositionData</code> and the action method can touch it). <code>camera</code> is
+        the engine camera this zone repositions — injected through the constructor rather than pulled
+        from the <code>Experience</code> singleton, which keeps the sensor honest about its one dependency.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor(size: { width; height }, position: { x; y }, rotation = 0, camera: Camera)</code></h4>
+      <p>
+        Builds the sensor body and arms it for the contact table.
+      </p>
+      <pre class="code"><code class="language-typescript">this.PositionData = new THREE.Vector3(0, 0, 0);
+this.camera = camera;
+
+this.createObjectPhysics(
+  EntityType.CAMERA_SENSOR,
+  GameObjectType.CUBE,
+  { width: size.width, height: size.height },
+  position,
+  rotation,
+  RAPIER.RigidBodyDesc.fixed()
+);
+
+this.setAsSensor(true);
+// Take part in the contact table even though we define no callback here.
+this.enableContactEvents();
+
+// Uncomment to visualize camera sensors in debug mode
+// this.createObjectGraphicsDebug("yellow", 0.1);</code></pre>
+      <ul>
+        <li><b>Explicit <code>RAPIER.RigidBodyDesc.fixed()</code>.</b> Passed as the sixth arg to
+          <code>createObjectPhysics</code> (which also defaults to fixed) — a self-documenting "this never
+          moves" for trigger zones.</li>
+        <li><b><code>setAsSensor(true)</code> then <code>enableContactEvents()</code>.</b> The order
+          matters: <code>setAsSensor</code> (from <code>GameSensor</code>) makes the collider non-solid
+          and sets <code>KINEMATIC_FIXED</code> active types so the kinematic player is noticed by this
+          fixed sensor; <code>enableContactEvents()</code> (from <code>GameObject</code>) arms
+          <code>COLLISION_EVENTS</code> on the collider. Because the class defines no
+          <code>OnSensorEnter</code> override, the engine's auto-arm in <code>enablePhysicsEvents</code>
+          would <em>not</em> turn events on — so the explicit <code>enableContactEvents()</code> is what
+          lets this table-driven sensor fire at all.</li>
+        <li><b>Debug mesh commented out.</b> <code>createObjectGraphicsDebug("yellow", 0.1)</code> is left
+          as a one-line uncomment to visualize the zone.</li>
+      </ul>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public SetCameraPositionData(newPositionData: THREE.Vector3)</code></h4>
+      <p>Stores the anchor. Called by the factory after parsing <code>cam=x_y_z</code> into a
+      <code>THREE.Vector3(camX, camY, camZ)</code>.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public ApplyCameraOnEnter()</code></h4>
+      <p>
+        The single action this zone performs, invoked by the contact rule
+        (<code>(sensor as CameraSensor).ApplyCameraOnEnter()</code>). It pins the camera's rest anchor:
+      </p>
+      <pre class="code"><code class="language-typescript">public ApplyCameraOnEnter() {
+  // Pins the camera's rest anchor to this zone's authored x,y. On a non-follow
+  // level the camera eases to that spot on both axes (fixed/zone camera); on a
+  // follow level only the Y is used (pins the vertical baseline the follow eases
+  // around). Author the spot as `cam=x_y` on the sensor's texture.
+  this.camera.SetBaselinePosition(this.PositionData.x, this.PositionData.y);
+}</code></pre>
+      <p>
+        It forwards <code>PositionData.x</code> and <code>.y</code> to
+        <code>Camera.SetBaselinePosition</code> (see <b>Engine Camera — camera</b>), which sets
+        <code>baselineX/baselineY</code> and flips <code>hasSensorBaseline = true</code>. The Z component
+        of <code>PositionData</code> is intentionally unused here — the 2D camera anchor is X/Y only. On a
+        zone (non-follow) level the camera eases to both axes; on a follow level only Y is consumed and X
+        keeps tracking the player.
+      </p>
+      <div class="callout note">
+        <b>Note — decoupling seam.</b> The sensor never touches the camera's transform directly; it calls
+        one public method. That is the same C5 "camera is engine-pure" discipline used in the director:
+        the camera consumes plain scalars and snapshots, never game objects.
+      </div>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> to add a per-zone zoom or follow-mode switch, add fields + setters here and a
+      second line in <code>ApplyCameraOnEnter</code> calling a new public camera method — keep the camera
+      ignorant of <code>CameraSensor</code>. Remember an enter-only rule: there is no
+      <code>ApplyCameraOnExit</code>, so two overlapping zones will leave the last-entered anchor pinned.
+    </p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <!-- LADDER SENSOR -->
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-entities--laddersensor">
+    <h3 class="file-name">src/game/entities/ladderSensor.ts <span class="loc">44 LOC</span></h3>
+    <p class="file-role">
+      Marks a ladder region. The smallest entity here: a <code>GameSensor</code> carrying a single
+      numeric <code>Direction</code>. Unlike the other sensors, it is <em>not</em> event-driven and does
+      <em>not</em> call <code>enableContactEvents()</code> — ladder detection is the hard-won "fully
+      inside" polling path (D9), read every frame by <code>GameDirector</code>. One class serves three
+      roles — top, core, and bottom — distinguished only by the <code>EntityType</code> string the
+      factory stamps via <code>SetType</code>, and sorted into three separate director arrays
+      (<code>LadderTopSensors</code> / <code>LadderCoreSensors</code> / <code>LadderBottomSensors</code>).
+      Imports RAPIER (fixed body desc), <code>GameSensor</code>, <code>GameObjectType</code>,
+      <code>EntityType</code>.
+    </p>
+
+    <div class="callout victory">
+      <b>Hard-won victory — D9, the "fully inside" climb gate.</b> Ladder mounting is deliberately kept
+      <em>out</em> of the contact/event system. The file's header comment states it plainly: ladder
+      detection is "the hard-won 'fully inside' climb behavior (D9), polled by GameDirector / read by
+      the player + enemy. That path is preserved and deferred — this sensor defines no contact callbacks,
+      so it arms no physics events." The bug D9 prevents: an enemy or player <em>brushing the edge</em> of
+      a ladder collider and snapping into climb state. Instead, <code>GameDirector.Update</code> polls
+      <code>GameUtils.IsAnySensorTriggeredObjectFullyInside(this.LadderCoreSensors, this.Player)</code>,
+      which only returns true when <code>GameSensor.IsFullyInside</code> confirms the player's whole X
+      extent sits inside the core sensor's X extent. Top/bottom use the looser
+      <code>IsAnySensorTriggered</code>.
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public Direction: number = 0</code></h4>
+      <p>Climb direction: positive = right, negative = left, 0 = neutral. Read by the player's climbing
+      state and by enemy ladder logic to bias horizontal travel while on the ladder.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor(size: { width; height }, position: { x; y }, rotation = 0)</code></h4>
+      <p>Builds a cuboid sensor and marks it as a sensor — and notably stops there.</p>
+      <pre class="code"><code class="language-typescript">// Cuboid sensor — this is a cuboid/sphere engine. (Ladders were always boxes
+// anyway; the polyline path was never reached.)
+this.createObjectPhysics(
+  EntityType.LADDER_SENSOR,
+  GameObjectType.CUBE,
+  { width: size.width, height: size.height },
+  position,
+  rotation,
+  RAPIER.RigidBodyDesc.fixed()
+);
+
+this.setAsSensor(true);
+
+// Uncomment to visualize ladder sensors in debug mode
+// this.createObjectGraphicsDebug("blue", 0.5);</code></pre>
+      <ul>
+        <li><b>No <code>enableContactEvents()</code>.</b> This is the deliberate difference from
+          <code>CameraSensor</code>/<code>Teleporter</code>/<code>WinFlag</code>. Because the class also
+          defines no <code>OnSensorEnter/Exit</code>, the engine's auto-arm leaves
+          <code>COLLISION_EVENTS</code> off — the sensor fires no physics callbacks at all, by design.
+          It is detected only by the per-frame polling helpers.</li>
+        <li><b>Stamped <code>LADDER_SENSOR</code> at build, re-typed by the factory.</b>
+          <code>createObjectPhysics</code> sets the generic type; <code>createLadderSensor</code> then
+          calls <code>sensor.SetType(type)</code> with the specific top/core/bottom <code>EntityType</code>
+          and pushes it into the matching array.</li>
+      </ul>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public SetLadderValue(value?: number)</code></h4>
+      <p>Sets <code>Direction = value ?? 0</code> from the <code>dir=</code> meta. Positive right, negative
+      left, 0 neutral — the same coercion-with-fallback shape used by the platform setters.</p>
+    </div>
+
+    <pre class="mermaid">
+flowchart TD
+  LT["LadderTopSensor (loose: IsAnySensorTriggered)"]
+  LC["LadderCoreSensor (strict: IsFullyInside / D9)"]
+  LB["LadderBottomSensor (loose: IsAnySensorTriggered)"]
+  GD["GameDirector.Update polls all three"]
+  GD --> LT
+  GD --> LC
+  GD --> LB
+  GD --> UP["Player.UpdateLadderState(top, coreInside, bottom)"]
+  </pre>
+
+    <p class="modify">
+      <b>Modifying this:</b> if you ever convert ladders to event-driven (the director comment says "will
+      convert to sensor callbacks later"), you would add <code>enableContactEvents()</code> here and a
+      contact rule — but you must replace the strict <code>IsFullyInside</code> gate, or you reintroduce
+      the edge-brush bug D9 fixed. To add a third climb axis or speed, extend <code>Direction</code> into a
+      richer field and read it in the player's climbing state.
+    </p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <!-- TELEPORTER -->
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-entities--teleporter">
+    <h3 class="file-name">src/game/entities/teleporter.ts <span class="loc">48 LOC</span></h3>
+    <p class="file-role">
+      A pass-through zone that sends whatever enters it to a stored destination. A <code>GameSensor</code>
+      that owns one <code>RAPIER.Vector2</code> destination and exposes it through a read-only
+      <code>Destination</code> getter. The rule "Player enters Teleporter → teleport to its destination"
+      lives in the contact table; this class just holds the data. Imports RAPIER (the <code>Vector2</code>
+      type and fixed body desc), <code>GameSensor</code>, <code>GameObjectType</code>, <code>EntityType</code>.
+      Built by <code>createTeleporter</code>, which parses <code>dest=x_y</code> from the meta. Notably,
+      a <code>SPHERE</code> collider — the only round trigger in this set.
+    </p>
+
+    <div class="callout note">
+      <b>Note — newly wired.</b> The factory comment records that there was originally <em>no</em>
+      <code>importTeleporters</code> step, so a Blender-placed teleporter was silently dropped
+      (<code>teleporters[]</code> was declared and destroyed but never filled). <code>createTeleporter</code>
+      fixed that, mirroring the other sensors.
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">private positionData: RAPIER.Vector2</code></h4>
+      <p>The destination entrants are sent to. Private — the only read path is the <code>Destination</code>
+      getter, the only write path is <code>SetTeleportPosition</code>.</p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor(size: { width; height }, position: { x; y }, rotation = 0)</code></h4>
+      <pre class="code"><code class="language-typescript">this.createObjectPhysics(
+  EntityType.TELEPORTER,
+  GameObjectType.SPHERE,
+  { width: size.width, height: size.height },
+  position,
+  rotation,
+  RAPIER.RigidBodyDesc.fixed()
+);
+
+this.positionData = new RAPIER.Vector2(0, 0);
+
+this.setAsSensor(true);
+// Take part in the contact table even though we define no callback here.
+this.enableContactEvents();
+this.SetTeleportPosition(0, 0);
+
+this.createObjectGraphicsDebug("teal", 0.1);</code></pre>
+      <ul>
+        <li><b><code>GameObjectType.SPHERE</code></b> → a ball collider (radius = width/2 in
+          <code>GameObject.createCollider</code>). Teleporters read more naturally as a circular pad.</li>
+        <li><b><code>setAsSensor(true)</code> + <code>enableContactEvents()</code></b> — same table-driven
+          arming as <code>CameraSensor</code>: non-solid trigger, COLLISION_EVENTS on, no callback here.</li>
+        <li><b><code>SetTeleportPosition(0, 0)</code> is redundant-but-harmless</b> — it re-creates the
+          zero vector just assigned two lines up; the real destination is set later by the factory.</li>
+        <li><b>Debug mesh is <em>on</em> here</b> (not commented) — <code>createObjectGraphicsDebug("teal",
+          0.1)</code> always draws a faint teal sphere, unlike the other sensors whose debug draw is
+          commented out.</li>
+      </ul>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public SetTeleportPosition(x: number, y: number)
+public get Destination(): RAPIER.Vector2</code></h4>
+      <p>
+        <code>SetTeleportPosition</code> replaces <code>positionData</code> with a fresh
+        <code>new RAPIER.Vector2(x, y)</code> (the factory feeds it <code>dest[0]</code>/<code>dest[1]</code>
+        from <code>metaCoords</code>). <code>Destination</code> is the read-only getter the contact rule
+        uses:
+      </p>
+      <pre class="code"><code class="language-typescript">// from contactRules.ts — Player enters Teleporter -> teleport to its destination
+(teleporter, player) =&gt; {
+  const dest = (teleporter as Teleporter).Destination;
+  (player as Player).TeleportToPosition(dest.x, dest.y);
+}</code></pre>
+      <p>
+        <code>Player.TeleportToPosition</code> is the inherited <code>GameObject.TeleportToPosition</code>
+        (computes a delta from <code>CurrentTranslation</code> and calls
+        <code>PhysicsBody.setTranslation</code>). So the teleporter never moves the player itself — it just
+        surrenders the coordinate to the rule, which moves the entrant.
+      </p>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> to teleport <em>enemies</em> too, you do not change this file — you add a
+      second contact rule pairing <code>TELEPORTER</code> with <code>ENEMY</code> in
+      <b>Game Config — contactRules</b>. To add a one-shot/cooldown, hold a flag here and check it inside
+      the rule handler.
+    </p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <!-- TRASH CAN -->
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-entities--trashcan">
+    <h3 class="file-name">src/game/entities/trashCan.ts <span class="loc">31 LOC</span></h3>
+    <p class="file-role">
+      The oil can the Donkey-Kong barrels dive into — a solid <code>GameObject</code> (not a sensor) so
+      enemies physically fall <em>in</em>. Its only state is <code>IsOnFire</code>, flipped true by the
+      contact table when an enemy lands in it. Imports <code>GameObject</code>, <code>GameObjectType</code>,
+      <code>CollisionGroups</code>, <code>EntityType</code>. Built by <code>createTrashCan</code>; the
+      director keeps a list and hands <code>TrashCans[0]</code> to every enemy each frame as the target
+      to aim for.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">public IsOnFire: boolean</code></h4>
+      <p>
+        True once an enemy fell in and lit it. Set in the constructor to <code>false</code>, flipped to
+        <code>true</code> by the contact rule, and reset to <code>false</code> for all cans on level
+        (re)load by <code>GameDirector</code> (<code>this.TrashCans.forEach(c =&gt; (c.IsOnFire = false))</code>).
+        It drives the can's burning visual / behavior.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor(size: { width; height; depth }, position: { x; y }, rotation: number)</code></h4>
+      <pre class="code"><code class="language-typescript">this.createObjectPhysics(
+  EntityType.TRASH_CAN,
+  GameObjectType.CUBE,
+  size,
+  position,
+  rotation
+);
+
+this.IsOnFire = false;
+
+// Collide with the default world so enemies can fall in.
+this.setCollisionGroup(CollisionGroups.DEFAULT);
+this.setCollisionMask(CollisionGroups.DEFAULT);</code></pre>
+      <ul>
+        <li><b>No <code>setAsSensor</code>.</b> It is solid: enemies collide with it and drop inside,
+          which is the whole gag. It also defines no <code>OnCollisionEnter</code> override, so the engine
+          auto-arm leaves events off — instead the <code>ENEMY × TRASH_CAN</code> rule in the contact
+          table does the work (and the engine arms events for any collider named in a registered rule).</li>
+        <li><b>Group <em>and</em> mask are both <code>DEFAULT</code> (all bits).</b> Unlike the platform
+          (which sits on its own <code>PLATFORM</code> bit), the can lives on the default world layer so
+          enemies — which mask the default world — register the contact and fall in.</li>
+      </ul>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">// the ignite rule (contactRules.ts)</code></h4>
+      <p>
+        The TrashCan has no method that lights itself; the rule does. From <b>Game Config — contactRules</b>:
+      </p>
+      <pre class="code"><code class="language-typescript">// Enemy falls into a TrashCan -> enemy destroyed, can catches fire.
+contacts.Add(
+  byType(EntityType.ENEMY),
+  byType(EntityType.TRASH_CAN),
+  "enter",
+  (enemy, can) =&gt; {
+    (can as TrashCan).IsOnFire = true;
+    Emitter.emit("gameObjectRemoved", enemy);
+  }
+);</code></pre>
+      <p>
+        Two effects on one solid-collision <code>"enter"</code>: the can's <code>IsOnFire</code> flips,
+        and the engine emits <code>gameObjectRemoved</code> on the event bus (<b>Engine Events — eventBus</b>)
+        to despawn the enemy. The TrashCan itself stays put. Separately, the director passes
+        <code>TrashCans[0]</code> into <code>enemy.Update(player, firstTrashCan)</code> so the descending
+        barrel knows where to aim (see <b>Enemy — states</b>).
+      </p>
+    </div>
+
+    <div class="callout note">
+      <b>Note — solid vs sensor, the whole reason this is a <code>GameObject</code>.</b> Every other
+      trigger in this section is a pass-through <code>GameSensor</code>. The trash can is the exception
+      because the desired physics is a real collision — the barrel must <em>land in</em> the can — and the
+      ignite is keyed on a solid-collision <code>"enter"</code> phase, not a <code>"sensorEnter"</code>.
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> to make the fire hurt the player, add a contact rule pairing
+      <code>TRASH_CAN</code> with <code>PLAYER</code> and guard it on <code>IsOnFire</code> inside the
+      handler — leave this class a plain state holder. If you want multiple cans the enemies target, the
+      director currently aims at index 0 only; generalize the enemy targeting logic in
+      <b>Game Director</b>, not this file.
+    </p>
+  </article>
+
+  <!-- ===================================================================== -->
+  <!-- WIN FLAG -->
+  <!-- ===================================================================== -->
+  <article class="file-block" id="game-entities--winflag">
+    <h3 class="file-name">src/game/entities/winFlag.ts <span class="loc">31 LOC</span></h3>
+    <p class="file-role">
+      The level goal. A pass-through <code>GameSensor</code> zone: walk into it and the level is won.
+      The win is triggered by the contact table (<code>Player enters WinFlag → emit "gameWin"</code>),
+      not by any logic in this file. Imports just <code>GameObjectType</code>, <code>GameSensor</code>,
+      <code>EntityType</code> — the leanest entity here. Built by <code>createWinFlag</code>. It has no
+      fields, no setters, and (as the director comment notes) no <code>Update</code>.
+    </p>
+
+    <div class="callout victory">
+      <b>Hard-won victory — the win moved into the contact table.</b> The header comment is the receipt:
+      the WinFlag "was a solid box that self-detected with a per-frame 4-direction shapecast; that
+      proof-of-concept hack is gone now that the contact system exists." Reaching the goal is now a single
+      <code>"sensorEnter"</code> rule instead of four raycasts every frame, every flag, forever. You walk
+      <em>into</em> the goal rather than bonking a solid wall.
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">constructor(size: { width; height; depth }, position: { x; y }, rotation: number)</code></h4>
+      <pre class="code"><code class="language-typescript">this.createObjectPhysics(
+  EntityType.WIN_FLAG,
+  GameObjectType.CUBE,
+  size,
+  position,
+  rotation
+);
+
+this.setAsSensor(true);
+// Take part in the contact table even though we define no callback here.
+this.enableContactEvents();</code></pre>
+      <p>
+        Identical sensor-arming pattern to <code>CameraSensor</code> and <code>Teleporter</code>:
+        <code>setAsSensor(true)</code> makes it non-solid (you pass through the goal zone),
+        <code>enableContactEvents()</code> arms COLLISION_EVENTS so the table-matched rule can fire even
+        though no callback is overridden. No debug mesh, no extra state.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">// the win rule (contactRules.ts)</code></h4>
+      <pre class="code"><code class="language-typescript">// Player reaches the WinFlag goal zone -> win the level.
+contacts.Add(
+  byType(EntityType.WIN_FLAG),
+  byType(EntityType.PLAYER),
+  "sensorEnter",
+  () =&gt; Emitter.emit("gameWin")
+);</code></pre>
+      <p>
+        The handler ignores both colliders — reaching the flag is binary — and simply emits
+        <code>gameWin</code> on the event bus. The phase is <code>"sensorEnter"</code> (the
+        sensor-intersection enter), which is why the flag must be a sensor with events armed. Whatever
+        listens for <code>gameWin</code> (the game shell / director) handles the actual level transition.
+      </p>
+    </div>
+
+    <p class="modify">
+      <b>Modifying this:</b> to require collecting a key first, gate the emit inside the rule handler on a
+      game-state flag rather than adding logic here. To make a goal that only the player triggers (already
+      the case via <code>byType(PLAYER)</code>) or that also reacts to enemies, edit the contact rule, not
+      this class. This file should stay a zero-behavior marker.
+    </p>
+  </article>
+
+  <div class="callout tip">
+    <b>Tip — the shared shape of all six.</b> Constructor → <code>createObjectPhysics</code> (body +
+    collider + <code>userData.type</code>) → arm (solid groups, or <code>setAsSensor</code> +
+    <code>enableContactEvents</code>) → optional setters the factory calls from meta. Reactions live in the
+    contact table; per-frame state (only Platform) lives in <code>Update</code>; teardown is the inherited
+    <code>GameObject.Destroy()</code> the director calls on level unload. Add a new world entity by copying
+    this shape and registering it in <b>Game Config — entityFactories</b> (and a rule in
+    <b>Game Config — contactRules</b> if it should <em>do</em> something).
+  </div>
+</section>

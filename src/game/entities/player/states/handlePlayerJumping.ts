@@ -2,13 +2,11 @@ import Player from "../player";
 import PlayerStates from "../../../../engine/types/playerStates";
 import SpriteAnimations from "../spriteAnimations";
 import PlayerDirection from "../../../../engine/types/playerDirection";
-import GameUtils from "../../../gameUtils";
 import applyHorizontalMovement from "../applyHorizontalMovement";
 
+// Jumping state: rise gravity, variable height, apex hang
 const handlePlayerJumping = (player: Player) => {
-  /* -------------------------------------------------------------------------- */
-  /*                                Change state                                */
-  /* -------------------------------------------------------------------------- */
+  // Change state
   // Hitting a ceiling
   if (player.IsTouching.ceiling && player.NextTranslation.y >= 0) {
     player.NextTranslation.y = 0;
@@ -17,39 +15,30 @@ const handlePlayerJumping = (player: Player) => {
     return;
   }
 
-  // Max jump time exceeded
-  if (player.Time.Elapsed >= player.TimeJumpWasEntered + player.MaxJumpTime) {
-    player.EndedJumpEarly = false;
-
-    player.NextTranslation.y = 0;
+  // Natural apex — rise gravity has decelerated the launch impulse to zero. The
+  // peak emerges from physics now, not a fixed MaxJumpTime timer.
+  if (player.NextTranslation.y <= 0) {
     player.TimeFallWasEntered = player.Time.Elapsed;
     player.State = PlayerStates.FALLING;
     return;
   }
 
-  // Min jump time exceeded and not holding jump
+  // Variable height — releasing jump past the MinJumpTime floor latches an
+  // "early end", which boosts rise gravity below so the player peaks lower.
+  // Holding keeps the full arc. (Stays in JUMPING; the apex check above ends it.)
   if (
     !player.Input.isJump &&
     player.Time.Elapsed > player.TimeJumpWasEntered + player.MinJumpTime
   ) {
     player.EndedJumpEarly = true;
-
-    player.NextTranslation.y = 0;
-    player.TimeFallWasEntered = player.Time.Elapsed;
-    player.State = PlayerStates.FALLING;
-    return;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                            Handle Jumping state                            */
-  /* -------------------------------------------------------------------------- */
+  // Handle Jumping state
   // Disable coyote and buffer jump availability
   player.CoyoteAvailable = false;
   player.BufferJumpAvailable = false;
 
-  /* -------------------------------------------------------------------------- */
-  /*                             Input and animation                            */
-  /* -------------------------------------------------------------------------- */
+  // Input and animation
   // Left
   if (player.Input.isLeft) {
     player.Direction = PlayerDirection.LEFT;
@@ -83,20 +72,22 @@ const handlePlayerJumping = (player: Player) => {
     }
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                             Jump Logic (Y Axis)                            */
-  /* -------------------------------------------------------------------------- */
-  // Apply jump physics
-  player.NextTranslation.y = GameUtils.MoveTowardsPoint(
-    player.NextTranslation.y,
-    player.JumpPower,
-    player.JumpAcceleration * player.Time.Delta
-  );
+  // Jump Logic (Y Axis)
+  // Rise gravity decelerates the upward impulse (set to JumpPower on jump entry)
+  // so the apex emerges naturally. A full jump floats near the top (apex hang);
+  // an early-released jump instead falls away fast (variable height). The two are
+  // mutually exclusive — a cut jump gets no hang.
+  let riseGravity = player.RiseGravity;
+  if (player.EndedJumpEarly) {
+    riseGravity *= player.JumpEndedEarlyGravityModifier;
+  } else if (Math.abs(player.NextTranslation.y) < player.ApexHangThreshold) {
+    riseGravity *= player.ApexHangMult;
+  }
 
-  /* -------------------------------------------------------------------------- */
-  /*                           Movement Logic (X Axis)                          */
-  /* -------------------------------------------------------------------------- */
-  applyHorizontalMovement(player);
+  player.NextTranslation.y -= riseGravity * player.Time.Delta;
+
+  // Movement Logic (X Axis)
+  applyHorizontalMovement(player, true);
 };
 
 export default handlePlayerJumping;

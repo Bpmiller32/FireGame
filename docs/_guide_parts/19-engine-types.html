@@ -1,0 +1,707 @@
+<section class="doc-section" id="engine-types">
+  <header class="section-head">
+    <h2 class="section-title">Engine Types — the shared vocabulary</h2>
+    <p class="section-blurb">
+      Nine tiny files, zero runtime behaviour, enormous decoupling power. These are the plain data shapes and string/number
+      enums that let the engine and the game speak to each other without either holding a reference to the other's classes.
+      Every one is either a <code>const</code>-object enum (the <em>same-named const + type</em> idiom), a data-shape
+      <code>interface</code>, a one-method <em>seam</em> interface (<code>InputSource</code>), or both — the enums chosen so
+      the same identifier works as a value (<code>PlayerStates.IDLE</code>) and as a type annotation
+      (<code>: PlayerState</code>). Read this section as the dictionary the rest of the guide is written in.
+    </p>
+    <div class="file-chips">
+      <span class="chip">src/engine/types/cameraTarget.ts</span>
+      <span class="chip">src/engine/types/contactPoints.ts</span>
+      <span class="chip">src/engine/types/gameObjectType.ts</span>
+      <span class="chip">src/engine/types/inputSource.ts</span>
+      <span class="chip">src/engine/types/inputState.ts</span>
+      <span class="chip">src/engine/types/levelData.ts</span>
+      <span class="chip">src/engine/types/playerDirection.ts</span>
+      <span class="chip">src/engine/types/playerStates.ts</span>
+      <span class="chip">src/engine/types/userData.ts</span>
+    </div>
+  </header>
+
+  <div class="callout note">
+    <b>Note — two flavours of "engine type".</b> Some of these are genuinely engine-pure: <code>CameraTarget</code> was
+    deliberately invented so the <em>Engine Camera</em> can follow a target while naming <strong>zero</strong> game concepts
+    (decision <code>C5</code>/<code>D3</code>). Others — <code>PlayerStates</code>, <code>PlayerDirection</code>,
+    <code>ContactPoints</code> — physically live under <code>engine/types/</code> but are named for the player and are
+    consumed almost entirely by the game's <em>Player</em>. They are the project's documented "known residue": shared
+    vocabulary parked in the engine folder. Where it matters below, the prose says honestly which is which — and points to
+    the one place (the camera) that pointedly refuses to import the player's enum.
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- cameraTarget.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--cameratarget">
+    <h3 class="file-name">src/engine/types/cameraTarget.ts <span class="loc">25 LOC</span></h3>
+    <p class="file-role">
+      This file IS the seam between the game's <em>Player</em> and the <em>Engine Camera</em>. It exports two things: a
+      <code>CameraFollowState</code> enum (the camera's own vertical-follow modes, expressed in engine words) and a
+      <code>CameraTarget</code> interface (the per-frame snapshot the camera reads). Nobody "constructs" it — the
+      <em>Game Director</em> fills a fresh <code>CameraTarget</code> object each frame from its Player and hands it to
+      <code>Camera.Update</code>. It imports nothing. Its lifecycle is the lifecycle of a value type: born in
+      <code>GameDirector.cameraTargetFromPlayer()</code>, dead the moment <code>Camera.Update</code> returns.
+    </p>
+
+    <div class="callout victory">
+      <b>Hard-won victory — <code>C5</code> / <code>D3</code> decouple.</b> Before this file, <code>camera.ts</code>
+      reached straight into the live <code>Player</code> — it read <code>player.CurrentPosition</code>,
+      <code>player.NextTranslation.x</code>, <code>player.IsTouching.ground</code>, and switched on
+      <code>PlayerState</code>. That made the engine camera un-reusable: it named game concepts. <code>CameraTarget</code>
+      carries <em>exactly those scalars and nothing else</em>, so the camera's easing branches are preserved byte-for-byte
+      while the camera now imports <strong>nothing</strong> from <code>game/</code>. A different game — or a multi-player
+      follow — just fills the snapshot differently.
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">export const CameraFollowState = { GROUNDED, CLIMBING, FALLING, JUMPING } as const</code></h4>
+      <p>
+        The camera's four vertical-follow modes, in engine terms — note there is no <code>RUNNING</code> or <code>IDLE</code>
+        here, because to the camera "standing still" and "walking" are the same grounded behaviour. The game maps its richer
+        <code>PlayerState</code> onto these four. The <code>as const</code> freezes the literal string values so they double
+        as a type.
+      </p>
+      <pre class="code"><code class="language-typescript">export const CameraFollowState = {
+  GROUNDED: "grounded",
+  CLIMBING: "climbing",
+  FALLING: "falling",
+  JUMPING: "jumping",
+} as const;
+
+export type CameraFollowState =
+  (typeof CameraFollowState)[keyof typeof CameraFollowState];</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Mode</th><th>Camera behaviour (per <em>Engine Camera</em> <code>Update</code>)</th></tr></thead>
+        <tbody>
+          <tr><td><code>GROUNDED</code></td><td>Rest at the baseline; while truly grounded, re-baseline <code>baselineY</code> to the player's Y so walking up terrain pans up.</td></tr>
+          <tr><td><code>CLIMBING</code></td><td>Track the player upward with a <code>climbLeadY</code> lead (next handhold visible); releases any <code>CameraSensor</code> pin.</td></tr>
+          <tr><td><code>FALLING</code></td><td>Follow down only once the player drops past <code>fallBufferY</code> below the camera; leads slightly with <code>fallLeadY</code>; capped rate.</td></tr>
+          <tr><td><code>JUMPING</code></td><td>Hold the baseline — deliberately does <strong>not</strong> chase the jump arc.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The same-named <code>const</code> + <code>type</code> pattern (line 13's comment calls it "the playerStates.ts idiom")
+        means <code>CameraFollowState.CLIMBING</code> is a value and <code>followState: CameraFollowState</code> is a type —
+        one declaration, both jobs.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">export interface CameraTarget</code></h4>
+      <p>
+        The per-frame follow input. Five fields, each one the exact scalar the camera used to read off the live Player. The
+        camelCase field names are deliberate (decision <code>D15</code>: data-shape interfaces use camelCase, unlike the
+        PascalCase public members on classes).
+      </p>
+      <pre class="code"><code class="language-typescript">export interface CameraTarget {
+  x: number;            // world X to follow (was player.CurrentPosition.x)
+  y: number;            // world Y to follow (was player.CurrentPosition.y)
+  velocityX: number;    // horizontal velocity -&gt; look-ahead direction (was NextTranslation.x)
+  followState: CameraFollowState; // vertical-follow mode (mapped from the game's state)
+  isGrounded: boolean;  // truly on the ground -&gt; grounded re-baseline (was IsTouching.ground)
+}</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Type</th><th>Consumed in <code>Camera.Update</code> for…</th></tr></thead>
+        <tbody>
+          <tr><td><code>x</code></td><td><code>number</code></td><td>Base of <code>targetX</code> before the eased look-ahead is added.</td></tr>
+          <tr><td><code>y</code></td><td><code>number</code></td><td>Climb/fall tracking target and the grounded re-baseline value.</td></tr>
+          <tr><td><code>velocityX</code></td><td><code>number</code></td><td>Sign (vs <code>MOVE_EPSILON</code>) decides the look-ahead direction; below epsilon the look-ahead eases to 0.</td></tr>
+          <tr><td><code>followState</code></td><td><code>CameraFollowState</code></td><td>The <code>switch</code> that selects vertical-follow behaviour.</td></tr>
+          <tr><td><code>isGrounded</code></td><td><code>boolean</code></td><td>Guards the grounded re-baseline (only re-anchor Y when truly on the ground and no sensor pin).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> <strong>Producer:</strong> <em>Game Director</em> —
+      <code>cameraTargetFromPlayer(player)</code> maps <code>player.State</code> through a <code>switch</code> into a
+      <code>CameraFollowState</code> (CLIMBING / FALLING / JUMPING, else GROUNDED) and copies
+      <code>player.CurrentPosition</code>, <code>player.NextTranslation.x</code>, <code>player.IsTouching.ground</code>.
+      <strong>Consumer:</strong> <em>Engine Camera</em> — <code>Update(target?: CameraTarget)</code>. Note the
+      <code>?</code>: the camera guards against the target not being ready yet and returns early.
+    </div>
+
+    <pre class="mermaid">flowchart LR
+  PS["Player.State (PlayerState)"] --> M["GameDirector.cameraTargetFromPlayer()"]
+  POS["Player position / velocity / IsTouching.ground"] --> M
+  M --> CT["CameraTarget snapshot"]
+  CT --> CU["Camera.Update(target)"]
+  CU --> EASE["follow easing (X look-ahead, Y by followState)"]</pre>
+
+    <p class="modify"><b>Modifying this:</b> if the camera needs a new input (say a zoom hint), add a field here and read it
+      in <code>Camera.Update</code> — then fill it in <code>GameDirector.cameraTargetFromPlayer</code>. Keep the field a
+      plain scalar/enum; the whole point of <code>C5</code> is that the camera never imports a game class, so never add a
+      <code>Player</code>-typed field. To add a follow mode, extend <code>CameraFollowState</code> <em>and</em> add a
+      <code>case</code> in both the camera's <code>switch</code> and the director's mapping <code>switch</code>.</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- contactPoints.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--contactpoints">
+    <h3 class="file-name">src/engine/types/contactPoints.ts <span class="loc">34 LOC</span></h3>
+    <p class="file-role">
+      A single default-exported <code>interface ContactPoints</code>: eight booleans describing which surfaces a
+      GameObject is currently touching. It imports nothing. In practice the only thing that owns one is the game's
+      <em>Player</em> (<code>player.IsTouching</code>), which it seeds in its constructor and rewrites every frame from
+      shapecasts and ladder sensors. The player's <em>state handlers</em> and <em>PlayerDebug</em> read it. It carries no
+      logic — it is the vocabulary the contact-detection code writes and the state machine reads.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">export default interface ContactPoints</code></h4>
+      <p>The fields fall into three groups, flagged by the section comments in the file.</p>
+      <pre class="code"><code class="language-typescript">export default interface ContactPoints {
+  // ===== BASIC COLLISION DIRECTIONS =====
+  ground: boolean;
+  ceiling: boolean;
+  leftSide: boolean;
+  rightSide: boolean;
+  // ===== SPECIAL PLATFORM TYPES =====
+  edgePlatform: boolean;
+  // ===== LADDER COLLISION ZONES =====
+  ladderCore: boolean;
+  ladderTop: boolean;
+  ladderBottom: boolean;
+}</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Set true when…</th><th>Used by the player for…</th></tr></thead>
+        <tbody>
+          <tr><td><code>ground</code></td><td>Down-shapecast hits a floor.</td><td>Enables jumping, resets coyote time, drives idle/run animation; also feeds <code>CameraTarget.isGrounded</code>.</td></tr>
+          <tr><td><code>ceiling</code></td><td>Up-shapecast hits.</td><td>Cancels upward velocity; prevents jumping through ceilings.</td></tr>
+          <tr><td><code>leftSide</code></td><td>Left-shapecast hits a wall.</td><td>Blocks leftward movement (see <em>applyHorizontalMovement</em>); can enable wall slide.</td></tr>
+          <tr><td><code>rightSide</code></td><td>Right-shapecast hits a wall.</td><td>Blocks rightward movement; can enable wall slide.</td></tr>
+          <tr><td><code>edgePlatform</code></td><td>Standing on a platform whose <code>IsEdge</code> is true.</td><td>Edge-specific animations / mechanics.</td></tr>
+          <tr><td><code>ladderCore</code></td><td>Inside a ladder's core sensor zone.</td><td>Permits climbing up/down on directional input.</td></tr>
+          <tr><td><code>ladderTop</code></td><td>At a ladder's top sensor.</td><td>Transition climb → stand on the platform above.</td></tr>
+          <tr><td><code>ladderBottom</code></td><td>At a ladder's bottom sensor.</td><td>Transition climb → stand on the ground below.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> <strong>Producer:</strong> the <em>Player</em> writes every field.
+      <code>ground/ceiling/leftSide/rightSide</code> come from four directional <code>shapeCast</code> calls
+      (<code>Object.assign(this.IsTouching, {…})</code>), <code>edgePlatform</code> from the platform under the feet, and the
+      three ladder flags from <code>UpdateLadderState(top, core, bottom)</code> — which the <em>Game Director</em> feeds from
+      the ladder sensors. <strong>Consumers:</strong> the player's five state handlers
+      (<code>handlePlayer{Idle,Running,Jumping,Falling,Climbing}</code>), <em>applyHorizontalMovement</em>, and
+      <em>PlayerDebug</em> (read-only display).
+    </div>
+
+    <div class="callout gotcha">
+      <b>Gotcha — ordering.</b> <code>IsTouching</code> is mutated <em>in place</em> each frame (the player keeps one object
+      for its whole life). Contact detection must run before the state handlers in <code>Player.Update</code>, or the FSM
+      reads last frame's surface state. The booleans are an engine-neutral surface description, but only the player ever
+      fills one today.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> add a boolean here only when a new <em>surface</em> relationship exists (e.g. a
+      <code>movingPlatform</code> contact). Then set it in the player's detection pass and consume it in a handler — and
+      remember to seed it <code>false</code> in the player's <code>IsTouching</code> initializer, or it reads
+      <code>undefined</code> on frame one.</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- gameObjectType.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--gameobjecttype">
+    <h3 class="file-name">src/engine/types/gameObjectType.ts <span class="loc">14 LOC</span></h3>
+    <p class="file-role">
+      A default-exported <code>const</code> enum of the three physics collider shapes the engine supports:
+      <code>CUBE</code>, <code>SPHERE</code>, <code>CAPSULE</code>. It imports nothing. It is the contract between every
+      game entity (which picks a shape) and <em>GameObject</em> (which turns that string into a Rapier collider and a
+      Three.js debug mesh).
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const GameObjectType = { CUBE: "cube", SPHERE: "sphere", CAPSULE: "capsule" } as const</code></h4>
+      <pre class="code"><code class="language-typescript">const GameObjectType = {
+  CUBE: "cube",     // players, platforms, walls, slopes (rotated cubes)
+  SPHERE: "sphere", // rolling enemies, projectiles, round objects
+  CAPSULE: "capsule", // smooth-moving characters (won't catch on ledges)
+} as const;
+
+export default GameObjectType;</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Value</th><th>String</th><th>Rapier collider (in <code>GameObject.createCollider</code>)</th></tr></thead>
+        <tbody>
+          <tr><td><code>CUBE</code></td><td><code>"cube"</code></td><td><code>ColliderDesc.cuboid(width/2, height/2)</code> — also the <code>default</code> fall-through.</td></tr>
+          <tr><td><code>SPHERE</code></td><td><code>"sphere"</code></td><td><code>ColliderDesc.ball(width/2)</code></td></tr>
+          <tr><td><code>CAPSULE</code></td><td><code>"capsule"</code></td><td><code>ColliderDesc.capsule(height/2, width)</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — <code>D5</code> / "D-lean".</b> The file's header records a deliberate purge: only these three
+      primitives survive. Slopes are built from <em>rotated</em> cubes and complex shapes from <em>overlapped</em> cubes, so
+      polyline and convex-mesh colliders were removed entirely. That keeps <em>GameObject.createCollider</em> a tiny
+      three-way <code>switch</code> and avoids the whole class of degenerate/auto-generated mesh-collider bugs.
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> <strong>Producers:</strong> the game entities pick a shape and pass it into
+      <code>createObjectPhysics</code> — e.g. <em>Platform</em> and the <em>Player</em> both pass
+      <code>GameObjectType.CUBE</code>; <em>Enemy</em>, <em>TrashCan</em>, <em>WinFlag</em>, <em>Teleporter</em>,
+      <em>CameraSensor</em>, <em>LadderSensor</em> each pick the shape that fits. <strong>Consumer:</strong> the engine's
+      <em>GameObject</em> — <code>createCollider</code> (Rapier shape) and <code>createObjectGraphicsDebug</code> (the
+      matching Three.js debug geometry).
+    </div>
+
+    <div class="callout tip">
+      <b>Tip.</b> <code>GameObject.createCollider</code> takes a plain <code>gameObjectType: string</code>, not the enum
+      type. An unrecognised string is not an error — it falls through to <code>CUBE</code>. That is intentional (a missing
+      shape becomes a box rather than a crash), but it means a typo'd shape name silently becomes a cube.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> adding a fourth shape means three edits in lockstep — a new key here, a new
+      <code>case</code> in <code>GameObject.createCollider</code> (Rapier <code>ColliderDesc</code>), and a new
+      <code>case</code> in <code>createObjectGraphicsDebug</code> (Three.js geometry). Resist it unless rotated/overlapped
+      cubes genuinely can't express the shape — that restraint is the whole <code>D5</code> point.</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- inputSource.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--inputsource">
+    <h3 class="file-name">src/engine/types/inputSource.ts <span class="loc">12 LOC</span></h3>
+    <p class="file-role">
+      A default-exported <code>interface InputSource</code> with a single method — the seam between <em>whatever produces
+      input</em> and the entities that consume it. It is the one <em>behavioural</em> interface in this folder (it declares a
+      method, not data fields), and it imports only its sibling <code>InputState</code>. The keyboard <em>Input</em> device
+      <code>implements</code> it today; a touch, gamepad, network, or replay source drops in by implementing the same one
+      method, with no edits to the <em>Player</em> or any other entity.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">export default interface InputSource { CaptureInto(state: InputState): void }</code></h4>
+      <p>
+        One method. <code>CaptureInto</code> is handed an entity's <code>InputState</code> bag and fills all nine intent
+        booleans for the current frame, mutating the bag <em>in place</em> (see <em>inputState.ts</em> below). The interface
+        owns no state of its own — it is purely the contract "given a snapshot, write this frame's intent into it".
+      </p>
+      <pre class="code"><code class="language-typescript">import InputState from "./inputState";
+
+export default interface InputSource {
+  // Fill the given InputState snapshot from this source for the current frame.
+  CaptureInto(state: InputState): void;
+}</code></pre>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — depend on the seam, not the device.</b> <em>Player</em>'s <code>inputDevice</code> field is typed
+      <code>InputSource</code>, not the concrete keyboard <em>Input</em> class. So the movement code calls
+      <code>this.inputDevice.CaptureInto(this.Input)</code> against the interface, and a different producer — touch, gamepad,
+      a recorded replay, an AI — is a one-file drop-in: write a class that <code>implements InputSource</code> and assign it.
+      Nothing in the entity changes. This is the behavioural twin of <code>InputState</code>'s "input-as-data" decouple: the
+      data shape stays the same, and now the <em>source</em> of that data is an interface too — not a concrete class the
+      entity has to name.
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> <strong>Producer (implementer):</strong> <em>Engine Input</em> — the keyboard device
+      <code>implements InputSource</code> and supplies <code>CaptureInto</code>. <strong>Consumer:</strong> the game's
+      <em>Player</em> (and any future controllable entity) holds an <code>inputDevice: InputSource</code> and calls
+      <code>CaptureInto(this.Input)</code> at the top of <code>Update</code> — depending on this interface, never on the
+      concrete device.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> resist widening it. A new input source is a new class that
+      <code>implements InputSource</code>, not a change here. Only touch the interface if every source must grow a new
+      capability (say a <code>Rumble()</code> back-channel), and then implement it in every producer. To add a new
+      <em>intent</em>, edit <code>InputState</code> instead (a field there, a line in each <code>CaptureInto</code>).</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- inputState.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--inputstate">
+    <h3 class="file-name">src/engine/types/inputState.ts <span class="loc">18 LOC</span></h3>
+    <p class="file-role">
+      A default-exported <code>interface InputState</code>: a plain per-frame snapshot of <em>input intent</em>. It imports
+      nothing. It is the decoupling seam in <em>Engine Events &amp; Input</em>: controllers read these booleans instead of
+      polling the live keyboard device, so the source of input (keyboard today; network/replay/AI later) can change without
+      touching movement code.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">export default interface InputState</code></h4>
+      <p>
+        Nine booleans. The field names mirror the <em>Input</em> device's intent methods exactly — so a handler reads
+        <code>player.Input.isLeft</code> (a value) where it once called <code>input.IsLeft()</code> (a method): same answer,
+        one fewer pair of parens.
+      </p>
+      <pre class="code"><code class="language-typescript">export default interface InputState {
+  // Horizontal intent (mutually-exclusive helpers mirror the input device)
+  isLeft: boolean;
+  isRight: boolean;
+  isLeftRightCombo: boolean;
+  isNeitherLeftRight: boolean;
+  // Jump intent
+  isJump: boolean;
+  // Vertical intent (ladders)
+  isUp: boolean;
+  isDown: boolean;
+  isUpDownCombo: boolean;
+  isNeitherUpDown: boolean;
+}</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Filled from <code>Input</code>…</th><th>True when</th></tr></thead>
+        <tbody>
+          <tr><td><code>isLeft</code></td><td><code>IsLeft()</code></td><td>Left held, right not.</td></tr>
+          <tr><td><code>isRight</code></td><td><code>IsRight()</code></td><td>Right held, left not.</td></tr>
+          <tr><td><code>isLeftRightCombo</code></td><td><code>IsLeftRightCombo()</code></td><td>Both left+right held.</td></tr>
+          <tr><td><code>isNeitherLeftRight</code></td><td><code>IsNeitherLeftRight()</code></td><td>Neither held.</td></tr>
+          <tr><td><code>isJump</code></td><td><code>IsJump()</code></td><td>Spacebar held.</td></tr>
+          <tr><td><code>isUp</code></td><td><code>IsUp()</code></td><td>Up held, down not.</td></tr>
+          <tr><td><code>isDown</code></td><td><code>IsDown()</code></td><td>Down held, up not.</td></tr>
+          <tr><td><code>isUpDownCombo</code></td><td><code>IsUpDownCombo()</code></td><td>Both up+down held.</td></tr>
+          <tr><td><code>isNeitherUpDown</code></td><td><code>IsNeitherUpDown()</code></td><td>Neither held.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — <code>D10</code> "input-as-data".</b> The <em>Player</em>'s constructor comment marks this:
+      each entity owns its own <code>InputState</code> bag and refreshes it from the device every frame
+      (<code>this.inputDevice.CaptureInto(this.Input)</code> at the top of <code>Player.Update</code>). Because handlers
+      read the bag, not the device, you could swap the producer for a replay file or a network packet without changing a
+      single line of movement logic.
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> <strong>Producer:</strong> <em>Engine Input</em> — <code>CaptureInto(state)</code> writes
+      all nine fields, mutating the bag <em>in place</em> so existing references stay valid. <strong>Consumer:</strong> the
+      game's <em>Player</em> owns the bag (seeded in <code>initializePlayerAttributes</code> with
+      <code>isNeitherLeftRight: true</code> / <code>isNeitherUpDown: true</code>) and its state handlers read it.
+    </div>
+
+    <div class="callout gotcha">
+      <b>Gotcha — mutated in place.</b> <code>CaptureInto</code> overwrites the same object; it never allocates a new one.
+      Don't stash a reference expecting an immutable snapshot of "this frame's input" — it will change next frame. If you
+      need history (combos, buffering), copy the fields out.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> a new intent means three coordinated edits — a field here, a matching
+      <code>Is*</code> getter on <em>Input</em>, and a line in <code>Input.CaptureInto</code>. Then seed it in the player's
+      <code>Input</code> initializer. Keep names mirroring the device method (drop the parens, lowercase the first letter).</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- levelData.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--leveldata">
+    <h3 class="file-name">src/engine/types/levelData.ts <span class="loc">35 LOC</span></h3>
+    <p class="file-role">
+      The shape the GLB parser emits and the entity factories consume. Two interfaces: <code>LevelEntity</code> (one
+      spawnable object) and <code>LevelData</code> (a dictionary of named entities). The default export is
+      <code>LevelData</code>. It imports nothing. GLB is the single permanent level source, so this is the one data contract
+      between <em>ResourceLoader</em> (engine) and the game's spawn pipeline.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">interface LevelEntity</code></h4>
+      <p>One GameObject to create — its size, transform, type string, and an optional metadata bag.</p>
+      <pre class="code"><code class="language-typescript">interface LevelEntity {
+  width: number;   // X axis (horizontal)
+  depth: number;   // Y axis in this coord system (into-screen; ~1 for 2D)
+  height: number;  // Z axis in this coord system (vertical)
+  position: number[]; // [x, y, z] = [horizontal, depth, vertical]
+  rotation: number[]; // Euler [x, y, z] radians; usually [0, rotation, 0]
+  type: string;    // "Platform", "Wall", "OneWayPlatform", "...Sensor", "Enemy", ...
+  meta?: Record&lt;string, string&gt;; // parsed texture-name tokens, e.g. "floor=1 oneway=8"
+}</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Meaning &amp; how the factories read it</th></tr></thead>
+        <tbody>
+          <tr><td><code>width</code> / <code>height</code> / <code>depth</code></td><td>Collider extents. Factories pass <code>{ width: data.width, height: data.height }</code> (and <code>depth</code> for walls) into the entity constructors.</td></tr>
+          <tr><td><code>position</code></td><td>Slot order <code>[gameX, gameDepth, gameUp]</code>. Factories read <code>position[0]</code> as x and <code>position[2]</code> as y; <code>setCameraStart</code> reads <code>position[1]</code> as depth.</td></tr>
+          <tr><td><code>rotation</code></td><td>Slot order <code>[-, gameRotation(z), -]</code>. Factories pass <code>-data.rotation[1]</code> (the parser already negated once; see the victory below).</td></tr>
+          <tr><td><code>type</code></td><td>The canonical type string — the same verbatim strings as <em>game/types/entityType.ts</em>. The factory registry is keyed by it.</td></tr>
+          <tr><td><code>meta?</code></td><td>Generic <code>key=value</code> bag parsed from the mesh's texture name. The engine never interprets a key; the game does (see below).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">interface LevelData { [entityName: string]: LevelEntity }</code></h4>
+      <p>
+        A dictionary keyed by unique entity name. The <em>Game Director</em> iterates
+        <code>Object.values(this.LevelData)</code> to spawn everything. The key is for identity/debugging only — entities are
+        matched by <code>type</code>, never by key.
+      </p>
+      <pre class="code"><code class="language-typescript">interface LevelData {
+  [entityName: string]: LevelEntity;
+}
+
+export default LevelData;</code></pre>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — the generic <code>meta</code> bag.</b> The header notes this <em>replaced the old generic
+      value0-3 indices</em>. Previously every entity carried four nameless numbers; now <em>ResourceLoader</em> parses the
+      collision mesh's texture name (e.g. <code>"floor=1 oneway=8"</code>) into a <code>Record&lt;string,string&gt;</code> and
+      the game-side factories interpret keys <em>per type</em> (<code>floor/edge/oneway</code> for platforms,
+      <code>dir</code> for ladders, <code>cam</code>/<code>dest</code> for camera/teleporter). The engine parser stays generic
+      and never reads a game-specific key — preserving the engine/game seam through the level pipeline.
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> <strong>Producer:</strong> <em>Engine Resources</em> —
+      <code>ResourceLoader.ParseLevel(glbPath)</code> returns <code>Promise&lt;LevelData&gt;</code> via
+      <code>convertToLevelData</code> (which also <code>#n</code>-disambiguates duplicate names so none are dropped).
+      <strong>Consumers:</strong> the <em>Game Director</em> (<code>LoadLevelData</code> stores it and loops it) and the
+      <em>entity factories</em> in game config, whose <code>EntityFactory</code> signature takes the row as
+      <code>data: any</code> and reads <code>data.meta</code> through <code>metaNum</code> / <code>metaCoords</code> helpers.
+    </div>
+
+    <div class="callout gotcha">
+      <b>Gotcha — axis slots, not names.</b> <code>position</code>/<code>rotation</code> are positional arrays in the
+      parser's <em>fixed slot order</em>, not <code>{x,y,z}</code> objects. The parser is the single place glTF axes map to
+      game axes; the factories rely on that exact slot order (<code>[0]=x</code>, <code>[2]=up</code>). Reorder the slots in
+      one place and you must reorder both.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> to teach a new entity new authored data, add a <code>key=value</code> token in
+      the level's texture name — no schema change needed here, <code>meta</code> is already open. Only touch this interface to
+      add a genuinely new <em>structural</em> field (a new size axis, etc.), and then update both
+      <code>ResourceLoader.convertToLevelData</code> (producer) and the factories (consumer).</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- playerDirection.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--playerdirection">
+    <h3 class="file-name">src/engine/types/playerDirection.ts <span class="loc">19 LOC</span></h3>
+    <p class="file-role">
+      A default-exported <code>const</code> of <em>signed numeric</em> direction constants. It imports nothing. Unlike the
+      string enums, these are numbers because they are used arithmetically — multiplied into velocity, fed as shapecast
+      directions, and used to flip sprites. <code>NEUTRAL</code> means no directional input.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const PlayerDirection = { NEUTRAL: 0, RIGHT: 1, LEFT: -1, UP: 1, DOWN: -1 } as const</code></h4>
+      <pre class="code"><code class="language-typescript">const PlayerDirection = {
+  NEUTRAL: 0, // no input / vertical-only checks
+  RIGHT: 1,   // positive X
+  LEFT: -1,   // negative X
+  UP: 1,      // positive Y
+  DOWN: -1,   // negative Y
+} as const;
+
+export default PlayerDirection;</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Value</th><th>Number</th><th>Axis</th><th>Used for</th></tr></thead>
+        <tbody>
+          <tr><td><code>NEUTRAL</code></td><td><code>0</code></td><td>—</td><td>No input; the "other axis" arg in a single-axis shapecast.</td></tr>
+          <tr><td><code>RIGHT</code></td><td><code>+1</code></td><td>X</td><td>Rightward velocity / right-side shapecast / sprite faces right.</td></tr>
+          <tr><td><code>LEFT</code></td><td><code>-1</code></td><td>X</td><td>Leftward velocity / left-side shapecast / sprite faces left.</td></tr>
+          <tr><td><code>UP</code></td><td><code>+1</code></td><td>Y</td><td>Jump / climb-up / ceiling detection shapecast.</td></tr>
+          <tr><td><code>DOWN</code></td><td><code>-1</code></td><td>Y</td><td>Fall / climb-down / ground detection shapecast.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout gotcha">
+      <b>Gotcha — overlapping numeric values.</b> <code>RIGHT === UP === 1</code> and <code>LEFT === DOWN === -1</code>. The
+      <em>axis</em> is implied by which argument slot the value occupies, not by the value itself. That is exactly why
+      <code>Player.shapeCast(xDirection, yDirection)</code> takes two args: <code>shapeCast(NEUTRAL, DOWN)</code> casts down,
+      <code>shapeCast(RIGHT, NEUTRAL)</code> casts right. Read these as "a signed step along whichever axis the caller is
+      probing", never as a single global direction.
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> There is no separate producer — these are constants. <strong>Consumers</strong> are all
+      game-side: <em>Player</em> seeds <code>this.Direction = PlayerDirection.NEUTRAL</code> and builds its four shapecasts
+      from them; <em>applyHorizontalMovement</em> branches on <code>player.Direction</code> to block movement into a touched
+      wall; and the five player <em>state handlers</em> set <code>Direction</code> from input.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> these five cover a 2D platformer completely; you rarely add to them. If you ever
+      need diagonals, prefer a <code>{x,y}</code> vector over a sixth constant — overloading one signed scalar for two axes
+      doesn't extend to diagonals.</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- playerStates.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--playerstates">
+    <h3 class="file-name">src/engine/types/playerStates.ts <span class="loc">24 LOC</span></h3>
+    <p class="file-role">
+      The canonical <em>same-named const + type</em> file (every other enum here cites it as the idiom). It default-exports
+      a <code>PlayerStates</code> const of five string states and also exports a <code>PlayerState</code> type. It imports
+      nothing. Each state has a handler in <code>game/entities/player/states/</code>; the value drives animation, physics,
+      input handling, and transitions through the generic <em>StateMachine</em>.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">const PlayerStates = { IDLE, RUNNING, JUMPING, FALLING, CLIMBING } as const; export type PlayerState</code></h4>
+      <pre class="code"><code class="language-typescript">const PlayerStates = {
+  IDLE: "idle",
+  RUNNING: "running",
+  JUMPING: "jumping",
+  FALLING: "falling",
+  CLIMBING: "climbing",
+} as const;
+
+export type PlayerState = typeof PlayerStates[keyof typeof PlayerStates];
+
+export default PlayerStates;</code></pre>
+      <p>
+        <code>PlayerStates.IDLE</code> is the value; <code>PlayerState</code> is the union type
+        <code>"idle" | "running" | "jumping" | "falling" | "climbing"</code>. That union is what makes
+        <code>StateMachine&lt;Player, PlayerState&gt;</code> type-safe — only a real state can be assigned to
+        <code>player.State</code> or used as a handler key.
+      </p>
+      <table class="tbl">
+        <thead><tr><th>State</th><th>Meaning</th><th>Transitions to (per the file's comments)</th></tr></thead>
+        <tbody>
+          <tr><td><code>IDLE</code></td><td>Standing still on the ground.</td><td>RUNNING (horizontal), JUMPING (jump), FALLING (walk off edge), CLIMBING (ladder + up/down).</td></tr>
+          <tr><td><code>RUNNING</code></td><td>Moving horizontally on the ground.</td><td>IDLE (input released), JUMPING, FALLING (leave ground), CLIMBING.</td></tr>
+          <tr><td><code>JUMPING</code></td><td>Ascending.</td><td>FALLING (jump released / max jump time), IDLE/RUNNING (land), CLIMBING.</td></tr>
+          <tr><td><code>FALLING</code></td><td>Descending.</td><td>IDLE/RUNNING (land), CLIMBING.</td></tr>
+          <tr><td><code>CLIMBING</code></td><td>On a ladder.</td><td>IDLE (reach top/bottom), FALLING (leave ladder), JUMPING (jump off ladder).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> <strong>Producer/owner:</strong> the <em>Player</em> — seeds
+      <code>this.State = PlayerStates.IDLE</code>, registers a handler per state in its <code>StateMachine</code>, and the
+      handlers reassign <code>State</code> to transition. <strong>Consumers:</strong> the five <em>state handlers</em>, the
+      generic <em>StateMachine</em> (which dispatches by it), and the <em>Game Director</em>, which maps it to a
+      <code>CameraFollowState</code> in <code>cameraTargetFromPlayer</code>.
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — the camera does NOT import this.</b> It would have been trivial for the camera to
+      <code>switch (player.State)</code>. It deliberately doesn't — that's the <code>C5</code>/<code>D3</code> decouple. The
+      camera owns its own <code>CameraFollowState</code> and the <em>Game Director</em> performs the
+      <code>PlayerState → CameraFollowState</code> mapping. So <code>playerStates.ts</code> stays purely the game's
+      vocabulary even though it physically lives under <code>engine/types/</code>.
+    </div>
+
+    <div class="callout tip">
+      <b>Tip — the mirrored idiom.</b> <em>game/types/entityType.ts</em> and <em>game/types/gameCollisionGroups.ts</em> both
+      copy this exact <code>const + type</code> shape. Its own comment notes EntityType "mirrors PlayerStates / CollisionGroups" —
+      one const map keeps the spawn side and routing side from drifting.
+    </div>
+
+    <pre class="mermaid">stateDiagram-v2
+  [*] --> IDLE
+  IDLE --> RUNNING
+  IDLE --> JUMPING
+  IDLE --> FALLING
+  RUNNING --> IDLE
+  RUNNING --> JUMPING
+  RUNNING --> FALLING
+  JUMPING --> FALLING
+  FALLING --> IDLE
+  FALLING --> RUNNING
+  IDLE --> CLIMBING
+  RUNNING --> CLIMBING
+  CLIMBING --> IDLE
+  CLIMBING --> FALLING
+  CLIMBING --> JUMPING</pre>
+
+    <p class="modify"><b>Modifying this:</b> add a state value here, add its handler under
+      <code>player/states/</code>, register it in the player's <code>StateMachine</code> map, and decide its
+      <code>CameraFollowState</code> mapping in the director (default falls to <code>GROUNDED</code>). Because
+      <code>PlayerState</code> is a union, the compiler will flag any handler map that's missing the new key.</p>
+  </article>
+
+  <!-- ============================================================ -->
+  <!-- userData.ts -->
+  <!-- ============================================================ -->
+  <article class="file-block" id="engine-types--userdata">
+    <h3 class="file-name">src/engine/types/userData.ts <span class="loc">10 LOC</span></h3>
+    <p class="file-role">
+      The identity tag attached to <em>every</em> Rapier physics body. A default-exported <code>interface UserData</code>
+      with two strings: <code>type</code> (shared routing flag) and <code>name</code> (per-instance id). It imports nothing.
+      This is the bridge that lets the contact system route collisions by data instead of <code>instanceof</code> — because
+      Rapier callbacks hand back raw colliders, not your classes.
+    </p>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">export default interface UserData { type: string; name: string }</code></h4>
+      <pre class="code"><code class="language-typescript">export default interface UserData {
+  // TYPE flag — shared routing identity; many entities can share one type.
+  type: string;
+  // Per-INSTANCE identifier; defaults to the type until SetName overrides it.
+  name: string;
+}</code></pre>
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Role</th><th>Set / read by</th></tr></thead>
+        <tbody>
+          <tr><td><code>type</code></td><td>Shared routing TYPE flag — many entities can carry the same one, so a single contact rule matches all of them.</td><td>Set by <code>GameObject.SetType</code> (and the spawn default); read by <code>matchesType</code> / <code>isColliderType</code>.</td></tr>
+          <tr><td><code>name</code></td><td>Per-instance identifier to single out one entity. Defaults to <code>type</code> until <code>SetName</code> overrides it.</td><td>Set by <code>GameObject.SetName</code>; read for debugging/logging.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The engine treats both as <strong>opaque strings</strong> — their meaning is assigned entirely by the game layer.
+        Crucially, per-entity <em>numeric</em> metadata is <strong>not</strong> stored here; it lives as named typed fields on
+        the entity classes, set at spawn from <code>LevelEntity.meta</code> (see <em>levelData.ts</em> above). <code>userData</code>
+        is identity only.
+      </p>
+    </div>
+
+    <div class="member">
+      <h4 class="member-sig"><code class="language-typescript">// in GameObject.createObjectPhysics — the one place userData is born</code></h4>
+      <pre class="code"><code class="language-typescript">this.PhysicsBody.userData = {
+  type: name,
+  name: name,
+} as UserData;</code></pre>
+      <p>
+        At creation both fields default to the same incoming <code>name</code> string. The game then calls
+        <code>SetType(EntityType.WALL)</code> (which sets <em>both</em> <code>type</code> and <code>name</code> to the new
+        type) and optionally <code>SetName(...)</code> afterward to give a distinct per-instance id while leaving the routing
+        <code>type</code> intact.
+      </p>
+    </div>
+
+    <div class="callout victory">
+      <b>Hard-won victory — type-routing over <code>instanceof</code>.</b> Rapier collision events return a raw
+      <code>Collider</code>, not your <code>GameObject</code> subclass, so <code>instanceof</code> is unavailable at the dispatch
+      point. <code>UserData.type</code> survives that boundary: <em>physicsHelpers</em>'
+      <code>matchesType(gameObject, type)</code> and <code>isColliderType(collider, type)</code> read it, and the
+      <em>Contact Registry</em> rules (declared in game config <em>contactRules</em>) are written as
+      <code>matchesType</code> predicates. That's how the contact table fires "when an A touches a B" without a single
+      hard-coded class check.
+    </div>
+
+    <div class="callout note">
+      <b>Producer vs consumer.</b> <strong>Producer:</strong> the engine <em>GameObject</em> stamps it in
+      <code>createObjectPhysics</code> and mutates it via <code>SetType</code>/<code>SetName</code>.
+      <strong>Consumers:</strong> <em>Engine Helpers</em> (<code>getUserData</code> returns a safe
+      <code>{ type:"", name:"" }</code> default when the body is undefined; <code>matchesType</code>/<code>isColliderType</code>
+      compare the flag) and, through them, the <em>Contact Registry</em> and the game's <em>contactRules</em>.
+    </div>
+
+    <div class="callout gotcha">
+      <b>Gotcha — <code>SetType</code> resets <code>name</code>.</b> <code>SetType</code> writes the new type to
+      <strong>both</strong> fields (so a freshly typed entity has <code>name === type</code> by default). If you want a
+      distinct instance id, call <code>SetName</code> <em>after</em> <code>SetType</code>, never before — otherwise the
+      <code>SetType</code> call clobbers your name.
+    </div>
+
+    <p class="modify"><b>Modifying this:</b> keep it to identity. The temptation to add numeric/gameplay fields here is the
+      thing the design explicitly rejected — put those on the entity class, fed from <code>meta</code>. If you genuinely need
+      a third opaque routing channel (e.g. a faction tag), add a string and a matching <code>matches*</code> helper in
+      <em>physicsHelpers</em>; the engine must still treat it as an opaque string it never interprets.</p>
+  </article>
+
+  <div class="callout tip">
+    <b>The big picture.</b> These nine types are the project's lingua franca. Three flow <em>game → engine</em> as plain
+    snapshots (<code>CameraTarget</code>, <code>InputState</code> filled by the game's Player; <code>UserData</code> read by
+    the engine's contact dispatch). One flows <em>engine → game</em> (<code>LevelData</code> from the parser into the
+    factories). Four are shared vocabulary the game owns but the engine folder hosts (<code>ContactPoints</code>,
+    <code>GameObjectType</code>, <code>PlayerDirection</code>, <code>PlayerStates</code>). And one — <code>InputSource</code> —
+    is a behavioural seam: an engine-defined interface the keyboard <em>Input</em> implements and the <em>Player</em> depends
+    on. The discipline that keeps the engine reusable is visible right here: every cross-boundary value is a scalar, string,
+    or boolean, and the one cross-boundary contract is an interface — never a concrete class reference.
+  </div>
+</section>

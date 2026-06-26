@@ -5,16 +5,13 @@ import GameSensor from "../../engine/entities/gameSensor";
 import Camera from "../../engine/camera/camera";
 import EntityType from "../types/entityType";
 
-/**
- * CameraSensor - Adjusts the camera when the player enters its zone.
- *
- * The trigger rule (Player enters -> adjust camera) lives in the declarative
- * contact table (game/config/contactRules.ts). This class owns the target
- * position and the camera reference, and exposes the action it performs.
- */
+// CameraSensor - adjusts the camera when the player enters its zone.
+// The trigger rule (Player enters -> adjust camera) lives in the declarative
+// contact table (game/config/contactRules.ts). This class owns the target
+// position and the camera reference, and exposes the action it performs.
 export default class CameraSensor extends GameSensor {
-  public PositionData: THREE.Vector3;
-  private camera: Camera;
+  public PositionData: THREE.Vector3; // camera anchor to ease to on enter
+  private camera: Camera; // engine camera this zone repositions
 
   constructor(
     size: { width: number; height: number },
@@ -44,15 +41,17 @@ export default class CameraSensor extends GameSensor {
     // this.createObjectGraphicsDebug("yellow", 0.1);
   }
 
-  /**
-   * Set the camera position that should be used when player enters
-   */
+  // Set the camera position that should be used when player enters
   public SetCameraPositionData(newPositionData: THREE.Vector3) {
     this.PositionData = newPositionData;
   }
 
-  /** Apply this sensor's camera position. Called by the contact rule on enter. */
+  // Apply this sensor's camera position. Called by the contact rule on enter.
   public ApplyCameraOnEnter() {
-    this.camera.ChangePositionY(this.PositionData.y);
+    // Pins the camera's rest anchor to this zone's authored x,y. On a non-follow
+    // level the camera eases to that spot on both axes (fixed/zone camera); on a
+    // follow level only the Y is used (pins the vertical baseline the follow eases
+    // around). Author the spot as `cam=x_y` on the sensor's texture.
+    this.camera.SetBaselinePosition(this.PositionData.x, this.PositionData.y);
   }
 }

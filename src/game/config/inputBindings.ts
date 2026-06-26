@@ -1,18 +1,12 @@
-/* -------------------------------------------------------------------------- */
-/*        Maps engine F-key device state to this game's flow events           */
-/* -------------------------------------------------------------------------- */
+// Maps engine F-key device state to this game's flow events
 
 import Emitter from "../../engine/events/eventBus";
 import Input from "../../engine/input/input";
 
-/**
- * The engine Input only exposes HELD-state booleans (isF1Pressed, etc.); it
- * stays pure and names no game events. This game-side binding watches those
- * booleans each frame, detects the press EDGE itself (a false->true transition
- * since last frame), and emits the matching game event once per press:
- *   F1 -> "gameReset", F2 -> "switchLevel", F3 -> "manualCameraControl".
- * Plain old-school edge detection: remember last frame's three booleans.
- */
+// Engine Input exposes only HELD-state booleans and names no game events.
+// This watches them each frame, detects the press edge (false->true since last frame),
+// and emits the matching game event once per press: remember last frame's booleans.
+// F1 -> "gameReset", F2 -> "switchLevel", F3 -> "manualCameraControl".
 export default class InputBindings {
   private input: Input;
 
@@ -28,6 +22,7 @@ export default class InputBindings {
     this.wasF3Pressed = false;
   }
 
+  // per-frame: emit a game event on each F-key press edge
   public Update() {
     // F1 -> gameReset
     if (this.input.IsF1Pressed && !this.wasF1Pressed) {

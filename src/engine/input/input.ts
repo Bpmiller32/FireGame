@@ -1,11 +1,18 @@
-/* -------------------------------------------------------------------------- */
-/*                    Used to handle keyboard input events                    */
-/* -------------------------------------------------------------------------- */
+// Used to handle keyboard input events
 
-import Key from "../types/key";
 import InputState from "../types/inputState";
+import InputSource from "../types/inputSource";
 
-export default class Input {
+// One tracked keyboard key: physical key code + a setter for its pressed flag.
+interface Key {
+  keyCode: string; // KeyboardEvent.code, layout-independent (e.g. "KeyW", "Space")
+  isPressed: (pressed: boolean) => void; // Input calls this when the key changes
+}
+
+// Keyboard input device — the default InputSource. Also exposes named held-state
+// flags (F-keys, WASD, …) that InputBindings reads directly for meta actions.
+export default class Input implements InputSource {
+  // private held-state, refined by the Is* combo checks below
   private isLeftKeyPressed: boolean;
   private isRightKeyPressed: boolean;
   private isUpKeyPressed: boolean;
@@ -29,13 +36,14 @@ export default class Input {
   public IsF2Pressed: boolean;
   public IsF3Pressed: boolean;
   public IsF4Pressed: boolean;
-  public IsF5Pressed: boolean;
 
+  // key-code -> pressed-flag setter table
   private keys: Key[];
 
   private onKeyDownListener: (event: KeyboardEvent) => void;
   private onKeyUpListener: (event: KeyboardEvent) => void;
 
+  // init flags, build key table, register window listeners
   constructor() {
     this.isLeftKeyPressed = false;
     this.isRightKeyPressed = false;
@@ -60,7 +68,6 @@ export default class Input {
     this.IsF2Pressed = false;
     this.IsF3Pressed = false;
     this.IsF4Pressed = false;
-    this.IsF5Pressed = false;
 
     this.keys = [
       {
@@ -178,12 +185,6 @@ export default class Input {
           this.IsF4Pressed = eventResult;
         },
       },
-      {
-        keyCode: "F5",
-        isPressed: (eventResult: boolean) => {
-          this.IsF5Pressed = eventResult;
-        },
-      },
     ];
 
     // Store bound references so they can be removed in destroy()
@@ -194,18 +195,20 @@ export default class Input {
     window.addEventListener("keyup", this.onKeyUpListener, false);
   }
 
+  // mark matching key pressed
   private onKeyDown(keyName: string) {
-    for (const keyIndex in this.keys) {
-      if (keyName == this.keys[keyIndex].keyCode) {
-        this.keys[keyIndex].isPressed(true);
+    for (const key of this.keys) {
+      if (keyName === key.keyCode) {
+        key.isPressed(true);
       }
     }
   }
 
+  // clear matching key
   private onKeyUp(keyName: string) {
-    for (const keyIndex in this.keys) {
-      if (keyName == this.keys[keyIndex].keyCode) {
-        this.keys[keyIndex].isPressed(false);
+    for (const key of this.keys) {
+      if (keyName === key.keyCode) {
+        key.isPressed(false);
       }
     }
   }
@@ -268,12 +271,8 @@ export default class Input {
     return false;
   }
 
-  /**
-   * Capture the current input intent into a snapshot struct (mutated in place,
-   * so existing references — e.g. dat.gui bindings — stay valid). Lets each
-   * entity hold its own per-frame InputState instead of reading the live
-   * device directly: the seam that later allows network/replay/AI input.
-   */
+  // Snapshot input intent into InputState (mutated in place so existing refs stay valid).
+  // Per-entity input instead of the live device — the seam for network/replay/AI input.
   public CaptureInto(state: InputState): void {
     state.isLeft = this.IsLeft();
     state.isRight = this.IsRight();
@@ -286,6 +285,7 @@ export default class Input {
     state.isNeitherUpDown = this.IsNeitherUpDown();
   }
 
+  // remove the window key listeners
   public Destroy() {
     window.removeEventListener("keydown", this.onKeyDownListener);
     window.removeEventListener("keyup", this.onKeyUpListener);
