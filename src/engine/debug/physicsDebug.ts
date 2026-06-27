@@ -32,6 +32,8 @@ export default class PhysicsDebug {
   // Counters surfaced in the dat.GUI folder (bound by reference so .listen() updates).
   private counts = { renderObjectCount: 0, physicsObjectCount: 0 };
 
+  // --- Setup ---
+
   // Inject the game's entity-type -> color palette (see game/config/debugColors).
   public SetTypeColors(colors: Map<string, THREE.Color>) {
     this.typeColors = colors;
@@ -59,6 +61,8 @@ export default class PhysicsDebug {
     folder.add(this.counts, "physicsObjectCount").name("Physics Objects").listen();
   }
 
+  // --- Per-frame ---
+
   // Per-frame: recount scene/colliders, then rebuild the wireframe.
   public Update(physics: Physics) {
     let entityCount = 0;
@@ -76,8 +80,15 @@ export default class PhysicsDebug {
       const userData = collider.parent()?.userData as
         | { type?: string }
         | undefined;
-      const color =
-        this.typeColors.get(userData?.type ?? "") ?? PhysicsDebug.DEFAULT_COLOR;
+      // Pick the type's color from the palette; gray fallback for unmapped/missing types.
+      let typeName = "";
+      if (userData && userData.type) {
+        typeName = userData.type;
+      }
+      let color = this.typeColors.get(typeName);
+      if (!color) {
+        color = PhysicsDebug.DEFAULT_COLOR;
+      }
       this.appendColliderOutline(collider, color, positions, colors);
     });
 
@@ -90,7 +101,6 @@ export default class PhysicsDebug {
       "color",
       new THREE.BufferAttribute(new Float32Array(colors), 4)
     );
-    this.mesh!.visible = true;
   }
 
   // Append one collider's outline (cuboid/ball/capsule) to the shared position +
@@ -166,6 +176,8 @@ export default class PhysicsDebug {
       }
     }
   }
+
+  // --- Teardown ---
 
   // Remove and dispose the wireframe mesh.
   public Destroy() {

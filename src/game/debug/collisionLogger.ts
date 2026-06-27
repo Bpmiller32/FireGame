@@ -10,6 +10,8 @@ export default class CollisionLogger implements CollisionLogSink {
 
   private experience?: Experience;
 
+  // --- Commands ---
+
   // Print a colored collision enter/exit line to the console.
   public LogCollisionEvent(
     obj1: GameObject,
@@ -59,6 +61,8 @@ export default class CollisionLogger implements CollisionLogSink {
       "color: #4caf50; font-weight: bold;"
     );
   }
+
+  // --- Per-frame ---
 
   // Elapsed-time stamp from the engine clock, lazily resolved.
   private getTimestamp(): string {

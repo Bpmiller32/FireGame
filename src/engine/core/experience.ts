@@ -55,6 +55,8 @@ export default class Experience {
   // Guards a double Configure() (HMR / restart) from overwriting live subsystems.
   private isConfigured = false;
 
+  // --- Setup ---
+
   // Singleton check/constructor
   public static GetInstance(): Experience {
     if (!Experience.instance) {
@@ -133,6 +135,8 @@ export default class Experience {
     };
     Emitter.on("tick", this.onTick);
   }
+
+  // --- Teardown ---
 
   public Destroy() {
     // Remove our own event listeners first

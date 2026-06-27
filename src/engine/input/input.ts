@@ -43,6 +43,8 @@ export default class Input implements InputSource {
   private onKeyDownListener: (event: KeyboardEvent) => void;
   private onKeyUpListener: (event: KeyboardEvent) => void;
 
+  // --- Setup ---
+
   // init flags, build key table, register window listeners
   constructor() {
     this.isLeftKeyPressed = false;
@@ -195,6 +197,8 @@ export default class Input implements InputSource {
     window.addEventListener("keyup", this.onKeyUpListener, false);
   }
 
+  // --- Callbacks ---
+
   // mark matching key pressed
   private onKeyDown(keyName: string) {
     for (const key of this.keys) {
@@ -212,6 +216,8 @@ export default class Input implements InputSource {
       }
     }
   }
+
+  // --- Commands ---
 
   // Check for double/exclusive inputs
   public IsLeft() {
@@ -271,6 +277,8 @@ export default class Input implements InputSource {
     return false;
   }
 
+  // --- Per-frame ---
+
   // Snapshot input intent into InputState (mutated in place so existing refs stay valid).
   // Per-entity input instead of the live device — the seam for network/replay/AI input.
   public CaptureInto(state: InputState): void {
@@ -284,6 +292,8 @@ export default class Input implements InputSource {
     state.isUpDownCombo = this.IsUpDownCombo();
     state.isNeitherUpDown = this.IsNeitherUpDown();
   }
+
+  // --- Teardown ---
 
   // remove the window key listeners
   public Destroy() {

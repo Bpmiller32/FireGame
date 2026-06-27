@@ -1,12 +1,9 @@
 // Entity factory registry — one factory per level-data-placed entity type.
-// Replaces GameDirector's per-type import* methods (importCameraSensors, importWalls,
-// importPlatforms, importLadderSensors, importTrashCans, importWinFlags) with a const map
-// keyed by the EntityType string level data and resourceLoader emit, so loadLevelData
-// iterates the parsed entities and calls ENTITY_FACTORIES[type].
-// Factory bodies lifted verbatim from the old import* methods — same axis mapping
-// (position[0]/[2] horizontal/vertical, [1] = depth), width/height/depth passed straight
-// through (resourceLoader emits height=gameUp(glTF Y) and depth=gameDepth(glTF Z), no size
-// remap), same -rotation[1] negation, texture-name meta -> constructor-arg wiring, same SetType calls.
+// A const map keyed by the EntityType string that level data and resourceLoader emit, so
+// loadLevelData iterates the parsed entities and calls ENTITY_FACTORIES[type].
+// Axis mapping: position[0]/[2] are horizontal/vertical, position[1] is depth; width/height/depth
+// pass straight through (resourceLoader emits height=gameUp(glTF Y), depth=gameDepth(glTF Z), no size
+// remap); rotation is negated (-rotation[1]); texture-name meta -> constructor-arg wiring; SetType per type.
 // Only LEVEL-DATA-PLACED types live here. The runtime enemy spawner (Enemy — normal/crazy
 // barrels) and non-entity level steps (ambient light, level graphics) are NOT factories —
 // GameDirector keeps them as explicit steps.
@@ -45,10 +42,9 @@ export interface FactoryContext {
 
 // A factory builds one entity from its level-data row and pushes it into the matching derived
 // view(s) on the context. `type` is the resolved EntityType string for this row — passed so the
-// shared platform/ladder factories can branch exactly as the old import* methods did.
-// `data` is typed `any` to match the old import* callbacks VERBATIM — those received (data: any)
-// (see the deleted importLevelObjects), and the level rows carry a loose `meta` bag read untyped.
-// Keeping `any` here is a true no-op vs the original behavior, not a new looseness.
+// shared platform/ladder factories can branch on it.
+// `data` is typed `any` on purpose: the level rows carry a loose `meta` bag read untyped, so
+// tightening the type would fight the parser rather than help. Intentional, not new looseness.
 type EntityFactory = (
   data: any,
   ctx: FactoryContext,
@@ -78,7 +74,11 @@ function metaCoords(
   meta: Record<string, string> | undefined,
   key: string
 ): number[] {
-  const parts = (meta?.[key] ?? "").split("_");
+  let raw = "";
+  if (meta && meta[key]) {
+    raw = meta[key];
+  }
+  const parts = raw.split("_");
   const result: number[] = [];
   for (const c of parts) {
     const n = Number(c);
@@ -88,10 +88,8 @@ function metaCoords(
   return result;
 }
 
-// Factory bodies (lifted from GameDirector's import* methods; metadata now read from the
-// parsed texture-name `meta` bag instead of the old value0-3 indices).
+// Factory bodies — one per entity type.
 
-// FROM importCameraSensors
 const createCameraSensor: EntityFactory = (data, ctx) => {
   const sensor = new CameraSensor(
     { width: data.width, height: data.height },
@@ -110,7 +108,6 @@ const createCameraSensor: EntityFactory = (data, ctx) => {
   return sensor;
 };
 
-// FROM importWalls
 const createWall: EntityFactory = (data, ctx) => {
   const wall = new Platform(
     { width: data.width, height: data.height, depth: data.depth },
@@ -122,7 +119,7 @@ const createWall: EntityFactory = (data, ctx) => {
   return wall;
 };
 
-// FROM importPlatforms (handles Platform + OneWayPlatform)
+// Platform + OneWayPlatform
 const createPlatform: EntityFactory = (data, ctx, type) => {
   const isOneWay = type === EntityType.ONE_WAY_PLATFORM;
   const platform = new Platform(
@@ -140,7 +137,7 @@ const createPlatform: EntityFactory = (data, ctx, type) => {
   return platform;
 };
 
-// FROM importLadderSensors (handles Top/Core/Bottom variants)
+// Top/Core/Bottom ladder sensor variants
 const createLadderSensor: EntityFactory = (data, ctx, type) => {
   const sensor = new LadderSensor(
     { width: data.width, height: data.height },
@@ -159,7 +156,6 @@ const createLadderSensor: EntityFactory = (data, ctx, type) => {
   return sensor;
 };
 
-// FROM importTrashCans
 const createTrashCan: EntityFactory = (data, ctx) => {
   const trashCan = new TrashCan(
     { width: data.width, height: data.height, depth: data.depth },
@@ -170,7 +166,6 @@ const createTrashCan: EntityFactory = (data, ctx) => {
   return trashCan;
 };
 
-// FROM importWinFlags
 const createWinFlag: EntityFactory = (data, ctx) => {
   const winFlag = new WinFlag(
     { width: data.width, height: data.height, depth: data.depth },
@@ -181,10 +176,8 @@ const createWinFlag: EntityFactory = (data, ctx) => {
   return winFlag;
 };
 
-// NEW: Teleporter — there was NO importTeleporters, so a Blender-placed
-// teleporter was silently dropped (teleporters[] was declared + destroyed but
-// never filled). Wired now, mirroring the other sensors. Destination comes from
-// the texture-name "dest=<x>_<y>" metadata (parsed into data.meta.dest).
+// Teleporter — destination comes from the texture-name "dest=<x>_<y>" metadata
+// (parsed into data.meta.dest). Mirrors the other sensors.
 const createTeleporter: EntityFactory = (data, ctx) => {
   const teleporter = new Teleporter(
     { width: data.width, height: data.height },

@@ -269,6 +269,8 @@ export default class Player extends GameObject {
     }
   }
 
+  // --- Setup ---
+
   // set up experience refs, attributes, FSM, and contact flags
   private initializePlayerAttributes() {
     // Experience fields
@@ -309,8 +311,8 @@ export default class Player extends GameObject {
 
     // Set physics variables
     this.ColliderOffset = 0.01;
-    // Increased threshold significantly for better slope detection and prevent micro-falling
-    // This allows player to maintain ground contact when moving down slopes
+    // Slightly wider than ColliderOffset so the down-cast keeps ground contact while
+    // walking down slopes (prevents micro-falling).
     this.ColliderOffsetThreshold = this.ColliderOffset + 0.015;
     this.CurrentPosition = new RAPIER.Vector2(0, 0);
     this.NextTranslation = new RAPIER.Vector2(0, 0);
@@ -388,6 +390,8 @@ export default class Player extends GameObject {
     this.colliderIsAirborne = false;
   }
 
+  // --- Commands ---
+
   // Shrink (airborne) / restore (grounded) the player's capsule HEIGHT. Uses
   // setShape — NOT setHalfHeight — because Rapier lazily caches collider.shape:
   // setShape updates BOTH the wasm collider and that cache, so the 4 ground/wall
@@ -406,6 +410,16 @@ export default class Player extends GameObject {
     collider.setShape(new RAPIER.Capsule(halfHeight, this.colliderRadius));
     this.colliderIsAirborne = airborne;
   }
+
+  // Update ladder contact state from external sensor detection
+  // Called by GameDirector until ladder sensors use proper callbacks
+  public UpdateLadderState(top: boolean, core: boolean, bottom: boolean) {
+    this.IsTouching.ladderTop = top;
+    this.IsTouching.ladderCore = core;
+    this.IsTouching.ladderBottom = bottom;
+  }
+
+  // --- Per-frame ---
 
   // advance the state machine and the sprite animation
   private updatePlayerState() {
@@ -528,14 +542,6 @@ export default class Player extends GameObject {
     this.getShapeCastCollisions();
   }
 
-  // Update ladder contact state from external sensor detection
-  // Called by GameDirector until ladder sensors use proper callbacks
-  public UpdateLadderState(top: boolean, core: boolean, bottom: boolean) {
-    this.IsTouching.ladderTop = top;
-    this.IsTouching.ladderCore = core;
-    this.IsTouching.ladderBottom = bottom;
-  }
-
   private resetCollisions() {
     // Use assign instead of replacing with a JS Object, fixes issue with dat.gui
     Object.assign(this.IsTouching, {
@@ -561,7 +567,9 @@ export default class Player extends GameObject {
   // Is this collider an active one-way platform (currently pass-through)?
   // Replaces the old userData.value3 check; reads the platform's typed flag.
   private isActiveOneWayPlatform(collider: RAPIER.Collider): boolean {
-    return this.getPlatform(collider)?.IsOneWayActive ?? false;
+    const platform = this.getPlatform(collider);
+    if (!platform) return false;
+    return platform.IsOneWayActive;
   }
 
   private getShapeCastCollisions() {
@@ -585,7 +593,7 @@ export default class Player extends GameObject {
     // floor within snap) sticky.
     const downCast = shapeCasts.down;
     const downIsSolidFloor =
-      !!downCast &&
+      downCast !== null &&
       GameUtils.IsColliderType(downCast.collider, EntityType.WALL) === false &&
       this.isActiveOneWayPlatform(downCast.collider) === false;
     const strictGround =
@@ -603,8 +611,13 @@ export default class Player extends GameObject {
 
       // Read floor / edge from the platform we're standing on (named fields)
       const platform = this.getPlatform(downCast!.collider);
-      this.CurrentFloor = platform ? platform.FloorLevel : 0;
-      this.IsTouching.edgePlatform = platform ? platform.IsEdge : false;
+      if (platform) {
+        this.CurrentFloor = platform.FloorLevel;
+        this.IsTouching.edgePlatform = platform.IsEdge;
+      } else {
+        this.CurrentFloor = 0;
+        this.IsTouching.edgePlatform = false;
+      }
 
       // Slope-ness from the contact normal (|y| ≈ 1 flat, < 1 sloped), two thresholds:
       //  • GroundIsFlat — STRICT (~0.8°): truly axis-aligned. Drives the down-stick and the
@@ -618,8 +631,11 @@ export default class Player extends GameObject {
         normalY >= Math.cos((this.FlatToleranceDegrees * Math.PI) / 180);
       // Surface gradient for the slope-follow stick (see applyGroundedStick). Guard a
       // near-zero ny (only happens on near-vertical walls, which aren't walkable ground).
-      this.GroundSlopeDyDx =
-        Math.abs(ny) > 0.001 ? -downCast!.normal1.x / ny : 0;
+      if (Math.abs(ny) > 0.001) {
+        this.GroundSlopeDyDx = -downCast!.normal1.x / ny;
+      } else {
+        this.GroundSlopeDyDx = 0;
+      }
     }
 
     // Robustness: also count grounded if Rapier's controller says so this frame.
@@ -744,7 +760,7 @@ export default class Player extends GameObject {
     const descending = this.NextTranslation.y <= 0;
     const feetDelta = this.fullHalfHeight * (1 - this.AirColliderHeightScale);
     const groundWithinGrow =
-      !!downProbe &&
+      downProbe !== null &&
       downProbe.time_of_impact <= this.AirColliderGrowDistance &&
       GameUtils.IsColliderType(downProbe.collider, EntityType.WALL) === false &&
       this.isActiveOneWayPlatform(downProbe.collider) === false;
@@ -981,6 +997,8 @@ export default class Player extends GameObject {
     this.updateTranslation();
     this.detectCollisions();
   }
+
+  // --- Teardown ---
 
   public Destroy() {
     // NOTE: do NOT emit "gameObjectRemoved" here. The director's handler for that

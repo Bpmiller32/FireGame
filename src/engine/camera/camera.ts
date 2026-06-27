@@ -32,7 +32,7 @@ export default class Camera {
   private experience: Experience;
   private sizes: Sizes;
   private scene: THREE.Scene;
-  public Time: Time;
+  public Time: Time; // public so the Camera Debug mirror can read Time.Elapsed
 
   public Input?: Input;
   private debug?: Debug;
@@ -60,6 +60,8 @@ export default class Camera {
   public ZoomFactor!: number;
 
   private onManualCameraControl!: () => void; // handler ref, removed in Destroy()
+
+  // --- Setup ---
 
   // build cameras, follow state, debug, and events
   constructor(initialPosition: THREE.Vector3) {
@@ -147,6 +149,8 @@ export default class Camera {
     };
   }
 
+  // --- Commands ---
+
   // toggle player-follow vs fixed-zone mode
   public SetCameraFollow(value: boolean) {
     this.isCameraFollowOn = value;
@@ -207,6 +211,8 @@ export default class Camera {
     this.hasSensorBaseline = false;
     this.Instance.position.set(x, y, z);
   }
+
+  // --- Per-frame ---
 
   // Frame-rate-correct exponential smoothing toward a target value. Uses FrameDelta
   // (real per-frame time) because the camera runs in the per-frame RENDER pass, not
@@ -326,6 +332,8 @@ export default class Camera {
 
     this.Instance.position.copy(this.currentPosition);
   }
+
+  // --- Teardown ---
 
   // unsubscribe events and remove the camera
   public Destroy() {

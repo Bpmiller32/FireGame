@@ -191,7 +191,7 @@ export default class ResourceLoader {
     // Parse the 3D scene hierarchy into game objects
     const parsedObjects = this.parseScene(gltf.scene);
     
-    // Convert to LevelData format compatible with your game
+    // Convert to LevelData the entity factories consume
     const levelData = this.convertToLevelData(parsedObjects);
     
     return levelData;
@@ -375,7 +375,10 @@ export default class ResourceLoader {
     let material = mesh.material;
     if (Array.isArray(mesh.material)) material = mesh.material[0];
     const map = (material as THREE.MeshStandardMaterial | undefined)?.map;
-    const name = map?.name ?? "";
+    let name = "";
+    if (map && map.name) {
+      name = map.name;
+    }
     // Drop a trailing image-file extension. A texture that inherited its image's
     // filename (e.g. "edge=1.png" instead of "edge=1") would otherwise parse the
     // value as "1.png" — not-a-number — so the flag would silently read as 0.
@@ -455,8 +458,8 @@ export default class ResourceLoader {
   }
 
   // Convert parsed objects to LevelData format.
-  // This creates the final data structure that your game expects. LevelData is a
-  // dictionary mapping object names to their properties.
+  // Builds the final LevelData dictionary (object name -> properties) consumed by the
+  // game's entity factories.
   private convertToLevelData(parsedObjects: ParsedLevelObject[]): LevelData {
     const levelData: LevelData = {};
 
@@ -480,6 +483,11 @@ export default class ResourceLoader {
       // Pass the parsed texture-name metadata straight through as a generic bag.
       // The game-side entity factories interpret the keys per type — the engine
       // parser deliberately does NOT know any game-specific key (floor/cam/etc.).
+      // meta is always set by parseTypedNode; default to {} defensively.
+      let meta = obj.meta;
+      if (!meta) {
+        meta = {};
+      }
       levelData[key] = {
         width: obj.width,
         height: obj.height,
@@ -487,14 +495,28 @@ export default class ResourceLoader {
         position: obj.position,
         rotation: obj.rotation,
         type: obj.type,
-        meta: obj.meta ?? {},
+        meta: meta,
       };
     }
 
     return levelData;
   }
 
-  // Cleanup
+  // Recursively dispose every mesh's geometry + material(s) under a root object.
+  private disposeObject3D(root: THREE.Object3D) {
+    root.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry?.dispose();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat: THREE.Material) => mat.dispose());
+        } else {
+          child.material?.dispose();
+        }
+      }
+    });
+  }
+
+  // --- Teardown ---
 
   // Clean up all loaded resources and free memory.
   // Call this when destroying the game or switching to a new level.
@@ -513,19 +535,5 @@ export default class ResourceLoader {
         this.disposeObject3D(gltf.scene);
       }
     }
-  }
-
-  // Recursively dispose every mesh's geometry + material(s) under a root object.
-  private disposeObject3D(root: THREE.Object3D) {
-    root.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.geometry?.dispose();
-        if (Array.isArray(child.material)) {
-          child.material.forEach((mat: THREE.Material) => mat.dispose());
-        } else {
-          child.material?.dispose();
-        }
-      }
-    });
   }
 }

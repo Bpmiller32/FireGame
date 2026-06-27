@@ -38,7 +38,7 @@ export default class LadderSensor extends GameSensor {
 
   // Set the ladder direction value
   // Positive = right, Negative = left, 0 = neutral
-  public SetLadderValue(value?: number) {
-    this.Direction = value ?? 0;
+  public SetLadderValue(value: number) {
+    this.Direction = value;
   }
 }

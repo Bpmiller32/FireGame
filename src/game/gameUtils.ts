@@ -10,28 +10,15 @@ import * as PhysicsHelpers from "../engine/helpers/physicsHelpers";
 
 // Static utility facade for game code.
 export default class GameUtils {
-  // Math helpers
+  // --- Math helpers ---
   public static MoveTowardsPoint = MathHelpers.moveTowards; // move a value toward a target by a max step
 
   public static CalculatePercentChance = MathHelpers.percentChance; // true with the given percent probability
 
-  // Physics helpers
+  // --- Physics helpers ---
   public static IsColliderType = PhysicsHelpers.isColliderType; // does a collider match a given entity type
 
-  // Game-specific functions
-
-  // Remove destroyed objects from an array
-  public static RemoveDestroyedObjects<T extends GameObject>(
-    existingArray: T[]
-  ): T[] {
-    const kept: T[] = [];
-    for (const object of existingArray) {
-      if (!object.IsBeingDestroyed) {
-        kept.push(object);
-      }
-    }
-    return kept;
-  }
+  // --- Game-specific functions ---
 
   // Remove destroyed objects from an array IN PLACE (swap-remove), keeping the SAME
   // array reference. Cheaper than rebuilding (no new array, no GC churn) and lets

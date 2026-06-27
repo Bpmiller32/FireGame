@@ -40,9 +40,7 @@ export default class GameObject {
 
   public IsBeingDestroyed!: boolean; // true while tearing down, blocks callbacks
 
-  // ============================================================================
-  // COLLISION CALLBACKS - Override these in subclasses to handle collisions
-  // ============================================================================
+  // --- Callbacks ---
 
   // Called when this object starts colliding with another solid object; override in subclasses.
   public OnCollisionEnter?(other: GameObject): void;
@@ -50,15 +48,15 @@ export default class GameObject {
   // Called when this object stops colliding with another solid object; override in subclasses.
   public OnCollisionExit?(other: GameObject): void;
 
-  // ============================================================================
-  // SENSOR CALLBACKS - Override these in subclasses to handle sensor triggers
-  // ============================================================================
+  // --- Sensor callbacks ---
 
   // Called when this object (as a sensor) detects another object entering; override in subclasses.
   public OnSensorEnter?(other: GameObject): void;
 
   // Called when this object (as a sensor) detects another object exiting; override in subclasses.
   public OnSensorExit?(other: GameObject): void;
+
+  // --- Setup ---
 
   constructor() {
     this.initializeAttributes();
@@ -136,24 +134,16 @@ export default class GameObject {
 
     const collider = this.PhysicsBody.collider(0);
 
-    // Determine which events to enable based on callbacks defined
-    let eventsToEnable = 0;
-
-    // Enable collision events if any collision callbacks are defined.
+    // Enable event reporting only if this object defines a collision OR sensor callback.
     // Physics only dispatches enter/exit (no per-frame "stay") — see Physics.handleCollisionEvents.
-    if (this.OnCollisionEnter || this.OnCollisionExit) {
-      eventsToEnable |= RAPIER.ActiveEvents.COLLISION_EVENTS;
-    }
-
-    // Enable intersection events if any sensor callbacks are defined
-    // Note: In Rapier, sensors use collision events, not separate intersection events
-    if (this.OnSensorEnter || this.OnSensorExit) {
-      eventsToEnable |= RAPIER.ActiveEvents.COLLISION_EVENTS;
-    }
-
-    // Set the active events if any callbacks are defined
-    if (eventsToEnable > 0) {
-      collider.setActiveEvents(eventsToEnable);
+    // Note: in Rapier, sensors are reported through collision events, not separate intersection events.
+    if (
+      this.OnCollisionEnter ||
+      this.OnCollisionExit ||
+      this.OnSensorEnter ||
+      this.OnSensorExit
+    ) {
+      collider.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
     }
   }
 
@@ -291,6 +281,8 @@ export default class GameObject {
     this.syncGraphicsToPhysics();
   }
 
+  // --- Per-frame ---
+
   // copy physics translation/rotation onto the mesh
   protected syncGraphicsToPhysics(
     meshOffset: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 }
@@ -394,6 +386,8 @@ export default class GameObject {
       .setCollisionGroups(currentGroup | (collisionMask << 16));
   }
 
+  // --- Commands ---
+
   // Set this entity's TYPE routing flag and mirror name to it; call SetName after for a distinct id.
   public SetType(newType?: string) {
     if (!newType) {
@@ -460,9 +454,12 @@ export default class GameObject {
       if (child?.isMesh) {
         const cloned: THREE.Mesh = child.clone();
         cloned.geometry = child.geometry.clone();
-        cloned.material = Array.isArray(child.material)
-          ? child.material.map((m: THREE.Material) => m.clone())
-          : child.material.clone();
+        // Clone the material too so this instance owns its own (array materials cloned one by one).
+        if (Array.isArray(child.material)) {
+          cloned.material = child.material.map((m: THREE.Material) => m.clone());
+        } else {
+          cloned.material = child.material.clone();
+        }
         blenderMeshes.push(cloned);
       }
     }
@@ -472,6 +469,8 @@ export default class GameObject {
 
     this.syncGraphicsToPhysics();
   }
+
+  // --- Teardown ---
 
   // tear down mesh, geometry, and physics body
   public Destroy() {

@@ -34,9 +34,15 @@ export default class Debug {
 
   // Expose logger flags directly — Physics reads these to decide whether to log.
   // Delegates to the game-registered sink (false if none registered).
-  public get LogCollisions() { return this.logSink?.LogCollisions ?? false; }
+  public get LogCollisions() {
+    if (this.logSink) return this.logSink.LogCollisions;
+    return false;
+  }
   public set LogCollisions(v: boolean) { if (this.logSink) this.logSink.LogCollisions = v; }
-  public get LogSensors() { return this.logSink?.LogSensors ?? false; }
+  public get LogSensors() {
+    if (this.logSink) return this.logSink.LogSensors;
+    return false;
+  }
   public set LogSensors(v: boolean) { if (this.logSink) this.logSink.LogSensors = v; }
 
   private camera = new CameraDebug();
@@ -45,6 +51,8 @@ export default class Debug {
   // Game-registered modules and an optional game-registered collision log sink.
   private modules: DebugModule[] = [];
   private logSink?: CollisionLogSink;
+
+  // --- Setup ---
 
   constructor() {
     // Enable debug mode with #debug in URL, or always on in dev builds
@@ -56,7 +64,9 @@ export default class Debug {
     }
   }
 
-  // ── Game module registration ────────────────────────────────────────────────
+  // --- Commands ---
+
+  // --- Game module registration ---
 
   // Register a game-provided debug module; runs Init() now if the panel is already active, else just stores it.
   public RegisterModule(module: DebugModule) {
@@ -71,7 +81,7 @@ export default class Debug {
     this.logSink = sink;
   }
 
-  // ── Camera ────────────────────────────────────────────────────────────────
+  // --- Camera ---
 
   // Wire camera debug controls into the GUI panel
   public InitCameraDebug(camera: Camera) {
@@ -83,7 +93,7 @@ export default class Debug {
     this.camera.Update(camera);
   }
 
-  // ── Physics ───────────────────────────────────────────────────────────────
+  // --- Physics ---
 
   // Wire physics debug controls into the GUI panel
   public InitPhysicsDebug(physics: Physics) {
@@ -106,7 +116,7 @@ export default class Debug {
     this.physics.SetTypeColors(colors);
   }
 
-  // ── Logging ───────────────────────────────────────────────────────────────
+  // --- Logging ---
 
   // Forward a collision log event to the game sink
   public LogCollisionEvent(obj1: GameObject, obj2: GameObject, eventType: "enter" | "exit") {
@@ -118,18 +128,7 @@ export default class Debug {
     this.logSink?.LogSensorEvent(obj1, obj2, eventType);
   }
 
-  // ── Cleanup ───────────────────────────────────────────────────────────────
-
-  // Tear down panel, stats monitor, and registered modules
-  public Destroy() {
-    this.Ui?.destroy();
-    this.Stats?.dom.parentNode?.removeChild(this.Stats.dom);
-    for (const module of this.modules) {
-      module.Destroy?.();
-    }
-  }
-
-  // ── Private ───────────────────────────────────────────────────────────────
+  // --- Private ---
 
   // Build the dat.GUI control panel
   private initPanel() {
@@ -156,5 +155,16 @@ export default class Debug {
     let suffix = " (no memory panel — Chrome flag required)";
     if (hasMemory) suffix = " / MB";
     console.log("📊 Stats Monitor Active — FPS / MS" + suffix);
+  }
+
+  // --- Teardown ---
+
+  // Tear down panel, stats monitor, and registered modules
+  public Destroy() {
+    this.Ui?.destroy();
+    this.Stats?.dom.parentNode?.removeChild(this.Stats.dom);
+    for (const module of this.modules) {
+      module.Destroy?.();
+    }
   }
 }

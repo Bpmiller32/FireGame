@@ -14,6 +14,8 @@ export default class Renderer {
 
   private Instance!: THREE.WebGLRenderer; // the raw THREE WebGL renderer
 
+  // --- Setup ---
+
   constructor() {
     this.experience = Experience.GetInstance();
     this.canvas = this.experience.TargetElement as HTMLElement;
@@ -40,16 +42,22 @@ export default class Renderer {
     this.Instance.setPixelRatio(this.sizes.PixelRatio);
   }
 
+  // --- Commands ---
+
   // resize renderer to the current window size
   public Resize() {
     this.Instance?.setSize(this.sizes.Width, this.sizes.Height);
     this.Instance?.setPixelRatio(this.sizes.PixelRatio);
   }
 
+  // --- Per-frame ---
+
   // render the scene through the active camera
   public Update() {
     this.Instance?.render(this.scene, this.camera.Instance);
   }
+
+  // --- Teardown ---
 
   public Destroy() {
     // Dispose of the WebGL renderer

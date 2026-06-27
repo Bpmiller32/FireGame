@@ -14,7 +14,7 @@ import LEVEL_NODE_TYPES from "./game/config/levelNodeTypes.ts";
 const webglRef = ref<HTMLCanvasElement | null>(null);
 const statusRef = ref<HTMLElement | null>(null);
 
-const isResetButtonVisible = ref<boolean | null>(null);
+const isResetButtonVisible = ref(false);
 
 // Loading screen: starts up so it covers initial asset loading, then the engine/
 // game emit loadingStarted/loadingFinished around every level (GLB) load. The
@@ -132,15 +132,10 @@ onUnmounted(() => {
   webglExperience?.Destroy();
 });
 
-// Reset button: clear win/over status and re-arm the game
+// Reset button: emit gameReset; the onGameReset listener clears the win/over
+// status and hides this button (same single path the F1 keybinding uses).
 const handleButtonClicked = () => {
   Emitter.emit("gameReset");
-
-  if (statusRef.value) {
-    statusRef.value.innerText = "";
-  }
-
-  isResetButtonVisible.value = false;
 };
 
 // Loading-bar fill percent from loaded/total (empty -> 0%)

@@ -51,7 +51,9 @@ interface LevelEntry {
   feelProfile: FeelProfile;
   // Whether the camera follows the player (vs a fixed single-screen view).
   cameraFollow: boolean;
-  // Optional ResourceLoader.Items key for a detailed-art overlay mesh.
+  // Optional ResourceLoader.Items key for a detailed-art overlay mesh. The overlay
+  // mechanism is kept and ready; set this (e.g. "dkGraphicsData") once a level pairs
+  // simple collision with a detailed art mesh. Rows that omit it just have no art GLB yet.
   graphics?: string;
 }
 
@@ -63,27 +65,21 @@ export const LEVEL_REGISTRY: LevelEntry[] = [
     source: levelUrl("TestLevel-Slopes.glb"),
     feelProfile: "dk",
     cameraFollow: true,
-    // graphics: omitted — the overlay mechanism is kept and ready, but this
-    // level has no matched art GLB. Set graphics: "dkGraphicsData" (or another
-    // Items key) once a level pairs simple collision with a detailed art mesh.
+    // graphics: omitted — no matched art GLB yet (see the graphics? field above).
   },
   {
     name: "Camera Testing",
     source: levelUrl("TestLevel-Camera.glb"),
     feelProfile: "dk",
     cameraFollow: false,
-    // graphics: omitted — the overlay mechanism is kept and ready, but this
-    // level has no matched art GLB. Set graphics: "dkGraphicsData" (or another
-    // Items key) once a level pairs simple collision with a detailed art mesh.
+    // graphics: omitted — no matched art GLB yet (see the graphics? field above).
   },
   {
     name: "Donkey Kong 1981",
     source: levelUrl("DonkeyKong.glb"),
     feelProfile: "dk",
     cameraFollow: false,
-    // graphics: omitted — the overlay mechanism is kept and ready, but this
-    // level has no matched art GLB. Set graphics: "dkGraphicsData" (or another
-    // Items key) once a level pairs simple collision with a detailed art mesh.
+    // graphics: omitted — no matched art GLB yet (see the graphics? field above).
   },
 ];
 

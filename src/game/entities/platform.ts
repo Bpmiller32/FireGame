@@ -15,6 +15,8 @@ export default class Platform extends GameObject {
   // (Only ever true for one-way platforms — regular platforms never toggle it.)
   public IsOneWayActive: boolean = false;
 
+  // --- Setup ---
+
   constructor(
     size: { width: number; height: number; depth: number },
     position: { x: number; y: number },
@@ -48,20 +50,24 @@ export default class Platform extends GameObject {
     this.setCollisionMask(CollisionGroups.DEFAULT);
   }
 
+  // --- Commands ---
+
   // The floor level this platform represents (used for enemy/player floor logic)
-  public SetPlatformFloorLevel(value?: number) {
-    this.FloorLevel = value ?? 0;
+  public SetPlatformFloorLevel(value: number) {
+    this.FloorLevel = value;
   }
 
   // Whether this is an edge platform (enemies turn around at its edge)
-  public SetEdgePlatform(value?: number) {
-    this.IsEdge = (value ?? 0) > 0;
+  public SetEdgePlatform(value: number) {
+    this.IsEdge = value > 0;
   }
 
   // The enable-point Y for OneWay pass-through
   public SetOneWayEnablePoint(value: number) {
     this.oneWayEnablePoint = value;
   }
+
+  // --- Per-frame ---
 
   // Per-frame: toggle one-way pass-through from player Y/state.
   public Update(player: Player) {

@@ -10,8 +10,9 @@ export const CameraFollowState = {
   JUMPING: "jumping",
 } as const;
 
-// Same-named const + type (the playerStates.ts idiom) so `CameraFollowState` is
-// usable as BOTH a value (CameraFollowState.CLIMBING) and a type annotation.
+// A const plus a type derived from it via (typeof X)[keyof typeof X] — the same
+// derivation idiom as playerStates.ts; here the const and type share one name, so
+// `CameraFollowState` is usable as BOTH a value (CameraFollowState.CLIMBING) and a type.
 export type CameraFollowState =
   (typeof CameraFollowState)[keyof typeof CameraFollowState];
 

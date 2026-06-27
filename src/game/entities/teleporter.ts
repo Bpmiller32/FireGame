@@ -31,7 +31,6 @@ export default class Teleporter extends GameSensor {
     this.setAsSensor(true);
     // Take part in the contact table even though we define no callback here.
     this.enableContactEvents();
-    this.SetTeleportPosition(0, 0);
 
     // Uncomment to visualize the teleporter volume (matches CameraSensor /
     // LadderSensor, which keep this off). The physics-debug wireframe already draws

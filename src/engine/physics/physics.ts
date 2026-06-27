@@ -23,6 +23,8 @@ export default class Physics {
   // GameObject registration system - maps collider handles to GameObjects
   private gameObjectRegistry!: Map<number, GameObject>;
 
+  // --- Setup ---
+
   // Replacement constructor to accommodate async
   public async Configure() {
     this.experience = Experience.GetInstance();
@@ -45,6 +47,8 @@ export default class Physics {
       this.debug.InitPhysicsDebug(this);
     }
   }
+
+  // --- Commands ---
 
   // Register a GameObject so it can receive collision/sensor callbacks
   // Call this when a GameObject's physics body is created
@@ -88,6 +92,14 @@ export default class Physics {
   ): GameObject | undefined {
     return this.gameObjectRegistry.get(collider.handle);
   }
+
+  // Pause or resume the physics simulation. The game decides WHEN to call this
+  // (e.g. on game over / reset); the engine just obeys — it names no game events.
+  public SetPaused(paused: boolean): void {
+    this.IsPaused = paused;
+  }
+
+  // --- Per-frame ---
 
   // Process collision events (handles both solid collisions and sensor intersections)
   // In Rapier, sensors trigger collision events - we check the sensor flag to route appropriately
@@ -194,12 +206,6 @@ export default class Physics {
     });
   }
 
-  // Pause or resume the physics simulation. The game decides WHEN to call this
-  // (e.g. on game over / reset); the engine just obeys — it names no game events.
-  public SetPaused(paused: boolean): void {
-    this.IsPaused = paused;
-  }
-
   public Update() {
     if (this.IsPaused) {
       return;
@@ -221,6 +227,8 @@ export default class Physics {
       this.debug.UpdatePhysicsDebug(this);
     }
   }
+
+  // --- Teardown ---
 
   public Destroy() {
     // Dispose of the Rapier world (guarded so a Destroy after a half-failed

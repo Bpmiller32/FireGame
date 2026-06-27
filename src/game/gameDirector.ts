@@ -146,99 +146,7 @@ export default class GameDirector {
     Emitter.on("gameObjectRemoved", this.onGameObjectRemoved);
   }
 
-  // SIM update — runs inside the fixed-timestep loop (0..N times per frame), so all
-  // movement integrates at the constant step. Camera + visual interpolation are NOT
-  // here; they run once per FRAME in RenderUpdate, decoupled from the sim rate.
-  public Update() {
-    // Freeze game logic while a level is loading (entities are being torn down /
-    // respawned; the Vue loading screen covers the canvas). Re-entrancy is also
-    // guarded in loadLevelByIndex.
-    if (this.isLoading) return;
-
-    // Guard: Player must be ready
-    if (!this.Player?.PhysicsBody) return;
-
-    this.Player.Update();
-
-    // Spawn + update enemies (runtime-spawned, not level-data), driven by the frame
-    // clock here. Compact destroyed barrels in place right after — promptly, and
-    // keeping the array reference stable (was a 5s wall-clock sweep).
-    // TODO: uncomment for enemies
-    // this.trySpawn();
-    const firstTrashCan = this.TrashCans[0];
-    this.Enemies.forEach((enemy) => enemy.Update(this.Player, firstTrashCan));
-    GameUtils.CompactDestroyedObjects(this.Enemies);
-
-    // Update every level-data entity that has an update, in one uniform loop.
-    // Runs AFTER player.update() so the platform one-way toggle reads this frame's
-    // player state. Entities without an update are skipped. (WinFlag no longer
-    // updates — it wins via the contact table, not a per-frame shapecast.)
-    const updatableLevelEntities: UpdatableEntity[] = this.Platforms;
-    for (const e of updatableLevelEntities) {
-      e.Update?.(this.Player, firstTrashCan);
-    }
-
-    // Update ladder detection (manual for now, will convert to sensor callbacks later)
-    this.Player.UpdateLadderState(
-      GameUtils.IsAnySensorTriggered(this.LadderTopSensors),
-      GameUtils.IsAnySensorTriggeredObjectFullyInside(
-        this.LadderCoreSensors,
-        this.Player,
-      ),
-      GameUtils.IsAnySensorTriggered(this.LadderBottomSensors),
-    );
-  }
-
-  // RENDER update — runs once per FRAME (Experience.OnRenderUpdate) with the
-  // interpolation alpha. Lerps the moving entities between their last two sim states
-  // so motion is smooth ABOVE the sim rate, then follows the interpolated player
-  // with the camera. Render and sim rates are fully decoupled — buttery on a 144Hz
-  // display, no judder on a 60Hz one.
-  public RenderUpdate(alpha: number) {
-    if (this.isLoading) return;
-    if (!this.Player?.PhysicsBody) return;
-
-    this.Player.InterpolateGraphics(alpha);
-    for (const enemy of this.Enemies) {
-      enemy.InterpolateGraphics(alpha);
-    }
-
-    // Camera follows the interpolated visual position (C5 decouple: plain snapshot).
-    this.camera.Update(this.cameraTargetFromPlayer(this.Player));
-  }
-
-  // Map the Player into the engine's CameraTarget (C5 decouple). The camera reads
-  // only these scalars, never the game Player/PlayerState directly — so camera.ts
-  // no longer imports anything from game/.
-  private cameraTargetFromPlayer(player: Player): CameraTarget {
-    let followState: CameraFollowState;
-    switch (player.State) {
-      case PlayerStates.CLIMBING:
-        followState = CameraFollowState.CLIMBING;
-        break;
-      case PlayerStates.FALLING:
-        followState = CameraFollowState.FALLING;
-        break;
-      case PlayerStates.JUMPING:
-        followState = CameraFollowState.JUMPING;
-        break;
-      default:
-        followState = CameraFollowState.GROUNDED;
-    }
-
-    return {
-      // Follow the INTERPOLATED render position (set by InterpolateGraphics just
-      // before this in RenderUpdate) so the camera tracks the smooth visual player,
-      // not the stepped sim position.
-      x: player.RenderTranslation.x,
-      y: player.RenderTranslation.y,
-      velocityX: player.NextTranslation.x,
-      followState,
-      isGrounded: player.IsTouching.ground,
-    };
-  }
-
-  // LEVEL MANAGEMENT
+  // --- Level management ---
 
   // Load a level from a GLB file (Blender/Blockbench export). glbPath is the
   // bundled GLB URL, normally the registry entry's source (via levelRegistry.levelUrl).
@@ -337,7 +245,7 @@ export default class GameDirector {
     }
   }
 
-  // LEVEL SPAWN POINTS
+  // --- Level spawn points ---
 
   // Spawn or teleport the player to the level's PlayerStart
   private setPlayerStart() {
@@ -370,7 +278,7 @@ export default class GameDirector {
     }
   }
 
-  // GAME STATE MANAGEMENT
+  // --- Game state ---
 
   // Reset game to initial state
   private resetGameState() {
@@ -517,7 +425,7 @@ export default class GameDirector {
     await this.loadLevelByIndex(next);
   }
 
-  // FEEL PROFILES
+  // --- Feel profiles ---
 
   // Apply a feel profile to the current player. Feel is the single source of truth:
   // set ONLY from the loading level's registry entry — no live debug swap bypasses
@@ -527,7 +435,7 @@ export default class GameDirector {
     FEEL_PROFILES[profile](this.Player);
   }
 
-  // ENEMY SPAWNING
+  // --- Enemy spawning ---
 
   // Frame-driven enemy spawning (called once per frame from Update). Replaces the old
   // wall-clock setInterval: one clock now (Time.Delta), and a fresh boot spawns
@@ -592,7 +500,101 @@ export default class GameDirector {
     this.Enemies.push(enemy);
   }
 
-  // CLEANUP
+  // --- Per-frame ---
+
+  // SIM update — runs inside the fixed-timestep loop (0..N times per frame), so all
+  // movement integrates at the constant step. Camera + visual interpolation are NOT
+  // here; they run once per FRAME in RenderUpdate, decoupled from the sim rate.
+  public Update() {
+    // Freeze game logic while a level is loading (entities are being torn down /
+    // respawned; the Vue loading screen covers the canvas). Re-entrancy is also
+    // guarded in loadLevelByIndex.
+    if (this.isLoading) return;
+
+    // Guard: Player must be ready
+    if (!this.Player?.PhysicsBody) return;
+
+    this.Player.Update();
+
+    // Spawn + update enemies (runtime-spawned, not level-data), driven by the frame
+    // clock here. Compact destroyed barrels in place right after — promptly, and
+    // keeping the array reference stable (was a 5s wall-clock sweep).
+    // TODO: uncomment for enemies
+    // this.trySpawn();
+    const firstTrashCan = this.TrashCans[0];
+    this.Enemies.forEach((enemy) => enemy.Update(this.Player, firstTrashCan));
+    GameUtils.CompactDestroyedObjects(this.Enemies);
+
+    // Update every level-data entity that has an update, in one uniform loop.
+    // Runs AFTER player.update() so the platform one-way toggle reads this frame's
+    // player state. Entities without an update are skipped. (WinFlag no longer
+    // updates — it wins via the contact table, not a per-frame shapecast.)
+    const updatableLevelEntities: UpdatableEntity[] = this.Platforms;
+    for (const e of updatableLevelEntities) {
+      e.Update?.(this.Player, firstTrashCan);
+    }
+
+    // Update ladder detection (manual for now, will convert to sensor callbacks later)
+    this.Player.UpdateLadderState(
+      GameUtils.IsAnySensorTriggered(this.LadderTopSensors),
+      GameUtils.IsAnySensorTriggeredObjectFullyInside(
+        this.LadderCoreSensors,
+        this.Player,
+      ),
+      GameUtils.IsAnySensorTriggered(this.LadderBottomSensors),
+    );
+  }
+
+  // RENDER update — runs once per FRAME (Experience.OnRenderUpdate) with the
+  // interpolation alpha. Lerps the moving entities between their last two sim states
+  // so motion is smooth ABOVE the sim rate, then follows the interpolated player
+  // with the camera. Render and sim rates are fully decoupled — buttery on a 144Hz
+  // display, no judder on a 60Hz one.
+  public RenderUpdate(alpha: number) {
+    if (this.isLoading) return;
+    if (!this.Player?.PhysicsBody) return;
+
+    this.Player.InterpolateGraphics(alpha);
+    for (const enemy of this.Enemies) {
+      enemy.InterpolateGraphics(alpha);
+    }
+
+    // Camera follows the interpolated visual position (C5 decouple: plain snapshot).
+    this.camera.Update(this.cameraTargetFromPlayer(this.Player));
+  }
+
+  // Map the Player into the engine's CameraTarget (C5 decouple). The camera reads
+  // only these scalars, never the game Player/PlayerState directly — so camera.ts
+  // no longer imports anything from game/.
+  private cameraTargetFromPlayer(player: Player): CameraTarget {
+    let followState: CameraFollowState;
+    switch (player.State) {
+      case PlayerStates.CLIMBING:
+        followState = CameraFollowState.CLIMBING;
+        break;
+      case PlayerStates.FALLING:
+        followState = CameraFollowState.FALLING;
+        break;
+      case PlayerStates.JUMPING:
+        followState = CameraFollowState.JUMPING;
+        break;
+      default:
+        followState = CameraFollowState.GROUNDED;
+    }
+
+    return {
+      // Follow the INTERPOLATED render position (set by InterpolateGraphics just
+      // before this in RenderUpdate) so the camera tracks the smooth visual player,
+      // not the stepped sim position.
+      x: player.RenderTranslation.x,
+      y: player.RenderTranslation.y,
+      velocityX: player.NextTranslation.x,
+      followState,
+      isGrounded: player.IsTouching.ground,
+    };
+  }
+
+  // --- Teardown ---
 
   public Destroy() {
     // Remove EXACTLY our handlers (pass the ref) so we don't wipe other modules'

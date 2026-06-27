@@ -60,8 +60,8 @@ export default class Enemy extends GameObject {
   private bounceVelocityY!: number; // current vertical velocity, integrated by gravity
   private bounceDirection!: number; // horizontal drift sign (+1 right / -1 left)
 
-  // FSM state (replaces the old performSpecialRoll flag — DESCENDING ⇔ "taking
-  // the ladder"). Public so the engine StateMachine can read/dispatch it.
+  // FSM state — DESCENDING means the barrel is taking a ladder. Public so the
+  // engine StateMachine can read/dispatch it.
   public State!: EnemyState;
   private fsm!: StateMachine<Enemy, EnemyState>;
 
@@ -102,6 +102,8 @@ export default class Enemy extends GameObject {
       this.ladderBottomCooldown = LADDER_BOTTOM_COOLDOWN;
     }
   };
+
+  // --- Setup ---
 
   constructor(
     size: number,
@@ -161,7 +163,8 @@ export default class Enemy extends GameObject {
     });
   }
 
-  // Collision callbacks
+  // --- Callbacks ---
+
   // The barrel's own movement reactions to the world it rolls through: reverse at walls, track grounded
   // on platforms. (Killing the player / igniting the can are cross-entity verdicts — they live in contactRules.ts.)
   public OnCollisionEnter(other: GameObject): void {
@@ -234,7 +237,8 @@ export default class Enemy extends GameObject {
     }
   }
 
-  // State-handler helpers
+  // --- Commands ---
+
   // Decide whether to take the ladder the barrel is currently inside. Always take it while the oil can is
   // unlit (the relentless DK opening, until the first barrel lights the can); otherwise a fixed max-difficulty chance.
   public DecideTakeLadder(): boolean {
@@ -292,7 +296,8 @@ export default class Enemy extends GameObject {
     this.PhysicsBody!.setLinvel(this.scratchVel, true);
   }
 
-  // Frame update
+  // --- Per-frame ---
+
   // Refresh this frame's ladder inputs by polling sensor intersections (NOT event-driven — the hard-won
   // "fully inside" climb idiom, D9), gated by the bottom cooldown. The handlers consume these flags.
   private checkLadderIntersections() {

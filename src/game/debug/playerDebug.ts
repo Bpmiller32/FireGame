@@ -73,6 +73,8 @@ export default class PlayerDebug implements DebugModule {
   private player: Player; // the player whose live state we mirror
   private clickHandler: ((e: MouseEvent) => void) | null = null; // active teleport click listener, null when off
 
+  // --- Setup ---
+
   constructor(player: Player) {
     this.player = player;
   }
@@ -162,7 +164,7 @@ export default class PlayerDebug implements DebugModule {
     timers.add(player, "TimeJumpWasEntered").name("Jump Entered Time").listen();
     timers.add(player, "TimeFallWasEntered").name("Fall Entered Time").listen();
 
-    // ── 🎚️ Feel Lab — live writable tuning sliders ───────────────────────────
+    // --- Feel Lab — live writable tuning sliders ---
     // Handlers read these fields fresh each frame, so a slider mutates feel
     // instantly. The base profile itself is applied on level load from the
     // registry (single source of truth); Dump prints the tuned values paste-ready.
@@ -362,7 +364,7 @@ export default class PlayerDebug implements DebugModule {
     };
     feel.add(actions, "dump").name("📋 Dump Feel Values");
 
-    // ── 🔬 Diagnostics — floor-clip ring buffer (Bug-1) ───────────────────────
+    // --- Diagnostics — floor-clip ring buffer (Bug-1) ---
     // Live console log toggle + a rolling ~3s trace dumped on demand. Catch the rare
     // floor-clip: it's always recording, so reproduce it then click Dump to get the
     // frames that led up to it. "De-pen Fires" is the regression canary — it should
@@ -374,10 +376,7 @@ export default class PlayerDebug implements DebugModule {
     diag.add(diagActions, "dump").name("📋 Dump 3s Trace");
   }
 
-  // Cleanup: drop the teleport click listener.
-  public Destroy() {
-    this.removeClickToTeleport();
-  }
+  // --- Helpers ---
 
   // Prints the player's current feel values as a paste-ready block, split by
   // where each field lives (shared baseFeel.ts vs the per-profile setters), and
@@ -462,7 +461,10 @@ export default class PlayerDebug implements DebugModule {
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouse, experience.Camera.Instance);
 
-      const playerZ = player.CurrentTranslation.z ?? 0;
+      let playerZ = player.CurrentTranslation.z;
+      if (playerZ === undefined) {
+        playerZ = 0;
+      }
       const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -playerZ);
       const worldPosition = new THREE.Vector3();
       raycaster.ray.intersectPlane(plane, worldPosition);
@@ -483,5 +485,12 @@ export default class PlayerDebug implements DebugModule {
       window.removeEventListener("click", this.clickHandler);
       this.clickHandler = null;
     }
+  }
+
+  // --- Teardown ---
+
+  // Cleanup: drop the teleport click listener.
+  public Destroy() {
+    this.removeClickToTeleport();
   }
 }

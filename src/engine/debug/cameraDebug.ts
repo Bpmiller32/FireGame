@@ -45,6 +45,8 @@ const ROTATE_SPEED = 0.02; // radians per frame for A/D yaw
 
 // Adds a Camera Debug folder to dat.GUI; handles per-frame WASD/QE/12/~ camera movement.
 export default class CameraDebug {
+  // --- Setup ---
+
   // Build the Camera dat.GUI folder: transform readouts + tuning knobs.
   public Init(ui: dat.GUI, camera: Camera) {
     const folder = ui.addFolder("📷 Camera Debug");
@@ -94,6 +96,8 @@ export default class CameraDebug {
     tuning.add(camera.Tuning, "fallLeadY").name("Fall Lead Y").min(-10).max(10).step(0.25);
     tuning.close();
   }
+
+  // --- Per-frame ---
 
   // Per-frame manual camera move: WASD/QE pan, 1/2 zoom or raise, ~ toggle.
   public Update(camera: Camera) {

@@ -19,6 +19,8 @@ export default class SpriteAnimator {
   public State: SpriteState;
   public Material!: THREE.SpriteMaterial;
 
+  // --- Setup ---
+
   constructor(
     spriteSheet: THREE.Texture,
     tilesHorizontal: number,
@@ -71,7 +73,9 @@ export default class SpriteAnimator {
     );
   }
 
-  public ChangeState(newState: { indicies: number[]; timing: number[] }) {
+  // --- Commands ---
+
+  public ChangeState(newState: SpriteState) {
     // Skip if already in this state (don't reset the animation every frame)
     if (this.State === newState) {
       return;
@@ -92,6 +96,8 @@ export default class SpriteAnimator {
 
     this.timingMultiplier = newTimingMultiplier;
   }
+
+  // --- Per-frame ---
 
   public Update(deltaTime: number) {
     this.elapsedTime += deltaTime;
@@ -126,6 +132,8 @@ export default class SpriteAnimator {
       this.Material.map!.offset.y = offsetY;
     }
   }
+
+  // --- Teardown ---
 
   public Destroy() {
     // Dispose ONLY the material — NOT this.Material.map. The map is the shared

@@ -1,4 +1,4 @@
-// Used to pass all window/dom element sizes to Element and its children
+// Used to pass all window/dom element sizes to Experience and its children
 
 import Emitter from "../events/eventBus";
 
