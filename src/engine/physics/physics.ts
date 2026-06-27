@@ -51,7 +51,6 @@ export default class Physics {
   // --- Commands ---
 
   // Register a GameObject so it can receive collision/sensor callbacks
-  // Call this when a GameObject's physics body is created
   public RegisterGameObject(gameObject: GameObject) {
     if (!gameObject.PhysicsBody) {
       console.warn("Cannot register GameObject without a physics body");
@@ -67,7 +66,6 @@ export default class Physics {
   }
 
   // Unregister a GameObject when it's destroyed
-  // Call this during GameObject destruction
   public UnregisterGameObject(gameObject: GameObject) {
     if (!gameObject.PhysicsBody) {
       return;
@@ -82,11 +80,9 @@ export default class Physics {
   }
 
   // Resolve a collider to its owning GameObject (or undefined if unregistered).
-  // Lets a kinematic character controller feed its OWN contacts into the contact
-  // registry: a kinematic body keeps a skin gap from solids it moves into, so
-  // Rapier emits no collision event for it as the mover — but the controller's
-  // computed collisions still report what it touched. The game can resolve those
-  // to GameObjects and Dispatch them, so the same contact rules fire either way.
+  // Lets a kinematic controller feed its OWN contacts in: a kinematic mover keeps
+  // a skin gap so Rapier emits no collision event for it — it must resolve and
+  // Dispatch its computed collisions itself for the contact rules to fire.
   public GetGameObjectFromCollider(
     collider: RAPIER.Collider
   ): GameObject | undefined {
@@ -101,9 +97,8 @@ export default class Physics {
 
   // --- Per-frame ---
 
-  // Process collision events (handles both solid collisions and sensor intersections)
-  // In Rapier, sensors trigger collision events - we check the sensor flag to route appropriately
-  // Called automatically during physics update
+  // Process collision events. In Rapier sensors also fire collision events, so
+  // check the sensor flag to route solids vs sensor intersections.
   private handleCollisionEvents() {
     this.EventQueue.drainCollisionEvents((handle1, handle2, started) => {
       const collider1 = this.World.getCollider(handle1);
@@ -211,15 +206,12 @@ export default class Physics {
       return;
     }
 
-    // Time.Delta is the FIXED simulation timestep (set by the frame loop), so each
-    // physics step is constant and reproducible. No clamp needed — the frame loop
-    // bounds how often we step (the old Math.min(..., 0.1) was dead code anyway,
-    // since Time.Delta was already capped well below 0.1).
+    // Time.Delta is the FIXED simulation timestep, so each step is constant and
+    // reproducible. No clamp needed — the frame loop bounds how often we step.
     this.World.timestep = this.experience.Time.Delta;
     this.World.step(this.EventQueue);
 
     // Process collision and sensor events
-    // Sensors are routed through collision events by checking the sensor flag
     this.handleCollisionEvents();
 
     // Run debug physics logic if needed
@@ -231,8 +223,8 @@ export default class Physics {
   // --- Teardown ---
 
   public Destroy() {
-    // Dispose of the Rapier world (guarded so a Destroy after a half-failed
-    // Configure — e.g. RAPIER.init() threw before World was built — doesn't cascade).
+    // Dispose the Rapier world (guarded: a Destroy after a half-failed Configure
+    // must not cascade).
     this.World?.free();
 
     // Tear down the debug wireframe (PhysicsDebug owns its own mesh)

@@ -12,15 +12,11 @@ const setCelesteAttributes = (player: Player) => {
   player.GroundAcceleration = 120;
   // The pace at which the player comes to a stop (on the ground)
   player.GroundDeceleration = 30;
-  // Air control — accel/decel while airborne. Default equal to ground (no air
-  // difference); diverge in the Feel Lab for floatier or draggier air control.
+  // Air control — accel/decel while airborne. Default equal to ground; diverge in the Feel Lab.
   player.AirAcceleration = 120;
   player.AirDeceleration = 30;
 
-  // Jump arc time-scaled ~2x from the original labbed feel (slow-mo -> snappy):
-  // velocities x2, accelerations x4, jump times x0.5 — SAME apex height, half the
-  // airtime. Tune live in the Feel Lab. (Original: JumpPower 64 / RiseGravity 90 /
-  // Fall 110 / MaxFall 40 / ApexHang 10x0.5 / MinJumpTime 0.12.)
+  // Jump arc time-scaled ~2x from labbed feel: same apex height, half the airtime. Tune in Feel Lab.
 
   // The maximum vertical movement speed (terminal fall velocity)
   player.MaxFallSpeed = 80;

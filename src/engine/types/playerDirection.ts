@@ -1,19 +1,10 @@
-// Player direction constants — signed numeric values for movement (velocity), collision (shapecast), and animation (sprite flip). NEUTRAL = no directional input.
+// Signed direction constants for movement, shapecasts, and sprite flip. NEUTRAL = no input.
 const PlayerDirection = {
-  // No direction / centered — no input or vertical-only checks
-  NEUTRAL: 0,
-
-  // Rightward — positive X (+1)
-  RIGHT: 1,
-
-  // Leftward — negative X (-1)
-  LEFT: -1,
-
-  // Upward — positive Y (+1); jumping, climbing up, ceiling detection
-  UP: 1,
-
-  // Downward — negative Y (-1); falling, climbing down, ground detection
-  DOWN: -1,
+  NEUTRAL: 0, // no input / vertical-only checks
+  RIGHT: 1, // +X
+  LEFT: -1, // -X
+  UP: 1, // +Y (jump, climb up, ceiling checks)
+  DOWN: -1, // -Y (fall, climb down, ground checks)
 } as const;
 
 export default PlayerDirection;

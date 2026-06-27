@@ -15,17 +15,14 @@ const handlePlayerJumping = (player: Player) => {
     return;
   }
 
-  // Natural apex — rise gravity has decelerated the launch impulse to zero. The
-  // peak emerges from physics now, not a fixed MaxJumpTime timer.
+  // Natural apex: rise gravity decelerated the impulse to zero. Physics-driven, not a fixed timer.
   if (player.NextTranslation.y <= 0) {
     player.TimeFallWasEntered = player.Time.Elapsed;
     player.State = PlayerStates.FALLING;
     return;
   }
 
-  // Variable height — releasing jump past the MinJumpTime floor latches an
-  // "early end", which boosts rise gravity below so the player peaks lower.
-  // Holding keeps the full arc. (Stays in JUMPING; the apex check above ends it.)
+  // Variable height: releasing past MinJumpTime latches "early end", which boosts rise gravity so the peak is lower.
   if (
     !player.Input.isJump &&
     player.Time.Elapsed > player.TimeJumpWasEntered + player.MinJumpTime
@@ -73,10 +70,8 @@ const handlePlayerJumping = (player: Player) => {
   }
 
   // Jump Logic (Y Axis)
-  // Rise gravity decelerates the upward impulse (set to JumpPower on jump entry)
-  // so the apex emerges naturally. A full jump floats near the top (apex hang);
-  // an early-released jump instead falls away fast (variable height). The two are
-  // mutually exclusive — a cut jump gets no hang.
+  // Rise gravity decelerates the upward impulse so the apex emerges.
+  // Full jump = apex hang; cut jump = fast fall. Mutually exclusive (else-if), so a cut jump gets no hang.
   let riseGravity = player.RiseGravity;
   if (player.EndedJumpEarly) {
     riseGravity *= player.JumpEndedEarlyGravityModifier;

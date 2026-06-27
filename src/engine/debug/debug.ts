@@ -5,13 +5,11 @@ import CameraDebug from "./cameraDebug";
 import PhysicsDebug from "./physicsDebug";
 import GameObject from "../entities/gameObject";
 
-// Forward types to avoid circular imports — Camera/Physics all depend on
-// Experience which depends on Debug. Sub-modules carry their own forward types.
+// Forward types to avoid circular imports (Camera/Physics → Experience → Debug).
 type Camera = any;
 type Physics = any;
 
 // A debug panel/overlay the game plugs in; engine knows only this shape, never a concrete module.
-// Init(ui): build dat.GUI folders when ready. Destroy(): optional teardown.
 export interface DebugModule {
   Init?(ui: dat.GUI): void;
   Destroy?(): void;
@@ -26,7 +24,6 @@ export interface CollisionLogSink {
 }
 
 // Debug coordinator: owns the dat.GUI panel + Stats.js monitor, delegates to focused sub-modules.
-// Camera/Physics wired in-engine; game sub-modules register via RegisterModule() so engine names no game concepts.
 export default class Debug {
   public IsActive: boolean;
   public Ui?: dat.GUI;
@@ -111,7 +108,7 @@ export default class Debug {
   }
 
   // Inject the game's wireframe palette (entity-type -> color); engine forwards it opaquely to PhysicsDebug.
-  // Safe to call when inactive — PhysicsDebug only reads it while rendering, which only runs when active.
+  // Safe to call when inactive.
   public SetPhysicsTypeColors(colors: Map<string, THREE.Color>) {
     this.physics.SetTypeColors(colors);
   }

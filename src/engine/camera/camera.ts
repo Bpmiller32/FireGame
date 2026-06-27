@@ -9,10 +9,8 @@ import Input from "../input/input";
 import Time from "../core/time";
 import Emitter from "../events/eventBus";
 
-// Camera-follow tuning knobs (live-editable via the Camera Debug GUI folder).
-// Mario-Wonder-style pan: X eases a look-ahead toward travel direction; Y follows only
-// sustained/intentional vertical motion (climb, fall past buffer, land), ignores jump arcs.
-// *Rate = responsiveness for exponential smoothing (alpha = 1 - e^(-rate*dt)); distances in world units.
+// Camera-follow tuning knobs (live-editable via Camera Debug GUI).
+// *Rate fields = exp-smoothing responsiveness (alpha = 1 - e^(-rate*dt)); distances in world units.
 interface CameraTuning {
   lookaheadX: number; // horizontal offset placed ahead of the player
   lookaheadRate: number; // how fast the look-ahead eases toward its goal
@@ -169,10 +167,8 @@ export default class Camera {
     }
   }
 
-  // Pin the camera's rest anchor to an authored CameraSensor zone (CameraSensor enter rule).
-  // Non-follow level: eases to this anchor on BOTH axes (authored x,y spots).
-  // Follow level: only Y matters — pins the grounded vertical baseline (follow drives X off the player);
-  // an intentional vertical move (climb / real fall) releases the pin.
+  // Pin the rest anchor to a CameraSensor zone. Non-follow: eases to x,y. Follow: only Y pins
+  // (X tracks the player); an intentional vertical move (climb / real fall) releases the pin.
   public SetBaselinePosition(x: number, y: number) {
     this.baselineX = x;
     this.baselineY = y;
@@ -214,10 +210,8 @@ export default class Camera {
 
   // --- Per-frame ---
 
-  // Frame-rate-correct exponential smoothing toward a target value. Uses FrameDelta
-  // (real per-frame time) because the camera runs in the per-frame RENDER pass, not
-  // the fixed-step sim — so it follows the interpolated player smoothly at the
-  // display's refresh rate.
+  // Frame-rate-correct exp smoothing toward target. Uses FrameDelta (render-pass time, not
+  // the fixed-step sim) so it tracks the interpolated player at the display refresh rate.
   private smooth(current: number, target: number, rate: number): number {
     const alpha = 1 - Math.exp(-rate * this.Time.FrameDelta);
     return current + (target - current) * alpha;
@@ -299,9 +293,8 @@ export default class Camera {
           break;
 
         default:
-          // IDLE / RUNNING (grounded). Rest at the authored baseline if a
-          // CameraSensor pinned one; otherwise re-baseline to the player's standing
-          // Y so walking up terrain pans the camera up (platform-snap on landing).
+          // IDLE / RUNNING (grounded): rest at the sensor-pinned baseline, else re-baseline to
+          // the player's standing Y so walking up terrain pans the camera up.
           if (target.isGrounded && !this.hasSensorBaseline) {
             this.baselineY = target.y;
           }
@@ -309,9 +302,8 @@ export default class Camera {
           verticalRate = this.Tuning.verticalRateGround;
       }
     } else {
-      // Non-follow level: the camera is a fixed/zone camera positioned by
-      // CameraStart + CameraSensor zones (SetBaselinePosition). Ease toward the
-      // authored anchor on BOTH axes (full x,y zones); the player is not tracked.
+      // Non-follow level: fixed/zone camera positioned by CameraStart + CameraSensor zones.
+      // Ease toward the authored anchor on BOTH axes; the player is not tracked.
       targetX = this.baselineX;
       targetY = this.baselineY;
       verticalRate = this.Tuning.verticalRateGround;

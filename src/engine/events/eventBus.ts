@@ -11,9 +11,7 @@ type EngineEventMap = {
   resourcesReady: void;
   resourceLoadFailed: string;
 
-  // Per-asset progress for the initial resource load (textures/models). The
-  // presentation layer can render a real progress bar from this. Engine-pure:
-  // `item` is a generic resource key, never a game concept.
+  // Per-asset progress for initial resource load. Engine-pure: `item` is a generic key, never a game concept.
   loadingProgress: { loaded: number; total: number; item: string };
 };
 

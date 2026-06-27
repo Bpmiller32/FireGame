@@ -12,9 +12,8 @@ import Input from "../input/input";
 import Physics from "../physics/physics";
 
 export default class Experience {
-  // Class prop instance and "new" blocking constructor for Singleton.
-  // Nullable so Destroy() can clear it and a fresh GetInstance()/Configure() works
-  // (HMR, tests, a restart) instead of handing back a torn-down instance.
+  // Singleton instance + private constructor. Nullable so Destroy() can clear it
+  // and a fresh GetInstance()/Configure() works (HMR/tests/restart).
   private static instance: Experience | undefined;
   private constructor() {}
 
@@ -32,15 +31,11 @@ export default class Experience {
   public Renderer!: Renderer;
   public Physics!: Physics;
 
-  // Late-bound game update hook. The game layer assigns this; the engine just
-  // calls it each frame between physics and renderer. Keeps the engine core
-  // from naming any game class.
+  // Late-bound game update hook, called each sim step between physics and render.
   public OnGameUpdate: (() => void) | null = null;
 
-  // Late-bound per-FRAME render hook, called once after the fixed-step sim loop
-  // with the interpolation alpha (accumulator / fixed step). The game uses it to
-  // interpolate visuals and drive the camera, so rendering stays smooth above the
-  // sim rate. Stays engine-pure — names no game class.
+  // Late-bound per-frame render hook, called once after the sim loop with the
+  // interpolation alpha (accumulator / fixed step) in [0,1).
   public OnRenderUpdate: ((alpha: number) => void) | null = null;
 
   // Stored event handler references for cleanup
@@ -106,11 +101,9 @@ export default class Experience {
         this.Debug.Stats?.begin();
       }
 
-      // Fixed-timestep simulation. Accumulate real frame time and advance the sim
-      // (physics + game update) in constant FixedTimestep steps, then render once.
-      // This makes physics and movement frame-rate-independent and the sim
-      // reproducible. FrameDelta is clamped in Time, so the per-frame step count is
-      // bounded; maxStepsPerFrame is a final safety net.
+      // Fixed-timestep sim: advance physics + game in constant FixedTimestep steps
+      // so movement is frame-rate-independent. FrameDelta is clamped in Time;
+      // maxStepsPerFrame is a final catch-up safety net.
       this.accumulator += this.Time.FrameDelta;
       const dt = Time.FixedTimestep;
       let steps = 0;
@@ -122,9 +115,8 @@ export default class Experience {
         steps++;
       }
 
-      // Render once per frame, interpolated between the last two sim states by how
-      // far we are into the next step (alpha in [0,1)). Buttery above the sim rate,
-      // no judder below — render and sim rates are fully decoupled.
+      // Render once per frame, interpolated between the last two sim states by
+      // alpha in [0,1). Render and sim rates are decoupled.
       const alpha = this.accumulator / dt;
       this.OnRenderUpdate?.(alpha);
       this.Renderer.Update();
@@ -143,9 +135,8 @@ export default class Experience {
     Emitter.off("resize", this.onResize);
     Emitter.off("tick", this.onTick);
 
-    // Optional chaining so a Destroy after a partially-failed Configure (e.g. the
-    // physics WASM init threw mid-init) tears down whatever exists instead of
-    // cascading on the first missing subsystem.
+    // Optional chaining so Destroy after a partially-failed Configure tears down
+    // whatever exists instead of throwing on the first missing subsystem.
     this.Sizes?.Destroy();
     this.Time?.Destroy();
     this.Input?.Destroy();

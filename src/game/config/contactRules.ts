@@ -1,4 +1,5 @@
-// Declarative cross-entity contact table for this game (who dies/wins/teleports); engine side is Physics.Contacts. Match by TYPE flag, two-sided dispatch. An entity's OWN movement reactions (e.g. enemy reversing at a wall) live with the entity, not here.
+// Cross-entity contact rules (who dies/wins/teleports), matched by TYPE flag, two-sided dispatch.
+// An entity's OWN movement reactions (e.g. enemy reversing at a wall) live with the entity, not here.
 
 import ContactRegistry, {
   ContactMatch,
@@ -19,8 +20,7 @@ const byType = (type: string): ContactMatch => (go: GameObject) =>
 // Register this game's contact rules into the engine's contact registry.
 // Called once at startup (App.vue), after the engine is configured.
 export default function registerContactRules(contacts: ContactRegistry) {
-  // Enemy touches Player -> game over. Two-sided: fires whether the player ran
-  // into the enemy or the enemy rolled into the player ("any touch registers").
+  // Enemy touches Player -> game over. Two-sided: any touch registers.
   contacts.Add(
     byType(EntityType.ENEMY),
     byType(EntityType.PLAYER),

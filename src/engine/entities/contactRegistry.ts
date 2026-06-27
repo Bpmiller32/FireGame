@@ -1,9 +1,7 @@
-// Contact registry — a declarative "when an A contacts a B, run this" table over
-// the physics event dispatch (Physics.handleCollisionEvents). The game declares
-// rules as data (game/config/contactRules.ts); this engine class is generic and
-// names no game concept (same spirit as StateMachine). Dispatch is two-sided: a
-// rule is tested as (x, y) and (y, x), so it fires no matter which body moved;
-// the handler always gets args in the rule's own (a, b) order.
+// Declarative "when an A contacts a B, run this" table over the physics event
+// dispatch. Engine-generic (names no game concept); rules are declared as data.
+// Dispatch is two-sided: tested as (x, y) and (y, x) so it fires no matter which
+// body moved, but the handler always gets args in the rule's own (a, b) order.
 
 import GameObject from "./gameObject";
 
@@ -31,9 +29,8 @@ export default class ContactRegistry {
     this.rules.push({ a, b, phase, run });
   }
 
-  // Called by Physics for each contact event. Fires every matching rule. The
-  // `else if` makes a symmetric pair fire a rule once, not twice, and keeps the
-  // handler's argument order matching how the rule was declared.
+  // Called by Physics per contact event; fires every matching rule. The `else if`
+  // is load-bearing: a symmetric pair fires once, not twice, in declared (a, b) order.
   public Dispatch(phase: ContactPhase, x: GameObject, y: GameObject) {
     for (const rule of this.rules) {
       if (rule.phase !== phase) {

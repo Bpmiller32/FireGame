@@ -1,10 +1,9 @@
-// Single source of truth for playable levels + per-level setup (feel profile, camera follow, optional GLB art overlay). Levels are GLB-only; ResourceLoader parses each source URL into LevelData.
+// Single source of truth for playable levels + per-level setup. Levels are GLB-only; ResourceLoader parses each source URL into LevelData.
 
 import setDkAttributes from "../attributes/setDkAttributes";
 import setCelesteAttributes from "../attributes/setCelesteAttributes";
 
-// Level GLB auto-discovery: GLBs in src/assets/levels are Vite-bundled (hashed), NOT in public/. import.meta.glob eagerly collects every *.glb as its bundled URL; add a level by dropping the .glb and adding a LEVEL_REGISTRY row that references it via levelUrl().
-// NOTE (lean): the eager glob bundles EVERY .glb in the folder whether or not a row references it — delete unused level GLBs from src/assets/levels to stay lean.
+// Auto-discover level GLBs in src/assets/levels (Vite-bundled, hashed). Eager glob bundles EVERY .glb in the folder whether referenced or not — delete unused ones to stay lean.
 const levelGlbUrls = import.meta.glob("../../assets/levels/*.glb", {
   query: "?url",
   import: "default",
@@ -33,7 +32,7 @@ function levelUrl(fileName: string): string {
   return url;
 }
 
-// Feel-profile name -> setter that applies it to a player. applyFeelProfile resolves a level's `feelProfile` against this table — one identity table so data and setter can't drift.
+// Feel-profile name -> setter. One identity table so data and setter can't drift.
 export const FEEL_PROFILES = {
   dk: setDkAttributes,
   celeste: setCelesteAttributes,
@@ -51,9 +50,7 @@ interface LevelEntry {
   feelProfile: FeelProfile;
   // Whether the camera follows the player (vs a fixed single-screen view).
   cameraFollow: boolean;
-  // Optional ResourceLoader.Items key for a detailed-art overlay mesh. The overlay
-  // mechanism is kept and ready; set this (e.g. "dkGraphicsData") once a level pairs
-  // simple collision with a detailed art mesh. Rows that omit it just have no art GLB yet.
+  // Optional ResourceLoader.Items key for a detailed-art overlay mesh (e.g. "dkGraphicsData"). Omit if a level has no art GLB yet.
   graphics?: string;
 }
 

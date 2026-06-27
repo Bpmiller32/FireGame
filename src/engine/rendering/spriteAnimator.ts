@@ -49,21 +49,11 @@ export default class SpriteAnimator {
       map: spriteSheet,
     });
 
-    // CRITICAL: Texture filtering settings for pixel-perfect rendering
-    // These settings are ESSENTIAL for sharp pixel art that doesn't blur during motion
-
-    // magFilter: Used when texture is scaled UP (magnified) - viewing pixels larger than original
-    // Setting to NearestFilter means each pixel maintains hard edges with no smoothing
+    // NearestFilter on both keeps pixel art sharp; THREE defaults to LinearFilter which blurs.
     this.Material.map!.magFilter = THREE.NearestFilter;
-
-    // minFilter: Used when texture is scaled DOWN (minified) - viewing from far away
-    // Also set to NearestFilter to prevent blur when sprite is smaller on screen
-    // Without this, THREE.js defaults to LinearFilter which causes blurriness!
     this.Material.map!.minFilter = THREE.NearestFilter;
 
-    // anisotropy: Controls filtering quality at oblique angles
-    // Set to 1 (minimum) for pixel art - higher values add blur to "improve" quality,
-    // but we want pure pixel rendering with no filtering enhancements
+    // anisotropy 1 for pixel art; higher values add blur.
     this.Material.map!.anisotropy = 1;
 
     // Set texture repeat to show one tile from the spritesheet at a time
@@ -136,12 +126,8 @@ export default class SpriteAnimator {
   // --- Teardown ---
 
   public Destroy() {
-    // Dispose ONLY the material — NOT this.Material.map. The map is the shared
-    // spritesheet texture owned by ResourceLoader (Resources.Items.randy) and is
-    // reused by any future player; disposing it here would leave the next
-    // SpriteAnimator rendering a freed texture (a use-after-free that only shows up
-    // once the player is ever destroyed+recreated — respawn, character select, MP
-    // join). ResourceLoader.Destroy() frees the texture once at teardown.
+    // Dispose ONLY the material, NOT this.Material.map — the map is the shared spritesheet
+    // texture owned by ResourceLoader; disposing it here is a use-after-free on respawn/MP join.
     this.Material.dispose();
   }
 }

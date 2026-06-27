@@ -29,9 +29,8 @@ import {
 } from "./config/levelRegistry";
 import { seedRandom, randomRange } from "../engine/helpers/mathHelpers";
 
-// A level-data entity the uniform update loop may tick. update() is optional so
-// entities without one are simply skipped (optional chaining). The second arg is
-// the trash can the enemy reads; entities that don't need it ignore it.
+// A level-data entity the uniform update loop may tick.
+// update() is optional so entities without one are skipped.
 type UpdatableEntity = {
   Update?(player: Player, trashCan?: TrashCan): void;
 };
@@ -50,8 +49,7 @@ export default class GameDirector {
 
   // Game entities
   public Player!: Player;
-  // One unified barrel array now — normal and crazy barrels are both Enemy,
-  // distinguished by their starting FSM state (D28 fold-in of the old CrazyEnemy).
+  // Normal and crazy barrels are both Enemy, distinguished by their starting FSM state.
   public Enemies: Enemy[] = [];
   public Platforms: Platform[] = [];
   public Walls: Platform[] = [];
@@ -69,11 +67,9 @@ export default class GameDirector {
   private ambientLight?: THREE.AmbientLight;
   private playerHasBeenSpawned = false;
 
-  // Registry-driven level selection. CurrentLevelName is public so the dat.gui
-  // LevelDebug level dropdown binds to it directly (.listen() reflects F2
-  // cycling); currentLevelIndex drives the cycle math. levelLoaded gates the
-  // unload-before-load; isLoading is the loading-state lock (re-entrancy guard +
-  // Update freeze) that the Vue loading screen mirrors via loading events.
+  // Registry-driven level selection. CurrentLevelName is public so dat.gui binds to it
+  // (.listen() reflects F2 cycling). levelLoaded gates unload-before-load; isLoading is
+  // the loading lock (re-entrancy guard + Update freeze), mirrored by the Vue loading screen.
   public CurrentLevelName: string = LEVEL_REGISTRY[DEFAULT_LEVEL_INDEX].name;
   private currentLevelIndex = -1;
   private levelLoaded = false;
@@ -86,9 +82,8 @@ export default class GameDirector {
   private currentSpawnInterval = 0;
   private enemyCount = 0;
 
-  // Stored event-handler refs so Destroy() removes EXACTLY our listeners — a bare
-  // Emitter.off("gameStart") on the shared bus would wipe other modules' handlers
-  // (e.g. App.vue's). Arrow fields capture `this`; they're only invoked on events.
+  // Stored handler refs so Destroy() removes EXACTLY our listeners — a bare
+  // Emitter.off("gameStart") on the shared bus would wipe other modules' handlers.
   private onResourcesReady = async () => {
     await this.loadLevelByIndex(DEFAULT_LEVEL_INDEX);
   };
@@ -119,10 +114,12 @@ export default class GameDirector {
     // Seed gameplay randomness deterministically (same seed -> same barrel
     // sequence). Pinning the seed is what makes a run reproducible.
     seedRandom(RNG_SEED);
-    console.log(`[FireGame] RNG seed = ${RNG_SEED} (deterministic run)`);
 
     // Initialize core systems
     this.experience = Experience.GetInstance();
+    if (this.experience.Debug.IsActive) {
+      console.log(`[FireGame] RNG seed = ${RNG_SEED} (deterministic run)`);
+    }
     this.scene = this.experience.Scene;
     this.time = this.experience.Time;
     this.camera = this.experience.Camera;
@@ -133,9 +130,7 @@ export default class GameDirector {
   }
 
   // Wire game-lifecycle listeners using stored handler refs, so Destroy() can
-  // remove exactly these (and no one else's) from the shared bus. Destroyed-barrel
-  // cleanup is no longer a 5s wall-clock sweep — it's compacted in place each frame
-  // in Update (GameUtils.CompactDestroyedObjects).
+  // remove exactly these (and no one else's) from the shared bus.
   private setupEventHandlers() {
     Emitter.on("resourcesReady", this.onResourcesReady);
     Emitter.on("gameStart", this.onGameStart);
@@ -156,9 +151,8 @@ export default class GameDirector {
     await this.LoadLevelData(parsedLevelData);
   }
 
-  // Load a level from parsed LevelData (from the GLB parser). Graphics overlay +
-  // feel/camera setup are applied by loadLevelByIndex; this is just the
-  // data-source-agnostic spawn pass.
+  // Load a level from parsed LevelData — the data-source-agnostic spawn pass
+  // (graphics overlay + feel/camera setup are applied by loadLevelByIndex).
   public async LoadLevelData(levelData: LevelData) {
     this.LevelData = levelData;
 
@@ -172,11 +166,8 @@ export default class GameDirector {
     this.setPlayerStart();
     this.setCameraStart();
 
-    // Spawn every level-data-placed entity through the factory registry.
-    // Each factory pushes the entity it builds into the right derived array on
-    // the context (which aliases this director's typed query arrays). Rows whose
-    // type has no factory (PlayerStart/CameraStart handled above, GraphicsObject,
-    // Unknown) are simply skipped.
+    // Spawn every level-data-placed entity through the factory registry. Each factory
+    // pushes into the right typed array via the context. Rows with no factory are skipped.
     const ctx = this.getFactoryContext();
     for (const data of Object.values(this.LevelData)) {
       const factory = ENTITY_FACTORIES[data.type];
@@ -188,9 +179,8 @@ export default class GameDirector {
     this.resetSpawner();
   }
 
-  // Build the factory context — a plain struct aliasing the typed query arrays the
-  // factories push into plus the camera the camera-sensor factory needs. Same array
-  // instances the director queries (trashCans[0], ladder sub-arrays), populated in place.
+  // Build the factory context — a struct aliasing the director's typed query arrays
+  // (same instances, populated in place) plus the camera the camera-sensor factory needs.
   private getFactoryContext(): FactoryContext {
     return {
       camera: this.camera,
@@ -206,9 +196,8 @@ export default class GameDirector {
     };
   }
 
-  // All level-spawned entity arrays in one place. UnloadLevelData tears them ALL
-  // down by iterating this, so a new entity kind is added to its typed field, the
-  // factory context, and this list — never hand-listed in teardown again.
+  // All level-spawned entity arrays in one place; UnloadLevelData tears them all down
+  // by iterating this. A new entity kind must be added here too, or it leaks on teardown.
   private levelEntityArrays(): GameObject[][] {
     return [
       this.Enemies,
@@ -233,10 +222,8 @@ export default class GameDirector {
     };
     this.levelEntityArrays().forEach((arr) => destroyAll(arr));
 
-    // Cleanup graphics and lighting. Destroy() is now idempotent (it latches
-    // IsBeingDestroyed and won't run a second time), so the long-lived
-    // GraphicsObject is replaced with a fresh instance for the next level's overlay
-    // instead of being destroyed-then-reused (which left a permanent destroy latch).
+    // Cleanup graphics and lighting. Destroy() is idempotent (latches IsBeingDestroyed),
+    // so replace GraphicsObject with a fresh instance — reusing it stays latched-destroyed.
     this.GraphicsObject.Destroy();
     this.GraphicsObject = new GameObject();
     if (this.ambientLight) {
@@ -318,15 +305,10 @@ export default class GameDirector {
 
   // REGISTRY-DRIVEN LEVEL SELECTION
 
-  // Load a level by registry index — the single load path boot, the F2 cycle, and
-  // the dat.gui level select all funnel through. Applies the entry's per-level setup
-  // (feel profile, camera follow, optional graphics overlay), unloading the current
-  // level first if one is loaded.
-  // Guarded by isLoading: the GLB parse is async and callers are fire-and-forget, so
-  // without the guard a second load (F2 mash / select mid-load) would interleave
-  // teardown + respawn → double entities, leaked light, mismatched index. One boolean,
-  // old-school (D5). loadingStarted/Finished bracket the window so the Vue loading
-  // screen covers it.
+  // Load a level by registry index — the single load path (boot, F2 cycle, dat.gui select
+  // all funnel through). Applies per-level setup (feel, camera follow, optional graphics),
+  // unloading the current level first. Guarded by isLoading: the async parse + fire-and-forget
+  // callers would otherwise interleave teardown + respawn into double entities / leaked light.
   private async loadLevelByIndex(index: number) {
     const entry = LEVEL_REGISTRY[index];
     if (!entry || this.isLoading) return;
@@ -340,25 +322,20 @@ export default class GameDirector {
     const prevName = this.CurrentLevelName;
 
     try {
-      // A registry row whose GLB couldn't be resolved (levelUrl miss) carries an
-      // empty source. Fail loud HERE rather than letting "" reach the loader,
-      // where gltfLoader.load("") fetches the HTML page and throws a confusing
-      // parse error far from the real cause.
+      // Empty source = GLB couldn't be resolved. Fail loud HERE rather than letting ""
+      // reach the loader, where gltfLoader.load("") fetches the HTML page and throws far away.
       if (!entry.source) {
         throw new Error(
           `level "${entry.name}" has no resolvable GLB source — is it in src/assets/levels?`,
         );
       }
 
-      // Parse the GLB FIRST, BEFORE tearing down the current level. If the parse
-      // throws (missing/corrupt GLB), the old level is still fully intact — we
-      // catch, roll back, and the player never drops into emptiness.
+      // Parse the GLB FIRST, BEFORE teardown: if it throws, the old level is still
+      // intact and we roll back instead of dropping the player into emptiness.
       const parsedLevelData = await this.resources.ParseLevel(entry.source);
 
-      // Validate the optional graphics-overlay asset is present BEFORE the unload,
-      // so a missing/failed graphics item also fails into the rollback while the old
-      // level is intact — rather than throwing AFTER teardown (the one remaining
-      // post-unload throw path). LoadLevelData's spawn pass is deterministic.
+      // Validate the optional graphics asset BEFORE the unload, so a missing item fails
+      // into the rollback while the old level is intact rather than throwing after teardown.
       if (entry.graphics && !this.resources.Items[entry.graphics]) {
         throw new Error(
           `level "${entry.name}" graphics asset "${entry.graphics}" failed to load`,
@@ -376,9 +353,8 @@ export default class GameDirector {
 
       await this.LoadLevelData(parsedLevelData);
 
-      // Optional detailed-art overlay drawn on top of the simple collision shapes
-      // (collision/graphics separation). Only loaded when the entry names a
-      // graphics resource; collision-only levels skip it.
+      // Optional detailed-art overlay on top of the collision shapes. Only loaded when
+      // the entry names a graphics resource; collision-only levels skip it.
       if (entry.graphics) {
         await this.GraphicsObject.CreateObjectGraphics(
           this.resources.Items[entry.graphics],
@@ -392,17 +368,12 @@ export default class GameDirector {
 
       this.levelLoaded = true;
 
-      // Go live on the freshly-loaded level: unpause + enable spawning + clear any
-      // game-over/win UI (App.vue listens too). This is the SINGLE place the game
-      // starts running — boot, the F2 switch, and the debug level select all funnel
-      // through here. Only fires on a successful load (a throw skips to catch).
+      // Go live: unpause + enable spawning + clear game-over/win UI (App.vue listens too).
+      // Only fires on a successful load — a throw skips to catch.
       Emitter.emit("gameStart");
     } catch (error) {
-      // Roll back to the last good level so a failed switch is a no-op, not a
-      // teardown into emptiness. Because the parse happens BEFORE the unload, a
-      // parse failure leaves the current level untouched; this restores the
-      // index/name bookkeeping to match. Logged loud, never rejected out (that would
-      // surface as an unhandled rejection and skip the finally's overlay close).
+      // Roll back the index/name bookkeeping so a failed switch is a no-op. Logged loud,
+      // never rejected out — that would be an unhandled rejection and skip finally's overlay close.
       console.error(`Failed to load level "${entry.name}":`, error);
       this.currentLevelIndex = prevIndex;
       this.CurrentLevelName = prevName;
@@ -428,8 +399,7 @@ export default class GameDirector {
   // --- Feel profiles ---
 
   // Apply a feel profile to the current player. Feel is the single source of truth:
-  // set ONLY from the loading level's registry entry — no live debug swap bypasses
-  // it. (A future "trigger sets the feel" mechanic would promote this to a public hook.)
+  // set ONLY from the loading level's registry entry — no live debug swap bypasses it.
   private applyFeelProfile(profile: FeelProfile) {
     if (!this.Player) return;
     FEEL_PROFILES[profile](this.Player);
@@ -437,12 +407,9 @@ export default class GameDirector {
 
   // --- Enemy spawning ---
 
-  // Frame-driven enemy spawning (called once per frame from Update). Replaces the old
-  // wall-clock setInterval: one clock now (Time.Delta), and a fresh boot spawns
-  // without needing a reset. Cadence preserved — the FIRST barrel is a crazy one Kong
-  // throws at the oil can to light it, then a normal/crazy mix
-  // every few seconds with every 8th crazy. The cadence counters are advanced BEFORE
-  // the (async) spawn so a stutter frame can't double-spawn.
+  // Frame-driven enemy spawning (once per frame from Update). First barrel is a crazy one
+  // Kong throws at the oil can to light it, then a normal/crazy mix with every 8th crazy.
+  // Counters are advanced BEFORE the async spawn so a stutter frame can't double-spawn.
   private trySpawn() {
     if (!this.isSpawningEnemies || this.experience.Physics.IsPaused) return;
 
@@ -470,10 +437,8 @@ export default class GameDirector {
     }
   }
 
-  // The opening crazy barrel Kong hurls at the oil can to light it. Spawned at the
-  // normal throw point but with its bounce drift aimed toward the can so it reaches
-  // and ignites it (igniting also consumes the barrel, via the contact table). Drift
-  // defaults rightward if the can is directly below or absent.
+  // The opening crazy barrel Kong hurls at the oil can to light it: spawned at the normal
+  // throw point but with bounce drift aimed at the can. Drift defaults rightward if can absent.
   private spawnOilCanBarrel() {
     const spawn = { x: -13, y: 50 };
     const can = this.TrashCans[0];
@@ -502,13 +467,10 @@ export default class GameDirector {
 
   // --- Per-frame ---
 
-  // SIM update — runs inside the fixed-timestep loop (0..N times per frame), so all
-  // movement integrates at the constant step. Camera + visual interpolation are NOT
-  // here; they run once per FRAME in RenderUpdate, decoupled from the sim rate.
+  // SIM update — runs inside the fixed-timestep loop (0..N times per frame) so movement
+  // integrates at the constant step. Camera + interpolation are NOT here; see RenderUpdate.
   public Update() {
-    // Freeze game logic while a level is loading (entities are being torn down /
-    // respawned; the Vue loading screen covers the canvas). Re-entrancy is also
-    // guarded in loadLevelByIndex.
+    // Freeze game logic while a level is loading (entities being torn down / respawned).
     if (this.isLoading) return;
 
     // Guard: Player must be ready
@@ -516,19 +478,16 @@ export default class GameDirector {
 
     this.Player.Update();
 
-    // Spawn + update enemies (runtime-spawned, not level-data), driven by the frame
-    // clock here. Compact destroyed barrels in place right after — promptly, and
-    // keeping the array reference stable (was a 5s wall-clock sweep).
+    // Spawn + update enemies (runtime-spawned, not level-data). Compact destroyed barrels
+    // in place right after — keeps the array reference stable.
     // TODO: uncomment for enemies
     // this.trySpawn();
     const firstTrashCan = this.TrashCans[0];
     this.Enemies.forEach((enemy) => enemy.Update(this.Player, firstTrashCan));
     GameUtils.CompactDestroyedObjects(this.Enemies);
 
-    // Update every level-data entity that has an update, in one uniform loop.
-    // Runs AFTER player.update() so the platform one-way toggle reads this frame's
-    // player state. Entities without an update are skipped. (WinFlag no longer
-    // updates — it wins via the contact table, not a per-frame shapecast.)
+    // Update every level-data entity with an update, in one uniform loop. Runs AFTER
+    // player.update() so the platform one-way toggle reads this frame's player state.
     const updatableLevelEntities: UpdatableEntity[] = this.Platforms;
     for (const e of updatableLevelEntities) {
       e.Update?.(this.Player, firstTrashCan);
@@ -545,11 +504,9 @@ export default class GameDirector {
     );
   }
 
-  // RENDER update — runs once per FRAME (Experience.OnRenderUpdate) with the
-  // interpolation alpha. Lerps the moving entities between their last two sim states
-  // so motion is smooth ABOVE the sim rate, then follows the interpolated player
-  // with the camera. Render and sim rates are fully decoupled — buttery on a 144Hz
-  // display, no judder on a 60Hz one.
+  // RENDER update — runs once per FRAME with the interpolation alpha. Lerps moving entities
+  // between their last two sim states for smooth motion above the sim rate, then follows
+  // the interpolated player with the camera. Render and sim rates are fully decoupled.
   public RenderUpdate(alpha: number) {
     if (this.isLoading) return;
     if (!this.Player?.PhysicsBody) return;
@@ -563,9 +520,8 @@ export default class GameDirector {
     this.camera.Update(this.cameraTargetFromPlayer(this.Player));
   }
 
-  // Map the Player into the engine's CameraTarget (C5 decouple). The camera reads
-  // only these scalars, never the game Player/PlayerState directly — so camera.ts
-  // no longer imports anything from game/.
+  // Map the Player into the engine's CameraTarget. The camera reads only these scalars,
+  // never the game Player/PlayerState directly — so camera.ts imports nothing from game/.
   private cameraTargetFromPlayer(player: Player): CameraTarget {
     let followState: CameraFollowState;
     switch (player.State) {
@@ -583,9 +539,8 @@ export default class GameDirector {
     }
 
     return {
-      // Follow the INTERPOLATED render position (set by InterpolateGraphics just
-      // before this in RenderUpdate) so the camera tracks the smooth visual player,
-      // not the stepped sim position.
+      // Follow the INTERPOLATED render position (set by InterpolateGraphics just before),
+      // so the camera tracks the smooth visual player, not the stepped sim position.
       x: player.RenderTranslation.x,
       y: player.RenderTranslation.y,
       velocityX: player.NextTranslation.x,
@@ -598,7 +553,7 @@ export default class GameDirector {
 
   public Destroy() {
     // Remove EXACTLY our handlers (pass the ref) so we don't wipe other modules'
-    // listeners on the shared bus. gameWin is removed too now (it used to leak).
+    // listeners on the shared bus.
     Emitter.off("resourcesReady", this.onResourcesReady);
     Emitter.off("gameStart", this.onGameStart);
     Emitter.off("gameOver", this.onGameOver);
@@ -606,10 +561,8 @@ export default class GameDirector {
     Emitter.off("gameReset", this.onGameReset);
     Emitter.off("switchLevel", this.onSwitchLevel);
 
-    // Tear down level entities BEFORE removing the gameObjectRemoved handler:
-    // UnloadLevelData EMITS gameObjectRemoved, and that handler is what turns it into
-    // the actual entity.Destroy(). Removing it first would leak every entity's body
-    // and meshes on teardown (HMR / unmount). Off it only after the teardown.
+    // Tear down entities BEFORE removing the gameObjectRemoved handler: UnloadLevelData
+    // EMITS it to call entity.Destroy(); remove it first and every body + mesh leaks.
     this.UnloadLevelData();
     Emitter.off("gameObjectRemoved", this.onGameObjectRemoved);
   }

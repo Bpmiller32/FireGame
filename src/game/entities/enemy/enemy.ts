@@ -17,37 +17,29 @@ import handleEnemyBouncing from "./states/handleEnemyBouncing";
 // Feel constants
 // Horizontal roll speed along a girder.
 const GROUND_SPEED = 14;
-// Downward velocity pinned every frame while rolling — hugs the girders and
-// slopes. Coincides with gravity but is hand-applied, not engine gravity.
+// Downward velocity pinned every frame while rolling to hug girders/slopes. Hand-applied, not engine gravity.
 const ROLL_FALL_SPEED = 9.8;
 // Ladder-descent speed = GROUND_SPEED * this (≈9.1) — a touch slower than rolling.
 const LADDER_DESCEND_FACTOR = 0.65;
-// Seconds the ladder-bottom trigger is suppressed after a descent ends, so the
-// barrel doesn't oscillate in and out of the descent at the foot of the ladder.
+// Ladder-bottom trigger suppressed this long after a descent, to stop oscillation at the ladder foot.
 const LADDER_BOTTOM_COOLDOWN = 1.0;
-// Chance to take a ladder once the oil can is lit (max static difficulty). While
-// the can is unlit the barrel ALWAYS takes ladders — see DecideTakeLadder.
+// Chance to take a ladder once the oil can is lit. While unlit the barrel ALWAYS takes a ladder.
 const LADDER_TAKE_CHANCE = 0.75;
 
 // Crazy-barrel (BOUNCING) feel constants
-// Downward acceleration integrated each frame for the crazy barrel's bounce arc
-// (hand-applied, like ROLL_FALL_SPEED — not engine gravity, so it's predictable).
+// Downward accel integrated each frame for the bounce arc. Hand-applied, not engine gravity (predictable).
 const BOUNCE_GRAVITY = 80;
 // Terminal fall speed of a bouncing barrel.
 const BOUNCE_MAX_FALL = 40;
 // Upward velocity kicked on each girder contact — sets the bounce height.
 const BOUNCE_IMPULSE = 28;
-// Horizontal drift speed while bouncing (gentler than a roll so the toss reads as
-// mostly vertical). Direction flips at walls.
+// Horizontal drift speed while bouncing. Direction flips at walls.
 const BOUNCE_DRIFT_SPEED = 8;
 
-// Enemy — a DK barrel, two flavors picked at spawn (D28: data-driven, old CrazyEnemy folded in here).
-// NORMAL barrel → starts ROLLING; rolls the girders and may take ladders (ROLLING ⇄ DESCENDING).
-// CRAZY barrel → starts BOUNCING; vertically-tossed wild barrel, bounces girder-to-girder down the screen, never takes ladders.
-// A crazy barrel never leaves BOUNCING and a normal never enters it, so State === BOUNCING is the "is this crazy?" discriminator.
-// Explicit state machine mirroring the player FSM (ADR-0003). Its own movement reactions (reverse at walls, turn at
-// edges, track grounded, bounce) live in the collision callbacks below; cross-entity GAME interactions
-// (kills the Player, ignites the TrashCan) are NOT here — they live in the contact table (game/config/contactRules.ts).
+// Enemy — a DK barrel, flavor picked at spawn. NORMAL starts ROLLING (rolls girders, may take ladders, ROLLING ⇄ DESCENDING).
+// CRAZY starts BOUNCING (bounces girder-to-girder down the screen, never takes ladders).
+// State === BOUNCING is the "is this crazy?" discriminator — crazy never leaves it, normal never enters it.
+// Movement reactions live in the collision callbacks below; cross-entity verdicts (kill Player, ignite TrashCan) live in contactRules.ts.
 export default class Enemy extends GameObject {
   private time!: Time; // engine clock; delta drives bounce integration
 
@@ -60,8 +52,7 @@ export default class Enemy extends GameObject {
   private bounceVelocityY!: number; // current vertical velocity, integrated by gravity
   private bounceDirection!: number; // horizontal drift sign (+1 right / -1 left)
 
-  // FSM state — DESCENDING means the barrel is taking a ladder. Public so the
-  // engine StateMachine can read/dispatch it.
+  // FSM state — DESCENDING means taking a ladder. Public so the StateMachine can read/dispatch it.
   public State!: EnemyState;
   private fsm!: StateMachine<Enemy, EnemyState>;
 
@@ -74,8 +65,7 @@ export default class Enemy extends GameObject {
   private ladderBottomCooldown!: number; // anti-oscillation timer at the ladder foot
   private currentTrashCan?: TrashCan; // the oil can, stashed each frame for the decision
 
-  // Hoisted scratch + callback so the per-frame hot path allocates nothing (these
-  // multiply with on-screen barrel count, the exact time you least want GC churn).
+  // Hoisted scratch + callback so the per-frame hot path allocates nothing (avoids GC churn with many barrels).
   private scratchVel = { x: 0, y: 0 };
   private onLadderIntersection = (otherCollider: RAPIER.Collider) => {
     const ladder = this.Physics.GetGameObjectFromCollider(otherCollider);
@@ -91,9 +81,8 @@ export default class Enemy extends GameObject {
       this.IsInsideLadder = true;
     }
 
-    // At the ladder bottom — flag it (the DESCENDING handler ends the descent here)
-    // AND arm the anti-oscillation cooldown immediately, on first contact in ANY
-    // state, so a descent through an overlapping core+bottom sensor completes.
+    // At the ladder bottom — flag it, and arm the cooldown immediately on first
+    // contact in ANY state, so a descent through an overlapping core+bottom sensor completes.
     if (
       GameUtils.IsColliderType(otherCollider, EntityType.LADDER_BOTTOM_SENSOR) &&
       this.ladderBottomCooldown <= 0
@@ -125,8 +114,7 @@ export default class Enemy extends GameObject {
 
     this.initializeEnemyAttributes(crazy, bounceDirection);
 
-    // Collides with platforms and the player box. (Defining the collision
-    // callbacks below auto-arms contact events — no enableContactEvents needed.)
+    // Collides with platforms and the player box. Defining the collision callbacks below auto-arms contact events.
     this.setCollisionGroup(CollisionGroups.ENEMY);
     this.setCollisionMask(
       CollisionGroups.PLATFORM | CollisionGroups.PLAYER_BOUNDING_BOX
@@ -151,9 +139,8 @@ export default class Enemy extends GameObject {
     this.DidJudgeLadder = false;
     this.ladderBottomCooldown = 0;
 
-    // The state machine dispatches to the handler for the enemy's current state
-    // each frame; the enemy owns `State`, and handlers reassign it to transition.
-    // The barrel flavor is chosen here by its starting state and never changes.
+    // FSM dispatches to the current state's handler each frame; handlers reassign `State` to transition.
+    // Barrel flavor is chosen here by its starting state and never changes.
     if (crazy) this.State = EnemyStates.BOUNCING;
     else this.State = EnemyStates.ROLLING;
     this.fsm = new StateMachine<Enemy, EnemyState>(this, {
@@ -165,8 +152,8 @@ export default class Enemy extends GameObject {
 
   // --- Callbacks ---
 
-  // The barrel's own movement reactions to the world it rolls through: reverse at walls, track grounded
-  // on platforms. (Killing the player / igniting the can are cross-entity verdicts — they live in contactRules.ts.)
+  // The barrel's own movement reactions: reverse at walls, track grounded on platforms.
+  // (Kill-player / ignite-can are cross-entity verdicts — they live in contactRules.ts.)
   public OnCollisionEnter(other: GameObject): void {
     const otherCollider = other.PhysicsBody?.collider(0);
     if (!otherCollider) return;
@@ -182,8 +169,7 @@ export default class Enemy extends GameObject {
         GameUtils.IsColliderType(otherCollider, EntityType.PLATFORM) ||
         GameUtils.IsColliderType(otherCollider, EntityType.ONE_WAY_PLATFORM)
       ) {
-        // Only bounce when coming DOWN onto a girder (ignore contacts while
-        // already rising), so a single landing produces one clean kick.
+        // Only bounce when coming DOWN (ignore contacts while rising) so one landing = one kick.
         if (this.bounceVelocityY <= 0) {
           this.bounceVelocityY = BOUNCE_IMPULSE;
         }
@@ -214,8 +200,8 @@ export default class Enemy extends GameObject {
     }
   }
 
-  // Leaving a platform: no longer grounded, and (while rolling) turn around so the barrel doesn't walk
-  // off the edge. Suppressed while DESCENDING — taking a ladder intentionally leaves the platform downward.
+  // Leaving a platform: no longer grounded, and (while ROLLING) turn around so it doesn't walk off the edge.
+  // Suppressed while DESCENDING — taking a ladder intentionally leaves the platform downward.
   public OnCollisionExit(other: GameObject): void {
     // Crazy barrels don't ground or edge-turn — nothing to do on exit.
     if (this.State === EnemyStates.BOUNCING) return;
@@ -239,8 +225,8 @@ export default class Enemy extends GameObject {
 
   // --- Commands ---
 
-  // Decide whether to take the ladder the barrel is currently inside. Always take it while the oil can is
-  // unlit (the relentless DK opening, until the first barrel lights the can); otherwise a fixed max-difficulty chance.
+  // Decide whether to take the ladder the barrel is inside. Always take it while the oil can is unlit;
+  // otherwise a fixed chance.
   public DecideTakeLadder(): boolean {
     if (!this.currentTrashCan?.IsOnFire) return true;
     return GameUtils.CalculatePercentChance(LADDER_TAKE_CHANCE);
@@ -272,17 +258,15 @@ export default class Enemy extends GameObject {
 
   // Take the ladder: drop platform collisions and move straight down.
   public DescendLadder() {
-    // Drop PLATFORM so the barrel passes through girders; ALWAYS keep the player
-    // box so it can still kill the player while descending.
+    // Drop PLATFORM to pass through girders; ALWAYS keep the player box so it can still kill while descending.
     this.setCollisionMask(CollisionGroups.PLAYER_BOUNDING_BOX);
     this.scratchVel.x = 0;
     this.scratchVel.y = -this.groundSpeed * LADDER_DESCEND_FACTOR;
     this.PhysicsBody!.setLinvel(this.scratchVel, true);
   }
 
-  // CRAZY barrel: integrate the bounce arc. Gravity pulls the vertical velocity down each frame (clamped to a
-  // terminal speed); the upward kick is applied on girder contact in OnCollisionEnter. Horizontal drift carries it
-  // across the girders down the screen. Keeps PLATFORM in its mask the whole time so it bounces off (and stays able to kill the player).
+  // CRAZY barrel: integrate the bounce arc. Gravity pulls velocity down each frame (clamped to terminal); the upward
+  // kick is applied on girder contact in OnCollisionEnter. Keeps PLATFORM in its mask the whole time so it bounces off.
   public Bounce() {
     this.bounceVelocityY -= BOUNCE_GRAVITY * this.time.Delta;
     if (this.bounceVelocityY < -BOUNCE_MAX_FALL) {
@@ -298,8 +282,8 @@ export default class Enemy extends GameObject {
 
   // --- Per-frame ---
 
-  // Refresh this frame's ladder inputs by polling sensor intersections (NOT event-driven — the hard-won
-  // "fully inside" climb idiom, D9), gated by the bottom cooldown. The handlers consume these flags.
+  // Refresh this frame's ladder inputs by polling sensor intersections — NOT event-driven; the "fully inside"
+  // climb idiom needs continuous polling. Gated by the bottom cooldown.
   private checkLadderIntersections() {
     if (this.ladderBottomCooldown > 0) {
       this.ladderBottomCooldown -= this.time.Delta;
@@ -308,9 +292,7 @@ export default class Enemy extends GameObject {
     this.IsInsideLadder = false;
     this.IsAtLadderBottom = false;
 
-    // Poll intersections with the hoisted callback (this.onLadderIntersection) — no
-    // per-frame closure allocation. (Not event-driven: the "fully inside" climb
-    // idiom, D9, needs continuous polling.)
+    // Poll with the hoisted callback (onLadderIntersection) — no per-frame closure allocation.
     this.Physics.World.intersectionPairsWith(
       this.PhysicsBody!.collider(0),
       this.onLadderIntersection
@@ -318,16 +300,14 @@ export default class Enemy extends GameObject {
   }
 
   public Update(player: Player, trashCan?: TrashCan) {
-    // Uniform update contract: the enemy ignores the player (it doesn't track or
-    // chase) and reads the trash can (the oil can) for its ladder decision.
+    // Uniform update contract: enemy ignores the player (no chasing); reads the trash can for its ladder decision.
     void player;
 
     if (this.IsBeingDestroyed) {
       return;
     }
 
-    // Stash this frame's inputs, refresh ladder state, run the current state.
-    // Crazy (BOUNCING) barrels never take ladders, so skip the poll for them.
+    // Stash inputs, refresh ladder state, run the current state. Crazy (BOUNCING) barrels skip the ladder poll.
     this.currentTrashCan = trashCan;
     if (this.State !== EnemyStates.BOUNCING) {
       this.checkLadderIntersections();

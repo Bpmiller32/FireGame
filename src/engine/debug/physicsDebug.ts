@@ -2,9 +2,8 @@ import * as THREE from "three";
 import RAPIER from "@dimforge/rapier2d-compat";
 import dat from "dat.gui";
 
-// Read-only view of Physics this module needs — the scene it draws into and the
-// Rapier world it walks colliders from. PhysicsDebug owns its own wireframe mesh;
-// Physics carries no debug fields.
+// Read-only view of Physics this module needs: the scene to draw into and the
+// Rapier world to walk colliders from.
 type Physics = {
   Scene: THREE.Scene;
   World: {
@@ -13,9 +12,8 @@ type Physics = {
   };
 };
 
-// Renders Rapier collider shapes as wireframes, colored by entity type via the
-// game-injected palette (SetTypeColors); engine stays type-blind, unmapped = gray.
-// Owns its LineSegments mesh: adds/removes it from the scene and disposes it.
+// Renders Rapier colliders as wireframes, colored by entity type via the
+// game-injected palette (SetTypeColors); unmapped types fall back to gray.
 export default class PhysicsDebug {
   private static readonly DEFAULT_COLOR = new THREE.Color("#777777"); // gray fallback for unmapped entity types
   private static readonly CIRCLE_SEGMENTS = 20; // arc segments per ball/capsule outline
@@ -48,8 +46,7 @@ export default class PhysicsDebug {
 
     this.mesh = new THREE.LineSegments(
       new THREE.BufferGeometry(),
-      // vertexColors draws each segment with the per-vertex RGBA we build in
-      // Update() — one color per collider, keyed by its entity type.
+      // vertexColors: per-collider RGBA is built per-frame in Update().
       new THREE.LineBasicMaterial({ vertexColors: true })
     );
     this.mesh.frustumCulled = false;
@@ -70,9 +67,7 @@ export default class PhysicsDebug {
     this.counts.renderObjectCount = entityCount;
     this.counts.physicsObjectCount = physics.World.colliders.len();
 
-    // Rebuild the wireframe each frame: one colored outline per collider, colored
-    // by its entity type via the game-injected palette. (Replaces Rapier's
-    // built-in debugRender, whose palette only told sensors from solids.)
+    // Rebuild the wireframe each frame: one outline per collider, colored by entity type.
     const positions: number[] = [];
     const colors: number[] = [];
 

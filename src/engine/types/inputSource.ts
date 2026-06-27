@@ -1,8 +1,5 @@
-// An input source the game reads movement intent from. The keyboard Input
-// implements it today; a touch, gamepad, network, or replay source drops in by
-// implementing CaptureInto (the per-entity InputState snapshot seam). Player and
-// other controllable entities depend on THIS interface, not the concrete device —
-// so swapping/adding an input source is a one-file change with no entity edits.
+// Movement-intent source (keyboard today; touch/gamepad/network/replay drop in via CaptureInto).
+// Entities depend on THIS interface, not the device — swapping a source needs no entity edits.
 
 import InputState from "./inputState";
 

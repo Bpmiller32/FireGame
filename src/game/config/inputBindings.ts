@@ -3,10 +3,8 @@
 import Emitter from "../../engine/events/eventBus";
 import Input from "../../engine/input/input";
 
-// Engine Input exposes only HELD-state booleans and names no game events.
-// This watches them each frame, detects the press edge (false->true since last frame),
-// and emits the matching game event once per press: remember last frame's booleans.
-// F1 -> "gameReset", F2 -> "switchLevel", F3 -> "manualCameraControl".
+// Input exposes only held-state booleans; detect the press edge (false->true vs last frame) and emit once per press.
+// F1 -> gameReset, F2 -> switchLevel, F3 -> manualCameraControl.
 export default class InputBindings {
   private input: Input;
 

@@ -1,8 +1,6 @@
-// Single identity source for entities: each carries a string `type`. Rapier callbacks return a raw
-// Collider (not a class), so type-based routing survives where instanceof can't. One const map keeps
-// the spawn side and routing side from drifting (mirrors PlayerStates / CollisionGroups).
-// NOTE: values are the exact strings level data and the engine's resourceLoader emit — don't change a
-// value without changing those too, or routing breaks silently.
+// Single identity source for entities via a string `type`: Rapier callbacks return a raw Collider, so
+// type-based routing works where instanceof can't.
+// NOTE: values are the exact strings level data and resourceLoader emit — change both or routing breaks silently.
 
 // Entity name constants — the verbatim identity strings used across the game
 const EntityType = {

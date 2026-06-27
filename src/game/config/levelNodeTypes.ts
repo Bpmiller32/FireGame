@@ -1,11 +1,7 @@
 // Level-node name token (lower-cased) -> the game type its factory spawns.
-//
-// The engine's GLB parser is type-blind: the game injects this vocabulary via
-// ResourceLoader.RegisterLevelTypes (see App.vue) so the parser no longer holds a
-// hand-synced mirror of EntityType (reusability mile, #5). Values come straight
-// from EntityType so the two can't drift; only level-PLACEABLE types + the spawn
-// points + GraphicsObject (which the parser skips) belong here — runtime-only
-// types like Enemy spawns do not.
+// Injected into the type-blind GLB parser via ResourceLoader.RegisterLevelTypes (see App.vue).
+// Values come straight from EntityType so the two can't drift. Only level-PLACEABLE types +
+// spawn points + GraphicsObject belong here — runtime-only types (e.g. Enemy spawns) do not.
 
 import EntityType from "../types/entityType";
 

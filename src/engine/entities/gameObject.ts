@@ -13,11 +13,7 @@ export default class GameObject {
 
   protected gameObjectType!: string;
 
-  // THREE render side: shape, surface, scene node
-  protected geometry?:
-    | THREE.BoxGeometry
-    | THREE.SphereGeometry
-    | THREE.CapsuleGeometry;
+  // THREE render side: surface, scene node
   protected material?: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
   protected mesh?: THREE.Mesh | THREE.Sprite | THREE.Group;
   protected spriteScale?: number;
@@ -31,9 +27,8 @@ export default class GameObject {
   public CurrentTranslation!: RAPIER.Vector;
   private CurrentRotation!: number;
 
-  // Render interpolation: the previous sim transform plus the latest, so the render
-  // pass can lerp between them and stay smooth above the sim rate. RenderTranslation
-  // is the interpolated position other systems (e.g. the camera) should follow.
+  // Previous + latest sim transform so the render pass can lerp between them and stay
+  // smooth above the sim rate. RenderTranslation is what other systems (camera) follow.
   protected previousRenderTranslation = { x: 0, y: 0 };
   protected previousRenderRotation = 0;
   public RenderTranslation = { x: 0, y: 0 };
@@ -88,7 +83,7 @@ export default class GameObject {
     rotation: number,
     specifiedRigidBodyType: RAPIER.RigidBodyDesc = RAPIER.RigidBodyDesc.fixed()
   ) {
-    // Set object position, size, and type. Inital size in particular so I don't have to look for it in physicsBody.collider.shape.halfExtents later
+    // Cache initial size/translation/type up front (saves digging size back out of the collider later).
     this.InitialTranslation = new RAPIER.Vector2(position.x, position.y);
     this.InitialSize = new RAPIER.Vector2(size.width, size.height);
     this.CurrentSize = new RAPIER.Vector2(size.width, size.height);
@@ -108,9 +103,8 @@ export default class GameObject {
     this.PhysicsBody.setRotation(rotation, true);
     this.CurrentRotation = this.PhysicsBody.rotation();
 
-    // The game supplies the identity. `type` is the shared routing flag (many
-    // entities can share one); `name` is the per-instance id, defaulting to the
-    // type until SetType/SetName change it. The engine treats both as opaque.
+    // `type` is the shared routing flag, `name` the per-instance id; both default to
+    // the `name` arg until SetType/SetName change them.
     this.PhysicsBody.userData = {
       type: name,
       name: name,
@@ -134,9 +128,8 @@ export default class GameObject {
 
     const collider = this.PhysicsBody.collider(0);
 
-    // Enable event reporting only if this object defines a collision OR sensor callback.
-    // Physics only dispatches enter/exit (no per-frame "stay") — see Physics.handleCollisionEvents.
-    // Note: in Rapier, sensors are reported through collision events, not separate intersection events.
+    // Arm events only if a collision/sensor callback is defined. Only enter/exit fire (no "stay").
+    // Rapier footgun: sensors report through COLLISION events, not separate intersection events.
     if (
       this.OnCollisionEnter ||
       this.OnCollisionExit ||
@@ -164,24 +157,18 @@ export default class GameObject {
       case GameObjectType.SPHERE:
         return RAPIER.ColliderDesc.ball(size.width / 2);
       case GameObjectType.CAPSULE:
-        // capsule(halfHeight, radius): total height = 2*halfHeight + 2*radius,
-        // total width = 2*radius. So radius = width/2 and halfHeight = (height-width)/2
-        // reproduces a {width x height} envelope as a y-aligned capsule (height >= width).
+        // y-aligned capsule reproducing a {w x h} envelope: radius = w/2, halfHeight = (h-w)/2.
+        // Requires height >= width.
         return RAPIER.ColliderDesc.capsule(
           Math.max(0, (size.height - size.width) / 2),
           size.width / 2
         );
-      // CUBE — and any unrecognized type — fall through to a cuboid. Slopes are
-      // rotated cubes and complex shapes are overlapped cubes (no polyline or
-      // convex-mesh).
+      // CUBE and any unknown type fall through to a cuboid; slopes are rotated cubes,
+      // complex shapes are overlapped cubes (no polyline/convex-mesh).
       case GameObjectType.CUBE:
       default:
         return RAPIER.ColliderDesc.cuboid(size.width / 2, size.height / 2);
     }
-  }
-
-  protected setGeometry(geometry?: THREE.BoxGeometry | THREE.SphereGeometry) {
-    this.geometry = geometry;
   }
 
   protected setMaterial(
@@ -203,7 +190,7 @@ export default class GameObject {
 
   // add meshes in batches so loading does not block
   private async addMeshesToGroupAsync(meshes: any[], batchSize: number) {
-    // Needed to load meshes from BlenderScene async, otherwise operation is blocking with too many synchronous loads to THREE.Scene
+    // Batch + yield so many synchronous THREE.Scene adds don't block.
     for (let i = 0; i < meshes.length; i += batchSize) {
       const batchOfMeshes = meshes.slice(i, i + batchSize);
 
@@ -231,54 +218,6 @@ export default class GameObject {
       }
       materials.forEach((material) => material?.dispose());
     }
-  }
-
-  // build a simple solid debug mesh
-  protected createObjectGraphicsDebug(meshColor: string, opacity: number = 1) {
-    // Check to set transparent property on MeshBasicMaterial
-    let isMaterialTransparent: boolean;
-
-    if (opacity < 1) {
-      isMaterialTransparent = true;
-    } else {
-      isMaterialTransparent = false;
-    }
-
-    // Render setup based on object type
-    switch (this.gameObjectType) {
-      case GameObjectType.CUBE:
-        this.setGeometry(
-          new THREE.BoxGeometry(this.CurrentSize.x, this.CurrentSize.y, 1)
-        );
-        this.setMaterial(
-          new THREE.MeshBasicMaterial({
-            color: meshColor,
-            opacity: opacity,
-            transparent: isMaterialTransparent,
-          })
-        );
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        break;
-
-      case GameObjectType.SPHERE:
-        this.setGeometry(new THREE.SphereGeometry(this.CurrentSize.x));
-        this.setMaterial(
-          new THREE.MeshBasicMaterial({
-            color: meshColor,
-            opacity: opacity,
-            transparent: isMaterialTransparent,
-          })
-        );
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        break;
-
-      default:
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        break;
-    }
-
-    this.scene.add(this.mesh);
-    this.syncGraphicsToPhysics();
   }
 
   // --- Per-frame ---
@@ -313,12 +252,9 @@ export default class GameObject {
     );
   }
 
-  // Render-interpolated mesh placement: lerp between the previous and current sim
-  // transforms by alpha (0..1 — how far into the next step we are). Called once per
-  // RENDER frame for MOVING entities (Player, Enemies) so motion stays smooth above
-  // the sim rate; static entities are positioned once by syncGraphicsToPhysics and
-  // don't need it. Records the interpolated position in RenderTranslation so the
-  // camera can follow the smooth visual position, not the stepped sim position.
+  // Lerp mesh between previous and current sim transform by alpha (0..1 into the next step).
+  // Call once per render frame for MOVING entities so motion stays smooth above the sim rate.
+  // Writes RenderTranslation so the camera follows the smooth visual, not the stepped sim, position.
   public InterpolateGraphics(
     alpha: number,
     meshOffset: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 }
@@ -339,10 +275,8 @@ export default class GameObject {
 
     this.mesh.position.set(x + meshOffset.x, y + meshOffset.y, meshOffset.z);
 
-    // Interpolate rotation along the SHORTEST arc. The Rapier 2D angle wraps at ±π,
-    // so a rolling barrel's angle jumps from ~+π to ~-π between steps; a naive lerp
-    // would spin the long way round (a visible one-frame backspin). atan2(sin,cos)
-    // wraps the delta into (-π, π] so we always take the short way.
+    // Interpolate rotation along the SHORTEST arc: the Rapier 2D angle wraps at ±π, so a
+    // naive lerp could spin the long way (one-frame backspin). atan2(sin,cos) wraps delta to (-π, π].
     let dRot = this.CurrentRotation - this.previousRenderRotation;
     dRot = Math.atan2(Math.sin(dRot), Math.cos(dRot));
     const rot = this.previousRenderRotation + dRot * alpha;
@@ -428,9 +362,8 @@ export default class GameObject {
     // Use teleportRelative to move to the target position
     this.TeleportRelative(deltaX, deltaY);
 
-    // Snap the render-interpolation state to the new position so the mesh JUMPS to
-    // the teleport target instead of sliding across the level over one frame (reset,
-    // teleporter). Without this, prev=old/curr=new would lerp the whole distance.
+    // Snap render-interp state to the new position, else prev=old/curr=new would lerp the
+    // mesh across the whole level over one frame instead of jumping (reset, teleporter).
     this.CurrentTranslation = this.PhysicsBody!.translation();
     this.previousRenderTranslation.x = this.CurrentTranslation.x;
     this.previousRenderTranslation.y = this.CurrentTranslation.y;
@@ -443,12 +376,9 @@ export default class GameObject {
     // Create the MeshGroup if it doesn't exist
     this.createMeshGroup();
 
-    // Clone meshes without affecting the original blenderScene meshes' parent.
-    // Clone geometry + material too so THIS instance OWNS its GPU buffers: a plain
-    // .clone() SHARES them with the source asset, so disposing a dead entity (e.g.
-    // a barrel on contact, every couple seconds) would free buffers still used by
-    // the source and every other live clone. Owning them makes Destroy() free only
-    // our own.
+    // Clone geometry + material so THIS instance OWNS its GPU buffers: a plain .clone()
+    // SHARES them, so disposing one dead entity would free buffers still used by the source
+    // and every other live clone. Owning them makes Destroy() free only ours.
     const blenderMeshes: THREE.Mesh[] = [];
     for (const child of resourceFromLoader.scene.children) {
       if (child?.isMesh) {
@@ -474,8 +404,7 @@ export default class GameObject {
 
   // tear down mesh, geometry, and physics body
   public Destroy() {
-    // Idempotent: a second Destroy() (e.g. a re-entrant "gameObjectRemoved") is a
-    // no-op instead of double-freeing the body or recursing.
+    // Idempotent: a second Destroy() is a no-op, not a double-free.
     if (this.IsBeingDestroyed) {
       return;
     }
@@ -498,8 +427,7 @@ export default class GameObject {
       this.mesh = undefined;
     }
 
-    // Dispose of geometry and material if they exist
-    this.geometry?.dispose();
+    // Dispose of material if it exists
     this.material?.dispose();
 
     // Unregister from collision event system, then remove physics body

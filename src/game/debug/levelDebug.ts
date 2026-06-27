@@ -3,10 +3,8 @@ import { DebugModule } from "../../engine/debug/debug";
 import { LEVEL_REGISTRY } from "../config/levelRegistry";
 import type GameDirector from "../gameDirector";
 
-// Adds a "🗺️ Level" folder to dat.GUI: dropdown bound DIRECTLY to GameDirector.CurrentLevelName via .listen().
-// Picking loads that level; F2 cycling reflects back (dat.gui polls the bound field) — no per-frame sync code.
-// Feel is registry-driven (single source of truth, applied only on level load) so there's no live feel control here.
-// Registered as a DebugModule by the game; engine never imports this. GameDirector is a TYPE-ONLY import (no cycle).
+// "🗺️ Level" folder: dropdown bound to GameDirector.CurrentLevelName via .listen() so F2 cycling reflects back.
+// GameDirector is a TYPE-ONLY import to avoid a cycle; engine never imports this.
 export default class LevelDebug implements DebugModule {
   private director: GameDirector;
 

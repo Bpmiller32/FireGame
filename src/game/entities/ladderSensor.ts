@@ -3,11 +3,8 @@ import GameObjectType from "../../engine/types/gameObjectType";
 import GameSensor from "../../engine/entities/gameSensor";
 import EntityType from "../types/entityType";
 
-// LadderSensor - marks a ladder region.
-// Ladder detection is intentionally NOT event-driven: it is the hard-won
-// "fully inside" climb behavior (D9), polled by GameDirector / read by the
-// player + enemy. That path is preserved and deferred — this sensor defines no
-// contact callbacks, so it arms no physics events.
+// LadderSensor - marks a ladder region. Detection is polled (not event-driven),
+// so it defines no contact callbacks and arms no physics events.
 export default class LadderSensor extends GameSensor {
   // Climb direction: positive = right, negative = left, 0 = neutral
   public Direction: number = 0;
@@ -19,8 +16,7 @@ export default class LadderSensor extends GameSensor {
   ) {
     super();
 
-    // Cuboid sensor — this is a cuboid/sphere engine. (Ladders were always boxes
-    // anyway; the polyline path was never reached.)
+    // Cuboid sensor — this is a cuboid/sphere engine.
     this.createObjectPhysics(
       EntityType.LADDER_SENSOR,
       GameObjectType.CUBE,
@@ -31,9 +27,6 @@ export default class LadderSensor extends GameSensor {
     );
 
     this.setAsSensor(true);
-
-    // Uncomment to visualize ladder sensors in debug mode
-    // this.createObjectGraphicsDebug("blue", 0.5);
   }
 
   // Set the ladder direction value

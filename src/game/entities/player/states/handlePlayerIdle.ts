@@ -7,10 +7,8 @@ import applyGroundedStick from "../applyGroundedStick";
 // Idle state: transitions, grounded coyote/buffer resets, idle anim
 const handlePlayerIdle = (player: Player) => {
   // Change state
-  // Edge case: only when vertical velocity is genuinely POSITIVE (rising) and a
-  // direction is held — give the downward stick before entering idle. Uses > 0 (not
-  // >= 0) so flat-ground idle (where the stick now holds y = 0) does NOT trip this; a
-  // >= 0 here cost a 1-frame stall on every walk-start from a standstill.
+  // Rising + direction held: give downward stick before idle. Must be > 0 not >= 0,
+  // else flat-ground idle trips it and stalls walk-start by a frame.
   if (
     player.NextTranslation.y > 0 &&
     (player.Input.isLeft || player.Input.isRight)
@@ -34,8 +32,7 @@ const handlePlayerIdle = (player: Player) => {
 
   // Transition to jumping state
   if (player.Input.isJump && player.BufferJumpAvailable) {
-    // Launch impulse + reset the early-end latch so every jump starts at full
-    // height (a buffered jump fired on landing skips the grounded reset below).
+    // Launch + reset early-end latch so a buffered jump fires at full height.
     player.NextTranslation.y = player.JumpPower;
     player.EndedJumpEarly = false;
     player.TimeJumpWasEntered = player.Time.Elapsed;
@@ -65,10 +62,8 @@ const handlePlayerIdle = (player: Player) => {
     player.BufferJumpAvailable = true;
   }
 
-  // Grounded "stick" that keeps the player glued (shared with running). On a walkable-flat
-  // slope it follows the surface so a near-stationary idle isn't pulled around; flat → 0
-  // (so a hard landing de-penetrates instead of being pinned into the floor); steeper slope
-  // → firm -MaxFallSpeed. Idle's horizontal speed is ~0, so the slope-follow term is ~0.
+  // Grounded "stick" glues player to floor (shared with running). Flat → 0 so a hard
+  // landing de-penetrates instead of pinning into the floor; steeper slope → -MaxFallSpeed.
   applyGroundedStick(player);
 
   // Animation

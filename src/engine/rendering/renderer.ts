@@ -31,9 +31,7 @@ export default class Renderer {
   private setInstance() {
     this.Instance = new THREE.WebGLRenderer({
       canvas: this.canvas,
-      // CRITICAL: Antialiasing MUST be disabled for pixel art!
-      // Antialiasing smooths edges which makes pixel art look blurry, especially during motion.
-      // For sharp, crisp pixel art rendering, we want hard edges with no smoothing.
+      // must stay off for pixel art — antialiasing blurs the edges
       antialias: false,
     });
 

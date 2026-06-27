@@ -1,9 +1,7 @@
 import * as THREE from "three";
 import dat from "dat.gui";
 
-// Forward type — Camera → Experience → Debug → CameraDebug → Camera would cycle.
-// Top-level fields mirror the Camera class (PascalCase); the nested Time/Input
-// shapes mirror their classes (Time.Elapsed, Input.IsWKeyPressed, ...).
+// Local type mirroring the Camera class shape; avoids an import cycle.
 type Camera = {
   Instance: THREE.Camera;
   CameraType: string;

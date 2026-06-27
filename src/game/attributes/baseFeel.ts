@@ -1,6 +1,6 @@
 import Player from "../entities/player/player";
 
-// Shared base feel applied first by every profile, so common DK/Celeste values live in one place; each profile overrides on top.
+// Shared base feel applied first by every profile; each profile overrides on top.
 const applyBaseFeel = (player: Player) => {
   // Climbing (shared)
   // The top vertical movement speed while climbing
@@ -11,9 +11,8 @@ const applyBaseFeel = (player: Player) => {
   player.ClimbDeceleration = 8;
 
   // Jump / coyote / buffer (shared)
-  // Early-jump-ended latch: set true when jump is released mid-rise (variable
-  // height), reset at every jump entry and on the ground. Seeded here so the
-  // flag holds a real boolean before the first jump.
+  // Early-jump-ended latch: true when jump is released mid-rise (variable height).
+  // Seeded false so it's a real boolean before the first jump.
   player.EndedJumpEarly = false;
 
   // Coyote-jump runtime flags/counters
@@ -32,29 +31,21 @@ const applyBaseFeel = (player: Player) => {
 
   player.CoyoteTime = 0.05; // 3 frames — slightly more forgiving edges
 
-  // Capsule collider + character-controller tuning (all Feel-Lab tunable; great to
-  // dial live in the slope lab).
-  // Fraction of the capsule's full HALF-HEIGHT kept while airborne (jump/fall) — a
-  // shorter collider so the player clears obstacles. The center is fixed, so the
-  // feet rise; the sprite never moves.
+  // Capsule collider + character-controller tuning (Feel-Lab tunable).
+  // Fraction of capsule HALF-HEIGHT kept while airborne — shorter collider clears
+  // obstacles. Center is fixed, so the feet rise; the sprite never moves.
   player.AirColliderHeightScale = 0.85;
-  // Ground clearance (down-shapecast time-of-impact) at which the airborne collider
-  // grows back to full size — done in FREE AIR before touchdown, so it never grows
-  // INTO the floor (no landing pop). Must exceed one fall-step (~1 unit).
+  // Ground clearance at which the airborne collider regrows to full size — must
+  // happen in FREE AIR so it never grows INTO the floor. Must exceed one fall-step (~1 unit).
   player.AirColliderGrowDistance = 1.2;
-  // KCC snap-to-ground distance: how far the controller pulls the feet down to stay
-  // glued to slopes/steps. Bigger = smoother downhill (less staircasing) but lets
-  // steeper slopes stay walkable. (Was a tiny 0.02 — the main downhill-feel fix.)
+  // KCC snap-to-ground: how far the feet pull down to stay glued to slopes/steps.
+  // Bigger = smoother downhill but lets steeper slopes stay walkable.
   player.SnapToGroundDistance = 0.15;
   // Slope limits (degrees): the player can climb up to Max; past Min it slides down.
   player.MaxSlopeClimbDegrees = 45;
   player.MinSlopeSlideDegrees = 30;
-  // Flat tolerance (degrees): any ramp whose surface is within this of horizontal is
-  // treated as a FLAT platform for FEEL — the player walks/launches off it exactly like a
-  // flat platform (the loved edge feel applies), no slope launch. The KCC still physically
-  // follows the surface (the down-stick glues you), so only the feel changes. Bump this if
-  // gentle ramps still feel "slopey"; lower it if real slopes start feeling too flat.
-  // Default 8 so ~7.5° DK ramps are comfortably inside the flat band.
+  // Flat tolerance (deg): ramps within this of horizontal are treated as FLAT for FEEL
+  // only (no slope launch); KCC still follows the surface physically. Default 8 so ~7.5° DK ramps land in the flat band.
   player.FlatToleranceDegrees = 8;
 
   // Sprite-animation pacing divisor (faster horizontal move → faster animation)

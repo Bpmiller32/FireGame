@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import EntityType from "../types/entityType";
 
-// Debug wireframe color per entity type (dev-only — see engine/debug/physicsDebug).
-// The one place to tweak the palette; PhysicsDebug looks up each collider's userData.type here. Unlisted types fall back to gray.
+// Debug wireframe color per entity type (dev-only); PhysicsDebug looks it up by collider userData.type.
+// Unlisted types fall back to gray.
 const DEBUG_TYPE_COLORS = new Map<string, THREE.Color>([
   [EntityType.PLAYER, new THREE.Color("#ffffff")], // white
   [EntityType.WALL, new THREE.Color("#888888")], // gray

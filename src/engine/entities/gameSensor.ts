@@ -1,15 +1,11 @@
 import * as RAPIER from "@dimforge/rapier2d-compat";
 import GameObject from "./gameObject";
 
-// GameSensor — a sensor (non-solid) GameObject that detects others entering/exiting.
-// Override OnSensorEnter(other)/OnSensorExit(other) to respond. Some sensors are
-// ALSO polled every frame (GameDirector's IsAnySensorTriggered* / IsFullyInside) —
-// the D9 ladder "fully inside" climb path depends on that continuous polling, not
-// on enter/exit events.
+// GameSensor — non-solid GameObject that detects others entering/exiting.
+// Override OnSensorEnter/OnSensorExit to respond. Some sensors are also polled
+// every frame (IsFullyInside); the D9 ladder climb depends on that polling, not enter/exit events.
 export default class GameSensor extends GameObject {
-  // Set this GameObject's collider as a sensor
-  // Sensors don't create solid collisions but still trigger collision events
-  // value: true to make this a sensor, false to make it solid
+  // Make this collider a sensor: no solid collision, but still fires collision events.
   protected setAsSensor(value: boolean) {
     if (!this.PhysicsBody) {
       return;

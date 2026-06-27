@@ -16,11 +16,8 @@ export function moveTowards(
 }
 
 // ---- Seeded pseudo-random number generator (deterministic) ----------------
-// A tiny mulberry32 PRNG so gameplay randomness is REPRODUCIBLE: the same seed
-// always yields the same sequence. The game seeds it (see GameDirector); a replay,
-// a lockstep peer, or a deterministic test just pins the same seed. This is the
-// randomness half of the fixed-timestep determinism work — Math.random() has no
-// seed and would desync any replay on the first roll.
+// mulberry32 PRNG: same seed -> same sequence, for reproducible gameplay
+// (replays/lockstep/tests). Math.random() is unseeded and would desync replays.
 let rngState = 0x9e3779b9;
 
 // Seed the generator. Same seed in -> same random() sequence out.

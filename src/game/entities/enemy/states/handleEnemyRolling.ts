@@ -1,10 +1,8 @@
 import Enemy from "../enemy";
 import EnemyStates from "../enemyStates";
 
-// ROLLING — barrel travels along a girder; wall-reverse and edge-turn live in its collision
-// callbacks, this handler owns the per-frame roll and the ladder decision. Inside an unjudged
-// ladder it rolls the dice once per entry: always take it while the oil can is unlit (the
-// relentless DK opening), else a fixed max-difficulty chance; taking it snaps direction and descends.
+// ROLLING — owns the per-frame roll and the ladder decision (wall-reverse/edge-turn live in
+// collision callbacks). Rolls the ladder dice once per entry: always take it while the oil can is unlit.
 const handleEnemyRolling = (enemy: Enemy) => {
   // Change state
   if (enemy.IsInsideLadder) {

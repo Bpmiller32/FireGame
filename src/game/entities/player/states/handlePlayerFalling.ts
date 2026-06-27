@@ -22,17 +22,9 @@ const handlePlayerFalling = (player: Player) => {
     // Reset gating mechanism for counting buffer jumps
     player.WasBufferJumpUsed = false;
 
-    // Seat the player on touchdown the SAME way the grounded states do, so the landing
-    // frame's KCC move matches the surface under the feet:
-    //  • FLAT ground → 0, so the landing frame doesn't drive the now-full feet down into
-    //    the floor (Bug-1).
-    //  • SLOPE → the -MaxFallSpeed downward stick, so the player is firmly clamped onto the
-    //    ramp instead of floating a hair above it. A flat 0 on a slope lets the feet settle
-    //    slowly, and during that settle ground detection sits on the boundary and flickers
-    //    RUNNING<->FALLING for a few frames after landing on an up-slope. The KCC clamps the
-    //    stick to the surface, so this is the firm seat, not a downward dive.
-    // (Safe: FALLING is only entered at the apex with vy <= 0; GroundIsFlat is fresh from
-    //  the down-cast that just registered ground this transition.)
+    // Seat on touchdown like the grounded states so landing matches the surface.
+    // FLAT → 0 (don't drive feet into floor); SLOPE → -MaxFallSpeed firm stick
+    // (a flat 0 on a slope flickers RUNNING<->FALLING while the feet settle).
     if (player.GroundIsFlat) {
       player.NextTranslation.y = 0;
     } else {
@@ -122,14 +114,9 @@ const handlePlayerFalling = (player: Player) => {
   }
 
   // Gravity Logic (Y Axis)
-  // Gravity is intentionally HELD OFF during the coyote window: for the few frames
-  // after leaving a ledge (CoyoteAvailable stays true until CoyoteTime expires above)
-  // the player floats with vy unchanged — the literal Wile-E-Coyote hang — and can
-  // still jump (see the coyote-jump branch up top). NOTE: this hang fires on EVERY
-  // walk-off, whether or not a jump is pressed. Once the window expires (CoyoteAvailable
-  // cleared above) gravity becomes a plain accel toward terminal speed. Variable jump
-  // height lives entirely in JUMPING (early release boosts rise gravity), so there's
-  // no early-release branch here.
+  // Held OFF during the coyote window so the player hangs with vy unchanged and can
+  // still jump; this hang fires on EVERY walk-off. After it expires, plain accel toward
+  // terminal speed. Variable jump height lives in JUMPING, so no early-release branch here.
   if (!player.CoyoteAvailable) {
     player.NextTranslation.y = GameUtils.MoveTowardsPoint(
       player.NextTranslation.y,

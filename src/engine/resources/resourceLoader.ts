@@ -46,8 +46,8 @@ export default class ResourceLoader {
   private toLoad: number;
   private loaded: number;
 
-  // Level-node type vocabulary, INJECTED by the game (RegisterLevelTypes). The
-  // engine's GLB parser is type-blind — it no longer mirrors EntityType by hand.
+  // Level-node type vocabulary, INJECTED by the game (RegisterLevelTypes); the
+  // engine's GLB parser stays type-blind.
   private levelTypes: Record<string, string> = {};
 
   constructor(sources: Resource[]) {
@@ -56,8 +56,7 @@ export default class ResourceLoader {
     this.toLoad = sources.length;
     this.loaded = 0;
 
-    // Set up GLTF loader with DRACO compression support
-    // DRACO significantly reduces file sizes for 3D models
+    // GLTF loader with DRACO compression support.
     this.gltfLoader = new GLTFLoader();
     // BASE_URL-relative so a sub-path deploy (e.g. GitHub Pages /FireGame/) still
     // finds the decoder instead of 404-ing and silently breaking every GLB load.
@@ -69,19 +68,15 @@ export default class ResourceLoader {
     // Set up Texture loader for images
     this.textureLoader = new THREE.TextureLoader();
 
-    // NOTE: loading is deliberately NOT kicked off here. The caller invokes
-    // StartLoading() only AFTER the "resourcesReady" listener (GameDirector) is
-    // subscribed — otherwise, if every asset resolves during the await window in
-    // Experience.Configure (RAPIER.init etc.), the completion event would fire
-    // into zero listeners and be lost (mitt does not buffer/replay), hanging the
-    // boot on the loading screen forever.
+    // Loading is NOT kicked off here: caller must subscribe the "resourcesReady"
+    // listener first, then call StartLoading() — else a fast finish fires the
+    // completion event into zero listeners (mitt doesn't replay) and boot hangs.
   }
 
   // Asset loading (textures & models)
 
-  // Start loading all resources defined in the sources array. Call this AFTER
-  // the "resourcesReady" listener is wired (see the constructor note). Emits
-  // "resourcesReady" once every asset has loaded or failed.
+  // Load all resources; emits "resourcesReady" once every asset loads or fails.
+  // Call AFTER the "resourcesReady" listener is wired (see constructor note).
   public StartLoading() {
     // Seed a 0/total so a progress bar can appear immediately, before the first
     // asset resolves.
@@ -161,9 +156,8 @@ export default class ResourceLoader {
   // Get the file path for an asset.
   // Uses imported URLs for bundled assets, or provided paths for public assets.
   private getAssetPath(source: Resource): string | undefined {
-    // The game's manifest supplies the URL directly: a bundled (Vite ?url) asset
-    // already resolves to a full path; a public-folder asset just needs a leading
-    // slash. The engine no longer hardcodes any game asset.
+    // Manifest supplies the URL: a bundled (Vite ?url) asset is already a full
+    // path; a public-folder asset just needs a leading slash.
     if (!source.path) return undefined;
     if (source.path.startsWith("/") || source.path.includes("://")) {
       return source.path;
@@ -174,16 +168,13 @@ export default class ResourceLoader {
   // Level parsing (GLB to game data)
 
   // Inject the game's level-node type vocabulary (name token -> game type). Call
-  // before parsing any level (App.vue does, at boot). Keeps the engine parser from
-  // ever naming a game type.
+  // before parsing any level, so the engine parser never names a game type.
   public RegisterLevelTypes(types: Record<string, string>) {
     this.levelTypes = types;
   }
 
   // Parse a GLB file (exported from BlockBench) into LevelData for the game.
-  // glbPath: any URL — here resolved by the level registry's levelUrl() (a hashed
-  // /assets/... URL), but a raw public-folder path or an imported `?url` works too.
-  // Returns the parsed LevelData ready for game use.
+  // glbPath: any URL (hashed /assets/, public path, or imported ?url).
   public async ParseLevel(glbPath: string): Promise<LevelData> {
     // Load the GLB file
     const gltf = await this.loadGLB(glbPath);
@@ -209,21 +200,13 @@ export default class ResourceLoader {
     });
   }
 
-  // Recursively parse the 3D scene hierarchy.
-  // Type comes from a node's NAME (its first "_"-token), not its folder path —
-  // editors like BlockBench flatten/rename the group hierarchy on glTF export, so
-  // the name is the one stable channel. A node whose name resolves to a known
-  // type becomes ONE game object built from its whole subtree's geometry, and we
-  // do NOT recurse into it. That single rule covers two export shapes:
-  //   - a normal single-material cube → one THREE.Mesh named e.g. "Platform";
-  //   - a MULTI-material cube (a metadata texture on only some faces) → Three
-  //     splits it into per-face primitive meshes under an (unnamed) GROUP that
-  //     keeps the "Platform" name. Reading the group name + merging the split
-  //     primitives recovers it as one collider — otherwise the unnamed pieces
-  //     (named "mesh_N") were silently skipped and the platform VANISHED.
-  // A leaf mesh whose name is NOT a known type is a genuinely mis-named cube and
-  // warns; structural (untyped) groups are just walked through.
-  // node: Three.js Object3D node to parse.
+  // Recursively parse the 3D scene hierarchy. Type comes from a node's NAME (first
+  // "_"-token), not its folder path — editors flatten the hierarchy on export, so
+  // the name is the one stable channel. A typed node becomes ONE game object from
+  // its whole subtree; do NOT recurse into it. This also merges a multi-material
+  // cube's per-face primitives (under an unnamed group keeping the name) back into
+  // one collider — else those "mesh_N" pieces are skipped and the platform VANISHES.
+  // An untyped leaf mesh is a mis-named cube (warn); untyped groups are walked through.
   private parseScene(node: THREE.Object3D): ParsedLevelObject[] {
     const objects: ParsedLevelObject[] = [];
 
@@ -251,9 +234,8 @@ export default class ResourceLoader {
     return objects;
   }
 
-  // Build ONE game-object row from a typed node and its subtree (position,
-  // rotation, size, metadata). The meshes are the node itself for a normal cube,
-  // or the per-face primitives of a multi-material cube — merged here into one.
+  // Build ONE game-object row (position, rotation, size, metadata) from a typed
+  // node and its subtree, merging any multi-material per-face primitives into one.
   private parseTypedNode(
     node: THREE.Object3D,
     type: string
@@ -263,10 +245,8 @@ export default class ResourceLoader {
       return null;
     }
 
-    // Collect every mesh in this node's subtree: the node itself for a normal
-    // single-material cube, or the per-face primitive meshes that Three split a
-    // MULTI-material cube into (see parseScene). They share the node's local
-    // frame, so they are merged back into the one cube below.
+    // Collect every mesh in this node's subtree (a single cube, or the per-face
+    // primitives of a multi-material cube). They share the node's local frame.
     const meshes: THREE.Mesh[] = [];
     node.traverse((child) => {
       if (child instanceof THREE.Mesh) {
@@ -277,30 +257,25 @@ export default class ResourceLoader {
       return null;
     }
 
-    // Per-entity metadata rides on the cube's TEXTURE name(s). For a multi-
-    // material cube the metadata texture may sit on a single face, so scan every
-    // primitive and merge what is found.
+    // Per-entity metadata rides on the cube's TEXTURE name(s); a multi-material
+    // cube may carry it on one face only, so scan every primitive and merge.
     const meta = this.readMeta(meshes);
 
-    // Decompose the node's full WORLD transform (parents included) into
-    // translation / rotation / scale, so a cube nested under translated or
-    // rotated groups still resolves correctly.
+    // Decompose the node's full WORLD transform (parents included) so a cube
+    // nested under translated/rotated groups still resolves correctly.
     node.updateWorldMatrix(true, false);
     const worldTranslation = new THREE.Vector3();
     const worldQuaternion = new THREE.Quaternion();
     const worldScale = new THREE.Vector3();
     node.matrixWorld.decompose(worldTranslation, worldQuaternion, worldScale);
 
-    // Collider rotation from the WORLD quaternion. For a tilted cube (a slope)
-    // built in BlockBench's X×Y plane, the angle lands in rotation.z (rotation
-    // about glTF Z, which is the game's depth axis); it is remapped into the
-    // game-rotation slot below and the entity factory negates it. (Reading the
-    // LOCAL quaternion was the old bug — it ignored any parent-group rotation.)
+    // Collider rotation from the WORLD quaternion (LOCAL would ignore parent-group
+    // rotation). A slope's tilt lands in rotation.z (glTF Z = game depth axis),
+    // remapped into the game-rotation slot below.
     const rotation = new THREE.Euler().setFromQuaternion(worldQuaternion);
 
-    // Combined LOCAL geometry box, unioned across every primitive (all share the
-    // node's local frame). Using the local extent (not a world AABB) keeps a
-    // rotated slope's size true instead of inflating it to its tilted envelope.
+    // Combined LOCAL geometry box, unioned across primitives. Local extent (not a
+    // world AABB) keeps a rotated slope's size true, not its tilted envelope.
     const localBox = new THREE.Box3();
     for (const mesh of meshes) {
       mesh.geometry.computeBoundingBox();
@@ -309,12 +284,8 @@ export default class ResourceLoader {
       }
     }
 
-    // Size = the LOCAL geometry extent scaled by the world-scale MAGNITUDE. The
-    // extent (not a world AABB via setFromObject) keeps a rotated cube's size
-    // true instead of inflating it to its tilted envelope; abs() guards a
-    // mirrored element — whose decomposed scale is negative — from yielding a
-    // negative half-extent (a degenerate collider). Byte-identical to the old
-    // world-AABB for an axis-aligned, unmirrored cube.
+    // Size = LOCAL extent scaled by world-scale MAGNITUDE: abs() guards a mirrored
+    // element (negative scale) from yielding a negative half-extent (degenerate collider).
     const size = new THREE.Vector3();
     localBox.getSize(size).multiply(
       new THREE.Vector3(
@@ -324,32 +295,17 @@ export default class ResourceLoader {
       )
     );
 
-    // Position = the geometry's WORLD CENTER, not the node origin. BlockBench
-    // bakes pivot offsets into the vertices of stretched / multi-cube elements,
-    // so the node origin is often a corner; centering on the geometry makes the
-    // collider land exactly where the cube is drawn (WYSIWYG), and stays correct
-    // under rotation.
+    // Position = geometry's WORLD CENTER, not the node origin: BlockBench bakes
+    // pivot offsets into vertices, so the origin is often a corner — centering
+    // lands the collider where the cube is drawn (WYSIWYG), correct under rotation.
     const position = new THREE.Vector3();
     localBox.getCenter(position).applyMatrix4(node.matrixWorld);
 
-    // ── glTF → game AXIS TRANSLATION (the single place this happens) ─────────
-    // BlockBench/glTF and this 2D game share axes: gameX = glTF X (horizontal),
-    // gameUP = glTF Y (vertical), gameDEPTH = glTF Z (into-screen). So a platform
-    // you build along BlockBench's X (wide) × Y (tall) plane maps straight to the
-    // game's horizontal × vertical plane. (Previously the parser treated glTF Z
-    // as "up", forcing you to build along BlockBench's Z — that's the bug being
-    // fixed here.)
-    //
-    // The downstream readers (entity factories + setPlayerStart/setCameraStart)
-    // consume a fixed SLOT order, so we remap into it ONCE here:
-    //   position/rotation slots = [ gameX , gameDEPTH , gameUP ]
-    //     factories read slot[0]=x, slot[2]=up; setCameraStart reads slot[1]=depth.
-    //   size = width(gameX) / height(gameUP) / depth(gameDEPTH).
-    // A slope's angle is a rotation about glTF Z → it lands in slot[1]. We negate
-    // it so the factory's `-rotation[1]` nets to +rotation.z, making a BlockBench
-    // CCW rotation read as the SAME direction in-game (without the negation it
-    // came out mirrored). Single-axis slopes only; flip this sign if a slope ever
-    // tilts the wrong way.
+    // glTF → game AXIS TRANSLATION (the single place this happens). Axes: gameX =
+    // glTF X, gameUP = glTF Y, gameDEPTH = glTF Z. Remap into the fixed downstream
+    // SLOT order ONCE here: position/rotation slots = [ gameX, gameDEPTH, gameUP ].
+    // Negate the slope angle (slot[1]) so the factory's `-rotation[1]` nets to
+    // +rotation.z. Single-axis slopes only; flip this sign if a slope tilts wrong.
     const parsedObject: ParsedLevelObject = {
       name: node.name,
       type: type,
@@ -364,13 +320,9 @@ export default class ResourceLoader {
     return parsedObject;
   }
 
-  // Read the metadata-carrying texture name off a mesh.
-  // Collision geometry and graphics are separate layers, so a collision mesh's
-  // texture is a free data carrier: its NAME (e.g. "floor=1 oneway=8") encodes
-  // per-entity metadata. Three.js copies the glTF texture name verbatim onto
-  // material.map.name (it does NOT sanitize it the way it does node names), so
-  // "=", ".", "_" and spaces all survive. Returns "" when the mesh has no
-  // textured material.
+  // Read the metadata-carrying texture name off a mesh. The texture NAME (e.g.
+  // "floor=1 oneway=8") is a free data carrier — Three.js copies it verbatim onto
+  // map.name (unlike node names, no sanitizing). Returns "" if untextured.
   private readTextureName(mesh: THREE.Mesh): string {
     let material = mesh.material;
     if (Array.isArray(mesh.material)) material = mesh.material[0];
@@ -379,15 +331,13 @@ export default class ResourceLoader {
     if (map && map.name) {
       name = map.name;
     }
-    // Drop a trailing image-file extension. A texture that inherited its image's
-    // filename (e.g. "edge=1.png" instead of "edge=1") would otherwise parse the
-    // value as "1.png" — not-a-number — so the flag would silently read as 0.
+    // Drop a trailing image-file extension, else "edge=1.png" parses its value as
+    // "1.png" (not-a-number) and the flag silently reads as 0.
     return name.replace(/\.(png|jpe?g|webp|gif|bmp|tga)$/i, "");
   }
 
-  // Merge the metadata from every textured primitive of a (possibly multi-material)
-  // cube into one key->value bag. Untextured faces contribute nothing; on a key
-  // conflict the later face wins.
+  // Merge metadata from every textured primitive into one key->value bag.
+  // Untextured faces contribute nothing; on a key conflict the later face wins.
   private readMeta(meshes: THREE.Mesh[]): Record<string, string> {
     const meta: Record<string, string> = {};
     for (const mesh of meshes) {
@@ -398,16 +348,10 @@ export default class ResourceLoader {
     return meta;
   }
 
-  // Parse a metadata texture name into a key->value map.
-  // Format: `key=value` tokens separated by whitespace, comma, OR semicolon —
-  // e.g. "floor=1 edge=1 oneway=8", "floor=1,edge=1", or "floor=1;edge=1". (All
-  // three work, so authors use whatever their editor lets them type in a texture
-  // name.) A bare token (no "=") is a flag and maps to "1" (so "edge" ==
-  // "edge=1"). Multi-number values use "_" between components (e.g. "cam=3.5_2_-1")
-  // — "_" is NOT a token separator, so those stay intact.
-  // Values stay as strings here and are emitted as a generic `meta` bag; per-type
-  // interpretation (numbers, "_"-separated coord lists) happens GAME-side in the
-  // entity factories. Keys are lower-cased. The engine never reads a game key.
+  // Parse a metadata texture name into a key->value map. Tokens are separated by
+  // whitespace, comma, OR semicolon; a bare token (no "=") is a flag -> "1".
+  // "_" is NOT a separator, so multi-number values (e.g. "cam=3.5_2_-1") stay intact.
+  // Keys lower-cased; values stay strings, interpreted GAME-side. Engine never reads a game key.
   private parseMetadata(textureName: string): Record<string, string> {
     const meta: Record<string, string> = {};
     if (!textureName) return meta;
@@ -425,23 +369,17 @@ export default class ResourceLoader {
     return meta;
   }
 
-  // Resolve a node's game object type from its NAME (exact canonical-token match,
-  // case-insensitive): the first "_"-token, lower-cased, looked up in the
-  // game-injected levelTypes map (so "OneWayPlatform", "OneWayPlatform_2", and
-  // Three's auto-deduped "OneWayPlatform_1" all resolve to the same type, and
-  // OneWayPlatform stays distinct from Platform). Returns undefined for a name that
-  // is not a known type (a structural group, or a mis-named cube) — the caller
-  // decides whether to recurse into it or warn. The vocabulary now lives in the
-  // GAME (config/levelNodeTypes.ts), injected via RegisterLevelTypes — the engine
-  // no longer holds a hand-synced mirror of EntityType.
+  // Resolve a node's game type from its NAME: first "_"-token, lower-cased, looked
+  // up in the game-injected levelTypes map (so "Platform" and auto-deduped
+  // "Platform_1" share a type, while OneWayPlatform stays distinct from Platform).
+  // Returns undefined for an unknown name (structural group or mis-named cube).
   private lookupCanonicalType(name: string): string | undefined {
     const token = name.split("_")[0].toLowerCase();
     return this.levelTypes[token];
   }
 
-  // Warn that a leaf mesh's name did not resolve to a known type, so it was
-  // skipped — far less surprising than the old fallback that spawned an invisible
-  // solid platform. Lists the valid type names.
+  // Warn that a leaf mesh's name didn't resolve to a known type (so it was
+  // skipped). Lists the valid type names.
   private warnUnknownType(name: string): void {
     const token = name.split("_")[0].toLowerCase();
     const seen: string[] = [];
@@ -457,19 +395,16 @@ export default class ResourceLoader {
     );
   }
 
-  // Convert parsed objects to LevelData format.
-  // Builds the final LevelData dictionary (object name -> properties) consumed by the
-  // game's entity factories.
+  // Convert parsed objects to the LevelData dictionary (name -> properties)
+  // consumed by the game's entity factories.
   private convertToLevelData(parsedObjects: ParsedLevelObject[]): LevelData {
     const levelData: LevelData = {};
 
     for (const obj of parsedObjects) {
-      // The dictionary key must be unique per cube or the loser is silently
-      // DROPPED. GLTFLoader dedups duplicate node names, but its counter is
-      // per-base-name, so a hand-suffixed cube ("Platform_2") collides with a
-      // plain cube whose name auto-deduped to the same string (the 3rd "Platform"
-      // -> "Platform_2"). Disambiguate with a "#n" suffix so every cube survives;
-      // the suffix is only the map key (entities are matched by type, not name).
+      // Key must be unique per cube or the loser is silently DROPPED: a hand-
+      // suffixed "Platform_2" can collide with a cube GLTFLoader auto-deduped to
+      // the same name. Disambiguate with a "#n" suffix (map key only; entities
+      // match by type, not name) so every cube survives.
       let key = obj.name;
       for (let n = 2; key in levelData; n++) {
         key = `${obj.name}#${n}`;
@@ -480,10 +415,8 @@ export default class ResourceLoader {
         );
       }
 
-      // Pass the parsed texture-name metadata straight through as a generic bag.
-      // The game-side entity factories interpret the keys per type — the engine
-      // parser deliberately does NOT know any game-specific key (floor/cam/etc.).
-      // meta is always set by parseTypedNode; default to {} defensively.
+      // Pass texture-name metadata through as a generic bag; the engine parser
+      // knows no game-specific key. Always set by parseTypedNode; default {} defensively.
       let meta = obj.meta;
       if (!meta) {
         meta = {};
@@ -529,8 +462,7 @@ export default class ResourceLoader {
         // Free GPU texture memory
         item.dispose();
       } else if (item && typeof item === "object" && "scene" in item) {
-        // GLTF object — stored via gltfLoader which returns { scene, animations, ... }
-        // The items type doesn't capture this but the loader stores GLTF objects directly
+        // GLTF object (gltfLoader returns { scene, animations, ... }).
         const gltf = item as { scene: THREE.Object3D };
         this.disposeObject3D(gltf.scene);
       }

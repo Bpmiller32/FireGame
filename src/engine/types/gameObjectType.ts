@@ -1,4 +1,4 @@
-// GameObject physics collider shapes — CUBE, SPHERE, CAPSULE only (D5/D-lean); slopes built from rotated/overlapped cubes, polyline/convex purged.
+// GameObject physics collider shapes — CUBE, SPHERE, CAPSULE only; slopes are built from rotated cubes.
 // Maps to Rapier2D: CUBE->cuboid, SPHERE->ball, CAPSULE->capsule.
 const GameObjectType = {
   // Rectangular/box collider — players, platforms, walls, slopes (rotated cubes).

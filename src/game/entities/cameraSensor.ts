@@ -5,10 +5,8 @@ import GameSensor from "../../engine/entities/gameSensor";
 import Camera from "../../engine/camera/camera";
 import EntityType from "../types/entityType";
 
-// CameraSensor - adjusts the camera when the player enters its zone.
-// The trigger rule (Player enters -> adjust camera) lives in the declarative
-// contact table (game/config/contactRules.ts). This class owns the target
-// position and the camera reference, and exposes the action it performs.
+// CameraSensor - repositions the camera when the player enters its zone.
+// Trigger rule lives in the contact table (game/config/contactRules.ts).
 export default class CameraSensor extends GameSensor {
   public PositionData: THREE.Vector3; // camera anchor to ease to on enter
   private camera: Camera; // engine camera this zone repositions
@@ -36,9 +34,6 @@ export default class CameraSensor extends GameSensor {
     this.setAsSensor(true);
     // Take part in the contact table even though we define no callback here.
     this.enableContactEvents();
-
-    // Uncomment to visualize camera sensors in debug mode
-    // this.createObjectGraphicsDebug("yellow", 0.1);
   }
 
   // Set the camera position that should be used when player enters
@@ -48,10 +43,8 @@ export default class CameraSensor extends GameSensor {
 
   // Apply this sensor's camera position. Called by the contact rule on enter.
   public ApplyCameraOnEnter() {
-    // Pins the camera's rest anchor to this zone's authored x,y. On a non-follow
-    // level the camera eases to that spot on both axes (fixed/zone camera); on a
-    // follow level only the Y is used (pins the vertical baseline the follow eases
-    // around). Author the spot as `cam=x_y` on the sensor's texture.
+    // Pins the camera's rest anchor to this zone's x,y. Follow levels use only Y.
+    // Author the spot as `cam=x_y` on the sensor's texture.
     this.camera.SetBaselinePosition(this.PositionData.x, this.PositionData.y);
   }
 }

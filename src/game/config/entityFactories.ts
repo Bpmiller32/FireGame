@@ -1,15 +1,9 @@
-// Entity factory registry — one factory per level-data-placed entity type.
-// A const map keyed by the EntityType string that level data and resourceLoader emit, so
-// loadLevelData iterates the parsed entities and calls ENTITY_FACTORIES[type].
-// Axis mapping: position[0]/[2] are horizontal/vertical, position[1] is depth; width/height/depth
-// pass straight through (resourceLoader emits height=gameUp(glTF Y), depth=gameDepth(glTF Z), no size
-// remap); rotation is negated (-rotation[1]); texture-name meta -> constructor-arg wiring; SetType per type.
-// Only LEVEL-DATA-PLACED types live here. The runtime enemy spawner (Enemy — normal/crazy
-// barrels) and non-entity level steps (ambient light, level graphics) are NOT factories —
-// GameDirector keeps them as explicit steps.
-// Identity table: keyed off the same EntityType const the routing side uses, so spawn side and
-// name table cannot drift. NAME -> type resolution is just data.type (resourceLoader emits the
-// exact EntityType strings), so the keys below ARE the list of types the loader can place.
+// Entity factory registry: EntityType string -> factory, one per level-data-placed entity type.
+// loadLevelData iterates parsed rows and calls ENTITY_FACTORIES[type].
+// Axis mapping is load-bearing: position[0]/[2] -> x/y (horizontal/vertical), position[1] is depth;
+// rotation is negated (-rotation[1]) so it isn't mirrored in-game.
+// Only level-data-placed types live here — the runtime enemy/barrel spawner and ambient/graphics
+// steps are NOT factories (GameDirector keeps those as explicit steps).
 
 import * as THREE from "three";
 import GameObject from "../../engine/entities/gameObject";
@@ -22,10 +16,8 @@ import CameraSensor from "../entities/cameraSensor";
 import LadderSensor from "../entities/ladderSensor";
 import Teleporter from "../entities/teleporter";
 
-// Derived query views the rest of the game indexes by type. Factories push the entity they build
-// into the right array(s) as it's created — populated views, not a separate registry. Kept separate
-// (not one list) because the code queries trashCans[0] for the enemy and the ladder sub-arrays for
-// the fully-inside climb checks.
+// Derived views the game indexes by type; factories push each entity into the right array(s) as built.
+// Kept as separate arrays (not one list) because code queries trashCans[0] and the ladder sub-arrays directly.
 export interface FactoryContext {
   camera: Camera; // engine camera handed to the camera-sensor factories
 
@@ -40,22 +32,17 @@ export interface FactoryContext {
   ladderBottomSensors: LadderSensor[];
 }
 
-// A factory builds one entity from its level-data row and pushes it into the matching derived
-// view(s) on the context. `type` is the resolved EntityType string for this row — passed so the
-// shared platform/ladder factories can branch on it.
-// `data` is typed `any` on purpose: the level rows carry a loose `meta` bag read untyped, so
-// tightening the type would fight the parser rather than help. Intentional, not new looseness.
+// Builds one entity from its row and pushes it into the matching view(s). `type` is the resolved
+// EntityType so shared platform/ladder factories can branch. `data` is `any` on purpose (loose meta bag).
 type EntityFactory = (
   data: any,
   ctx: FactoryContext,
   type: string
 ) => GameObject;
 
-// Metadata interpretation.
-// The GLB parser hands each row a GENERIC `meta` bag (Record<string,string>), parsed from the
-// mesh's texture name — it does NOT interpret the keys (the engine names zero game concepts).
-// The GAME owns that interpretation here: each factory reads only the keys meaningful to its type.
-// These helpers coerce the string values. (Replaces the old value0-3 index hop.)
+// Metadata interpretation. The GLB parser hands each row a generic `meta` bag (Record<string,string>)
+// parsed from the mesh's texture name but doesn't interpret the keys — the game does that here.
+// These helpers coerce the string values.
 
 // One numeric metadata value, e.g. meta.floor "1" -> 1. Missing/garbage -> fallback.
 function metaNum(
@@ -192,10 +179,8 @@ const createTeleporter: EntityFactory = (data, ctx) => {
   return teleporter;
 };
 
-// The registry.
-// EntityType string -> factory. Keyed off the EntityType const so spawn side and routing side
-// share one identity table. A level-data row whose `type` is not a key here is not a placeable
-// entity (PlayerStart/CameraStart handled separately as spawn points; GraphicsObject/Unknown skipped).
+// The registry. EntityType string -> factory. A row whose `type` isn't a key here isn't placeable
+// (PlayerStart/CameraStart are spawn points; GraphicsObject/Unknown skipped).
 const ENTITY_FACTORIES: Record<string, EntityFactory> = {
   [EntityType.CAMERA_SENSOR]: createCameraSensor,
   [EntityType.WALL]: createWall,

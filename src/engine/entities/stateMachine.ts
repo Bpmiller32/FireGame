@@ -1,8 +1,5 @@
-// Tiny generic state machine. Dispatches to the handler for the host's CURRENT
-// state, exactly once per update(). The HOST owns its `state` field — a handler
-// reassigns host.state to transition next frame; this class just routes. Works
-// for any host with a string `state` + a matching handler map: player movement
-// states today, enemy/boss action states later.
+// Tiny generic state machine: dispatches to the current State's handler once per
+// Update. Host owns `State`; a handler reassigns host.State to transition next frame.
 export default class StateMachine<H extends { State: S }, S extends string> {
   constructor(
     private host: H,
@@ -10,8 +7,7 @@ export default class StateMachine<H extends { State: S }, S extends string> {
   ) {}
 
   public Update() {
-    // Read State once: a handler that changes host.State transitions on the NEXT
-    // update, it does not re-dispatch within this one.
+    // Read State once: changing host.State transitions next Update, not within this one.
     this.handlers[this.host.State]?.(this.host);
   }
 }

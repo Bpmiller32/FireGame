@@ -1,5 +1,5 @@
-// InputState — plain per-frame snapshot of input intent, filled from an input source (keyboard today; could be network/replay/AI later). Controllers read these booleans instead of the live input device, so the input source can change without touching movement code.
-// Field names mirror the input device's intent methods exactly, so a handler reads `player.input.isLeft` where it used to call `player.input.isLeft()` — same value, one less pair of parens.
+// InputState — per-frame snapshot of input intent, filled from an input source (keyboard/network/replay/AI). Controllers read these booleans, so the source can swap without touching movement code.
+// Field names mirror the input device's intent methods, but as properties: `player.input.isLeft` not `player.input.isLeft()`.
 export default interface InputState {
   // Horizontal intent (mutually-exclusive helpers mirror the input device)
   isLeft: boolean;

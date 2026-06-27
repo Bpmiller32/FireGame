@@ -1,4 +1,4 @@
-// Helpers for Rapier bodies/colliders: extract userData, check names, collision math.
+// Helpers for Rapier bodies/colliders: read userData, check type flags.
 
 import { Collider, RigidBody } from "@dimforge/rapier2d-compat";
 import UserData from "../types/userData";
@@ -10,17 +10,16 @@ export function getUserData(physicsBody?: RigidBody): UserData {
     return physicsBody.userData as UserData;
   }
 
-  // Return empty default data
   return { type: "", name: "" };
 }
 
-// Does this GameObject carry the given TYPE flag? Contact system matches "by type"; reads opaque userData.type.
+// Does this GameObject carry the given TYPE flag? Contact system matches by type.
 export function matchesType(gameObject: GameObject, type: string): boolean {
   const userData = gameObject.PhysicsBody?.userData as UserData | undefined;
   return userData?.type === type;
 }
 
-// Does this collider's parent carry the given TYPE flag? Collider-based sibling of matchesType for Rapier shapecast/intersection callbacks.
+// Does this collider's parent carry the given TYPE flag? Collider-based variant of matchesType.
 export function isColliderType(collider: Collider, type: string): boolean {
   const userData = collider.parent()?.userData as UserData | undefined;
   return userData?.type === type;

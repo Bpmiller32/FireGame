@@ -3,9 +3,8 @@ import dat from "dat.gui";
 import Experience from "../../engine/core/experience";
 import { DebugModule } from "../../engine/debug/debug";
 
-// Forward type — Player → Experience → Debug → PlayerDebug → Player would cycle.
-// Top-level fields mirror the Player class (PascalCase); nested data-shape fields
-// (ContactPoints flags, Rapier vector x/y/z) stay camelCase like the real types.
+// Forward type to break the Player→Experience→Debug→PlayerDebug cycle.
+// Top-level fields are PascalCase (mirror Player); nested data fields stay camelCase to match the real types.
 type Player = {
   State: string;
   CurrentFloor: number;
@@ -52,11 +51,6 @@ type Player = {
   MinJumpTime: number;
   CoyoteTime: number;
   AnimationScalingFactor: number;
-
-  // Diagnostic hook (Bug-1 ring-buffer capture; all logic lives on Player)
-  DiagnosticLogLive: boolean;
-  DepenFireCount: number;
-  DumpDiagnostics: () => string;
 
   // Capsule collider + character-controller tuning (live-editable)
   AirColliderHeightScale: number;
@@ -158,16 +152,9 @@ export default class PlayerDebug implements DebugModule {
       .listen();
     jumping.add(player, "BufferJumpCount").name("Buffer Jump Count").listen();
 
-    // Timers
-    const timers = folder.addFolder("⏱️ Timers");
-    timers.add(player.Time, "Elapsed").name("Elapsed Time").listen();
-    timers.add(player, "TimeJumpWasEntered").name("Jump Entered Time").listen();
-    timers.add(player, "TimeFallWasEntered").name("Fall Entered Time").listen();
-
     // --- Feel Lab — live writable tuning sliders ---
-    // Handlers read these fields fresh each frame, so a slider mutates feel
-    // instantly. The base profile itself is applied on level load from the
-    // registry (single source of truth); Dump prints the tuned values paste-ready.
+    // Handlers read these fields fresh each frame, so sliders mutate feel live.
+    // Base profile is applied on level load from the registry (single source of truth).
     const feel = folder.addFolder("🎚️ Feel Lab");
 
     const jump = feel.addFolder("🦘 Jump (Y)");
@@ -363,24 +350,12 @@ export default class PlayerDebug implements DebugModule {
       dump: () => this.dumpFeelValues(),
     };
     feel.add(actions, "dump").name("📋 Dump Feel Values");
-
-    // --- Diagnostics — floor-clip ring buffer (Bug-1) ---
-    // Live console log toggle + a rolling ~3s trace dumped on demand. Catch the rare
-    // floor-clip: it's always recording, so reproduce it then click Dump to get the
-    // frames that led up to it. "De-pen Fires" is the regression canary — it should
-    // stay ~0 once the prevention holds.
-    const diag = folder.addFolder("🔬 Diagnostics");
-    diag.add(player, "DiagnosticLogLive").name("Live Console Log").listen();
-    diag.add(player, "DepenFireCount").name("De-pen Fires").listen();
-    const diagActions = { dump: () => this.dumpDiagnostics() };
-    diag.add(diagActions, "dump").name("📋 Dump 3s Trace");
   }
 
   // --- Helpers ---
 
-  // Prints the player's current feel values as a paste-ready block, split by
-  // where each field lives (shared baseFeel.ts vs the per-profile setters), and
-  // copies it to the clipboard so a tuned-in-the-lab feel can be saved by hand.
+  // Dumps current feel values as a paste-ready block (split by shared baseFeel.ts
+  // vs per-profile setters) and copies to clipboard.
   private dumpFeelValues() {
     const p = this.player;
     const block = [
@@ -419,21 +394,6 @@ export default class PlayerDebug implements DebugModule {
     if (copy) {
       copy
         .then(() => console.log("📋 Copied to clipboard."))
-        .catch(() =>
-          console.log("⚠️ Clipboard blocked — copy from the log above."),
-        );
-    }
-  }
-
-  // Dump the player's last ~3s diagnostic ring buffer as CSV and copy to clipboard
-  // (same pattern as dumpFeelValues), so a captured floor-clip can be pasted out.
-  private dumpDiagnostics() {
-    const trace = this.player.DumpDiagnostics();
-    console.log("🔬 Player 3s trace (CSV):\n" + trace);
-    const copy = navigator.clipboard?.writeText(trace);
-    if (copy) {
-      copy
-        .then(() => console.log("📋 Trace copied to clipboard."))
         .catch(() =>
           console.log("⚠️ Clipboard blocked — copy from the log above."),
         );

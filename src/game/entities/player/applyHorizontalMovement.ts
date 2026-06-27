@@ -2,12 +2,8 @@ import Player from "./player";
 import PlayerDirection from "../../../engine/types/playerDirection";
 import GameUtils from "../../gameUtils";
 
-// Shared X-axis movement for running/jumping/falling: accelerate toward the
-// directional target speed (or decelerate to 0 when neutral), then stop dead on
-// a wall. Ground and air use separate accel/decel, selected by the airborne flag
-// (true from jumping/falling), so air control tunes independently; top speed
-// (MaxGroundSpeed) is shared. Returns true if a wall was hit this frame — the
-// running handler uses that to keep its wall animation playing.
+// Shared X-axis movement: accelerate toward directional target speed (decel to 0 when neutral), stop dead on wall.
+// airborne flag selects air vs ground accel/decel. Returns true on wall hit (running handler keeps its wall animation).
 const applyHorizontalMovement = (player: Player, airborne = false): boolean => {
   let accelRate = player.GroundAcceleration;
   if (airborne) accelRate = player.AirAcceleration;

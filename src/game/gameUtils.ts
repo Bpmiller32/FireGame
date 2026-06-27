@@ -1,4 +1,4 @@
-// Game utilities facade — the single entry point for game-layer helpers; game code goes through here, not engine helpers directly.
+// Game utilities facade — game code routes through here instead of calling engine helpers directly.
 
 import RAPIER from "@dimforge/rapier2d-compat";
 import GameObject from "../engine/entities/gameObject";
@@ -21,9 +21,7 @@ export default class GameUtils {
   // --- Game-specific functions ---
 
   // Remove destroyed objects from an array IN PLACE (swap-remove), keeping the SAME
-  // array reference. Cheaper than rebuilding (no new array, no GC churn) and lets
-  // long-lived systems hold a stable reference — the director runs this every frame
-  // instead of a 5s wall-clock sweep, and its teardown list relies on the stable ref.
+  // array reference — long-lived systems (e.g. director teardown) rely on that stable ref.
   public static CompactDestroyedObjects<T extends GameObject>(arr: T[]): void {
     for (let i = arr.length - 1; i >= 0; i--) {
       if (arr[i].IsBeingDestroyed) {
