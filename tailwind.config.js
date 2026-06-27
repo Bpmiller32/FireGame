@@ -2,16 +2,7 @@
 export default {
   content: ["./public/**/*.html", "./src/**/*.{js,jsx,ts,tsx,vue}"],
   theme: {
-    extend: {
-      textShadow: {
-        "custom-black": `
-        -1px -1px 0 black,
-        1px -1px 0 black,
-        -1px 1px 0 black,
-        1px 1px 0 black
-      `,
-      },
-    },
+    extend: {},
   },
   plugins: [
     function ({ addUtilities }) {
