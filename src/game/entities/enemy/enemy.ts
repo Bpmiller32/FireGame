@@ -13,44 +13,36 @@ import EnemyStates, { EnemyState } from "./enemyStates";
 import handleEnemyRolling from "./states/handleEnemyRolling";
 import handleEnemyDescending from "./states/handleEnemyDescending";
 import handleEnemyBouncing from "./states/handleEnemyBouncing";
+import handleEnemySeeking from "./states/handleEnemySeeking";
+import EnemyTuning from "./enemyTuning";
+import Emitter from "../../../engine/events/eventBus";
 
-// Feel constants
-// Horizontal roll speed along a girder.
-const GROUND_SPEED = 14;
-// Downward velocity pinned every frame while rolling to hug girders/slopes. Hand-applied, not engine gravity.
-const ROLL_FALL_SPEED = 9.8;
-// Ladder-descent speed = GROUND_SPEED * this (≈9.1) — a touch slower than rolling.
-const LADDER_DESCEND_FACTOR = 0.65;
-// Ladder-bottom trigger suppressed this long after a descent, to stop oscillation at the ladder foot.
+// All barrel feel lives in EnemyTuning (read fresh each frame; dat.gui sliders mutate it live). The one
+// fixed mechanic constant stays here: the ladder-bottom trigger is suppressed this long after a descent,
+// to stop oscillation at the ladder foot.
 const LADDER_BOTTOM_COOLDOWN = 1.0;
-// Chance to take a ladder once the oil can is lit. While unlit the barrel ALWAYS takes a ladder.
-const LADDER_TAKE_CHANCE = 0.75;
 
-// Crazy-barrel (BOUNCING) feel constants
-// Downward accel integrated each frame for the bounce arc. Hand-applied, not engine gravity (predictable).
-const BOUNCE_GRAVITY = 80;
-// Terminal fall speed of a bouncing barrel.
-const BOUNCE_MAX_FALL = 40;
-// Upward velocity kicked on each girder contact — sets the bounce height.
-const BOUNCE_IMPULSE = 28;
-// Horizontal drift speed while bouncing. Direction flips at walls.
-const BOUNCE_DRIFT_SPEED = 8;
-
-// Enemy — a DK barrel, flavor picked at spawn. NORMAL starts ROLLING (rolls girders, may take ladders, ROLLING ⇄ DESCENDING).
-// CRAZY starts BOUNCING (bounces girder-to-girder down the screen, never takes ladders).
-// State === BOUNCING is the "is this crazy?" discriminator — crazy never leaves it, normal never enters it.
+// Enemy — a DK barrel, flavor picked at spawn by its starting FSM state (and never changed):
+//  • ROLLING — rolls girders, may take ladders (ROLLING ⇄ DESCENDING); you jump over it.
+//  • BOUNCING — bounces girder-to-girder down the screen, never takes ladders; you stand under it.
+//  • SEEKING — "sideways" barrel: ignores platform geometry, wider hitbox, beelines through the shared
+//    waypoint list then drifts off and despawns.
 // Movement reactions live in the collision callbacks below; cross-entity verdicts (kill Player, ignite TrashCan) live in contactRules.ts.
 export default class Enemy extends GameObject {
   private time!: Time; // engine clock; delta drives bounce integration
 
-  // Roll movement (NORMAL barrel)
-  private groundSpeed!: number;
+  // Roll movement (ROLLING barrel)
   private direction!: number;
   private ladderSensorValue!: number;
 
-  // Bounce movement (CRAZY barrel)
+  // Bounce movement (BOUNCING barrel)
   private bounceVelocityY!: number; // current vertical velocity, integrated by gravity
   private bounceDirection!: number; // horizontal drift sign (+1 right / -1 left)
+
+  // Seek movement (SEEKING "sideways" barrel)
+  private waypoints!: { x: number; y: number }[]; // shared ordered path, beelined in order
+  private waypointIndex!: number; // index of the waypoint currently being sought
+  private driftRemaining!: number; // post-last-waypoint drift countdown before despawn
 
   // FSM state — DESCENDING means taking a ladder. Public so the StateMachine can read/dispatch it.
   public State!: EnemyState;
@@ -67,6 +59,7 @@ export default class Enemy extends GameObject {
 
   // Hoisted scratch + callback so the per-frame hot path allocates nothing (avoids GC churn with many barrels).
   private scratchVel = { x: 0, y: 0 };
+  private lastSeekVel = { x: 0, y: 0 }; // last seek heading, reused while drifting off after the final waypoint
   private onLadderIntersection = (otherCollider: RAPIER.Collider) => {
     const ladder = this.Physics.GetGameObjectFromCollider(otherCollider);
 
@@ -84,7 +77,10 @@ export default class Enemy extends GameObject {
     // At the ladder bottom — flag it, and arm the cooldown immediately on first
     // contact in ANY state, so a descent through an overlapping core+bottom sensor completes.
     if (
-      GameUtils.IsColliderType(otherCollider, EntityType.LADDER_BOTTOM_SENSOR) &&
+      GameUtils.IsColliderType(
+        otherCollider,
+        EntityType.LADDER_BOTTOM_SENSOR,
+      ) &&
       this.ladderBottomCooldown <= 0
     ) {
       this.IsAtLadderBottom = true;
@@ -98,40 +94,65 @@ export default class Enemy extends GameObject {
     size: number,
     position: { x: number; y: number },
     rotation: number = 0,
-    crazy: boolean = false,
-    bounceDirection: number = 1
+    startState: EnemyState = EnemyStates.ROLLING,
+    bounceDirection: number = 1,
+    waypoints: { x: number; y: number }[] = [],
   ) {
     super();
 
+    // Seeking barrels get a WIDER cuboid hitbox; rolling/bouncing keep the round barrel.
+    const isSeeking = startState === EnemyStates.SEEKING;
+    let shape: string = GameObjectType.SPHERE;
+    let colliderSize = { width: size, height: size };
+    if (isSeeking) {
+      shape = GameObjectType.CUBE;
+      colliderSize = { width: size * EnemyTuning.seekWidthMul, height: size };
+    }
+
     this.createObjectPhysics(
       EntityType.ENEMY,
-      GameObjectType.SPHERE,
-      { width: size, height: size },
+      shape,
+      colliderSize,
       position,
       rotation,
-      RAPIER.RigidBodyDesc.dynamic()
+      RAPIER.RigidBodyDesc.dynamic(),
     );
 
-    this.initializeEnemyAttributes(crazy, bounceDirection);
+    this.initializeEnemyAttributes(startState, bounceDirection, waypoints);
 
-    // Collides with platforms and the player box. Defining the collision callbacks below auto-arms contact events.
+    // Defining the collision callbacks below auto-arms contact events. Seeking barrels IGNORE platform
+    // geometry (player box only); rolling/bouncing collide with platforms too.
     this.setCollisionGroup(CollisionGroups.ENEMY);
-    this.setCollisionMask(
-      CollisionGroups.PLATFORM | CollisionGroups.PLAYER_BOUNDING_BOX
-    );
+    if (isSeeking) {
+      this.setCollisionMask(CollisionGroups.PLAYER_BOUNDING_BOX);
+      // Seeking barrels fully drive their own velocity — no engine gravity, so the path stays a true
+      // straight-line beeline (matches the other barrels' "hand-applied, not engine gravity" approach).
+      this.PhysicsBody!.setGravityScale(0, true);
+    } else {
+      this.setCollisionMask(
+        CollisionGroups.PLATFORM | CollisionGroups.PLAYER_BOUNDING_BOX,
+      );
+    }
   }
 
   // initialize movement, flags, and the state machine
-  private initializeEnemyAttributes(crazy: boolean, bounceDirection: number) {
+  private initializeEnemyAttributes(
+    startState: EnemyState,
+    bounceDirection: number,
+    waypoints: { x: number; y: number }[],
+  ) {
     this.time = this.experience.Time;
 
-    this.groundSpeed = GROUND_SPEED;
     this.direction = 1;
     this.ladderSensorValue = 0;
 
     this.bounceVelocityY = 0; // starts falling under integrated gravity
     if (bounceDirection >= 0) this.bounceDirection = 1;
     else this.bounceDirection = -1;
+
+    this.waypoints = waypoints;
+    this.waypointIndex = 0;
+    this.driftRemaining = 0;
 
     this.IsGrounded = true; // assume grounded at spawn
     this.IsInsideLadder = false;
@@ -141,12 +162,12 @@ export default class Enemy extends GameObject {
 
     // FSM dispatches to the current state's handler each frame; handlers reassign `State` to transition.
     // Barrel flavor is chosen here by its starting state and never changes.
-    if (crazy) this.State = EnemyStates.BOUNCING;
-    else this.State = EnemyStates.ROLLING;
+    this.State = startState;
     this.fsm = new StateMachine<Enemy, EnemyState>(this, {
       [EnemyStates.ROLLING]: handleEnemyRolling,
       [EnemyStates.DESCENDING]: handleEnemyDescending,
       [EnemyStates.BOUNCING]: handleEnemyBouncing,
+      [EnemyStates.SEEKING]: handleEnemySeeking,
     });
   }
 
@@ -158,7 +179,10 @@ export default class Enemy extends GameObject {
     const otherCollider = other.PhysicsBody?.collider(0);
     if (!otherCollider) return;
 
-    // CRAZY barrel: bounce off girders, flip drift at walls. Never grounds/rolls.
+    // SEEKING barrel ignores platforms/walls (not in its mask); player-kill is handled in contactRules. Nothing to react to.
+    if (this.State === EnemyStates.SEEKING) return;
+
+    // BOUNCING barrel: bounce off girders, flip drift at walls. Never grounds/rolls.
     if (this.State === EnemyStates.BOUNCING) {
       if (GameUtils.IsColliderType(otherCollider, EntityType.WALL)) {
         this.bounceDirection = this.bounceDirection * -1;
@@ -171,13 +195,13 @@ export default class Enemy extends GameObject {
       ) {
         // Only bounce when coming DOWN (ignore contacts while rising) so one landing = one kick.
         if (this.bounceVelocityY <= 0) {
-          this.bounceVelocityY = BOUNCE_IMPULSE;
+          this.bounceVelocityY = EnemyTuning.bounceImpulse;
         }
       }
       return;
     }
 
-    // NORMAL barrel below — wall reverse + grounded tracking.
+    // ROLLING barrel below — wall reverse + grounded tracking.
 
     // Wall — reverse direction.
     if (GameUtils.IsColliderType(otherCollider, EntityType.WALL)) {
@@ -203,8 +227,12 @@ export default class Enemy extends GameObject {
   // Leaving a platform: no longer grounded, and (while ROLLING) turn around so it doesn't walk off the edge.
   // Suppressed while DESCENDING — taking a ladder intentionally leaves the platform downward.
   public OnCollisionExit(other: GameObject): void {
-    // Crazy barrels don't ground or edge-turn — nothing to do on exit.
-    if (this.State === EnemyStates.BOUNCING) return;
+    // Bouncing/seeking barrels don't ground or edge-turn — nothing to do on exit.
+    if (
+      this.State === EnemyStates.BOUNCING ||
+      this.State === EnemyStates.SEEKING
+    )
+      return;
 
     const otherCollider = other.PhysicsBody?.collider(0);
     if (!otherCollider) return;
@@ -229,7 +257,7 @@ export default class Enemy extends GameObject {
   // otherwise a fixed chance.
   public DecideTakeLadder(): boolean {
     if (!this.currentTrashCan?.IsOnFire) return true;
-    return GameUtils.CalculatePercentChance(LADDER_TAKE_CHANCE);
+    return GameUtils.CalculatePercentChance(EnemyTuning.ladderTakeChance);
   }
 
   // Face the roll the way the ladder sensor points (used when descent ends).
@@ -249,10 +277,10 @@ export default class Enemy extends GameObject {
     }
     this.setCollisionMask(mask);
 
-    let vx = -this.groundSpeed;
-    if (this.direction >= 0) vx = this.groundSpeed;
+    let vx = -EnemyTuning.groundSpeed;
+    if (this.direction >= 0) vx = EnemyTuning.groundSpeed;
     this.scratchVel.x = vx;
-    this.scratchVel.y = -ROLL_FALL_SPEED;
+    this.scratchVel.y = -EnemyTuning.rollFallSpeed;
     this.PhysicsBody!.setLinvel(this.scratchVel, true);
   }
 
@@ -261,23 +289,68 @@ export default class Enemy extends GameObject {
     // Drop PLATFORM to pass through girders; ALWAYS keep the player box so it can still kill while descending.
     this.setCollisionMask(CollisionGroups.PLAYER_BOUNDING_BOX);
     this.scratchVel.x = 0;
-    this.scratchVel.y = -this.groundSpeed * LADDER_DESCEND_FACTOR;
+    this.scratchVel.y =
+      -EnemyTuning.groundSpeed * EnemyTuning.ladderDescendFactor;
     this.PhysicsBody!.setLinvel(this.scratchVel, true);
   }
 
-  // CRAZY barrel: integrate the bounce arc. Gravity pulls velocity down each frame (clamped to terminal); the upward
+  // BOUNCING barrel: integrate the bounce arc. Gravity pulls velocity down each frame (clamped to terminal); the upward
   // kick is applied on girder contact in OnCollisionEnter. Keeps PLATFORM in its mask the whole time so it bounces off.
   public Bounce() {
-    this.bounceVelocityY -= BOUNCE_GRAVITY * this.time.Delta;
-    if (this.bounceVelocityY < -BOUNCE_MAX_FALL) {
-      this.bounceVelocityY = -BOUNCE_MAX_FALL;
+    this.bounceVelocityY -= EnemyTuning.bounceGravity * this.time.Delta;
+    if (this.bounceVelocityY < -EnemyTuning.bounceMaxFall) {
+      this.bounceVelocityY = -EnemyTuning.bounceMaxFall;
     }
 
-    let vx = -BOUNCE_DRIFT_SPEED;
-    if (this.bounceDirection >= 0) vx = BOUNCE_DRIFT_SPEED;
+    let vx = -EnemyTuning.bounceDriftSpeed;
+    if (this.bounceDirection >= 0) vx = EnemyTuning.bounceDriftSpeed;
     this.scratchVel.x = vx;
     this.scratchVel.y = this.bounceVelocityY;
     this.PhysicsBody!.setLinvel(this.scratchVel, true);
+  }
+
+  // SEEKING barrel: ignores platforms and beelines straight at the current waypoint at a constant speed.
+  // Reaching a waypoint advances to the next; past the last one it drifts in the final heading, then despawns.
+  public SeekWaypoint() {
+    // Finished the sequence (or no path) — coast in the last heading, then remove off-screen.
+    if (this.waypointIndex >= this.waypoints.length) {
+      this.driftOff();
+      return;
+    }
+
+    const target = this.waypoints[this.waypointIndex];
+    const pos = this.PhysicsBody!.translation();
+    const dx = target.x - pos.x;
+    const dy = target.y - pos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Reached it — advance. If that was the last waypoint, start the drift-off countdown.
+    if (dist <= EnemyTuning.seekArrivalRadius) {
+      this.waypointIndex = this.waypointIndex + 1;
+      if (this.waypointIndex >= this.waypoints.length) {
+        this.driftRemaining = EnemyTuning.seekDriftTime;
+      }
+    }
+
+    // Straight-line constant-speed beeline toward the target (remember the heading for the drift-off).
+    // Math.max guards a divide-by-zero when sitting exactly on the waypoint, so the heading stays valid.
+    const inv = EnemyTuning.seekSpeed / Math.max(dist, 0.0001);
+    this.scratchVel.x = dx * inv;
+    this.scratchVel.y = dy * inv;
+    this.lastSeekVel.x = this.scratchVel.x;
+    this.lastSeekVel.y = this.scratchVel.y;
+    this.PhysicsBody!.setLinvel(this.scratchVel, true);
+  }
+
+  // Post-last-waypoint: keep the last heading for a beat, then despawn (off-screen exit).
+  private driftOff() {
+    this.driftRemaining = this.driftRemaining - this.time.Delta;
+    this.scratchVel.x = this.lastSeekVel.x;
+    this.scratchVel.y = this.lastSeekVel.y;
+    this.PhysicsBody!.setLinvel(this.scratchVel, true);
+    if (this.driftRemaining <= 0) {
+      Emitter.emit("gameObjectRemoved", this);
+    }
   }
 
   // --- Per-frame ---
@@ -295,7 +368,7 @@ export default class Enemy extends GameObject {
     // Poll with the hoisted callback (onLadderIntersection) — no per-frame closure allocation.
     this.Physics.World.intersectionPairsWith(
       this.PhysicsBody!.collider(0),
-      this.onLadderIntersection
+      this.onLadderIntersection,
     );
   }
 
@@ -307,9 +380,12 @@ export default class Enemy extends GameObject {
       return;
     }
 
-    // Stash inputs, refresh ladder state, run the current state. Crazy (BOUNCING) barrels skip the ladder poll.
+    // Stash inputs, refresh ladder state, run the current state. Only rolling/descending barrels use ladders.
     this.currentTrashCan = trashCan;
-    if (this.State !== EnemyStates.BOUNCING) {
+    if (
+      this.State === EnemyStates.ROLLING ||
+      this.State === EnemyStates.DESCENDING
+    ) {
       this.checkLadderIntersections();
     }
     this.fsm.Update();

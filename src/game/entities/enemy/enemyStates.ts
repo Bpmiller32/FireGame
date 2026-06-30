@@ -7,8 +7,11 @@ const EnemyStates = {
   // Taking a ladder — straight down, passing through platforms. -> ROLLING at the bottom sensor
   DESCENDING: "descending",
 
-  // Crazy barrel: bounces girder-to-girder, never takes ladders. Terminal (marks it as crazy).
+  // Bouncing barrel: bounces girder-to-girder, never takes ladders. Terminal.
   BOUNCING: "bouncing",
+
+  // Seeking "sideways" barrel: ignores platforms, beelines waypoint-to-waypoint, then drifts off. Terminal.
+  SEEKING: "seeking",
 } as const;
 
 // Type for enemy state values — ensures only valid states are used.

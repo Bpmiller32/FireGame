@@ -34,7 +34,7 @@ export default class GameUtils {
   // Check if a GameObject is fully inside a sensor
   public static IsObjectFullyInsideSensor<
     T extends RAPIER.Collider,
-    U extends GameObject
+    U extends GameObject,
   >(collider: T, gameObject: U): boolean {
     // object's left/right X edges
     const objectMinX =
@@ -55,7 +55,7 @@ export default class GameUtils {
 
   // TEMPORARY: check if player is intersecting with any sensor; remove once Player uses callbacks
   public static IsAnySensorTriggered<T extends GameSensor>(
-    gameSensors: T[]
+    gameSensors: T[],
   ): boolean {
     for (const sensor of gameSensors) {
       if (!sensor.PhysicsBody?.collider(0) || !sensor.Physics?.World) {
@@ -67,7 +67,7 @@ export default class GameUtils {
         sensor.PhysicsBody.collider(0),
         () => {
           isIntersecting = true;
-        }
+        },
       );
 
       if (isIntersecting) {
@@ -81,7 +81,7 @@ export default class GameUtils {
   // TEMPORARY: check if GameObject is fully inside any sensor; remove once Player uses callbacks
   public static IsAnySensorTriggeredObjectFullyInside<
     T extends GameObject,
-    U extends GameSensor
+    U extends GameSensor,
   >(gameSensors: U[], gameObject: T): boolean {
     for (const sensor of gameSensors) {
       if (!sensor.PhysicsBody?.collider(0) || !sensor.Physics?.World) {
@@ -93,7 +93,7 @@ export default class GameUtils {
         sensor.PhysicsBody.collider(0),
         () => {
           isIntersecting = true;
-        }
+        },
       );
 
       if (isIntersecting && sensor.IsFullyInside(gameObject)) {

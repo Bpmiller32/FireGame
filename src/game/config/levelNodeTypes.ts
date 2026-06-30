@@ -1,7 +1,8 @@
 // Level-node name token (lower-cased) -> the game type its factory spawns.
 // Injected into the type-blind GLB parser via ResourceLoader.RegisterLevelTypes (see App.vue).
 // Values come straight from EntityType so the two can't drift. Only level-PLACEABLE types +
-// spawn points + GraphicsObject belong here — runtime-only types (e.g. Enemy spawns) do not.
+// spawn points + GraphicsObject belong here. EnemySpawn + Waypoint are spawn-point-style markers:
+// the parser records their position but no factory builds a collider for them (see ENTITY_FACTORIES).
 
 import EntityType from "../types/entityType";
 
@@ -18,6 +19,8 @@ const LEVEL_NODE_TYPES: Record<string, string> = {
   ladderbottomsensor: EntityType.LADDER_BOTTOM_SENSOR,
   playerstart: EntityType.PLAYER_START,
   camerastart: EntityType.CAMERA_START,
+  enemyspawn: EntityType.ENEMY_SPAWN,
+  waypoint: EntityType.WAYPOINT,
   graphics: "GraphicsObject",
   graphicsobject: "GraphicsObject",
 };

@@ -28,6 +28,9 @@ import {
   DEFAULT_LEVEL_INDEX,
 } from "./config/levelRegistry";
 import { seedRandom, randomRange } from "../engine/helpers/mathHelpers";
+import EnemyTuning from "./entities/enemy/enemyTuning";
+import EnemyStates from "./entities/enemy/enemyStates";
+import LevelMarkers from "./debug/levelMarkersDebug";
 
 // A level-data entity the uniform update loop may tick.
 // update() is optional so entities without one are skipped.
@@ -39,6 +42,14 @@ type UpdatableEntity = {
 // (the determinism payoff). Change this, or seedRandom(Date.now()), for varied runs.
 const RNG_SEED = 1337;
 
+// Trailing integer in a Waypoint node name (after "_" or GLTF-dedup "#"), default 0 — gives seeking
+// barrels a stable order to beeline through (Waypoint, Waypoint_1, Waypoint_2, ...).
+const waypointOrder = (name: string): number => {
+  const match = name.match(/[_#](\d+)$/);
+  if (match) return parseInt(match[1], 10);
+  return 0;
+};
+
 export default class GameDirector {
   // Core systems
   private experience: Experience;
@@ -49,7 +60,7 @@ export default class GameDirector {
 
   // Game entities
   public Player!: Player;
-  // Normal and crazy barrels are both Enemy, distinguished by their starting FSM state.
+  // Rolling, bouncing, and seeking barrels are all Enemy, distinguished by their starting FSM state.
   public Enemies: Enemy[] = [];
   public Platforms: Platform[] = [];
   public Walls: Platform[] = [];
@@ -81,6 +92,14 @@ export default class GameDirector {
   private timeSinceLastSpawn = 0;
   private currentSpawnInterval = 0;
   private enemyCount = 0;
+
+  // Barrel origin + the seeking-barrel path, both read from the level GLB (EnemySpawn / Waypoint markers).
+  // No EnemySpawn in a level → no barrels spawn. No Waypoints → no seeking barrels spawn.
+  private enemySpawnPoint?: { x: number; y: number };
+  private waypoints: { x: number; y: number }[] = [];
+
+  // Debug-only gizmos for the invisible EnemySpawn + Waypoint markers (created lazily when debug is active).
+  private levelMarkers?: LevelMarkers;
 
   // Stored handler refs so Destroy() removes EXACTLY our listeners — a bare
   // Emitter.off("gameStart") on the shared bus would wipe other modules' handlers.
@@ -165,6 +184,8 @@ export default class GameDirector {
     // Load spawn points first (player first so sensors have a target)
     this.setPlayerStart();
     this.setCameraStart();
+    this.setEnemySpawn();
+    this.collectWaypoints();
 
     // Spawn every level-data-placed entity through the factory registry. Each factory
     // pushes into the right typed array via the context. Rows with no factory are skipped.
@@ -177,6 +198,12 @@ export default class GameDirector {
     // Fresh level → restart the spawn cadence cleanly (gameStart/reset gate
     // whether it's actually running via isSpawningEnemies).
     this.resetSpawner();
+
+    // Debug-only: draw gizmos for the invisible EnemySpawn + Waypoint marker nodes.
+    if (this.experience.Debug.IsActive) {
+      if (!this.levelMarkers) this.levelMarkers = new LevelMarkers(this.scene);
+      this.levelMarkers.Rebuild(this.enemySpawnPoint, this.waypoints);
+    }
   }
 
   // Build the factory context — a struct aliasing the director's typed query arrays
@@ -230,6 +257,9 @@ export default class GameDirector {
       this.scene.remove(this.ambientLight);
       this.ambientLight = undefined;
     }
+
+    // Clear the debug marker gizmos so they don't bleed into the next level.
+    if (this.levelMarkers) this.levelMarkers.Clear();
   }
 
   // --- Level spawn points ---
@@ -263,6 +293,29 @@ export default class GameDirector {
       this.camera.TeleportToPosition(x, z, y);
       return;
     }
+  }
+
+  // Cache the level's EnemySpawn marker (the barrel origin). Absent → no barrels spawn (trySpawn early-outs).
+  private setEnemySpawn() {
+    this.enemySpawnPoint = undefined;
+    for (const data of Object.values(this.LevelData)) {
+      if (data.type !== EntityType.ENEMY_SPAWN) continue;
+      this.enemySpawnPoint = { x: data.position[0], y: data.position[2] };
+      return;
+    }
+  }
+
+  // Collect the level's Waypoint markers into one ordered path the seeking barrels beeline through.
+  // Order = trailing number in the node name (ties keep GLB/outliner order).
+  private collectWaypoints() {
+    const entries = Object.entries(this.LevelData).filter(
+      ([, data]) => data.type === EntityType.WAYPOINT,
+    );
+    entries.sort((a, b) => waypointOrder(a[0]) - waypointOrder(b[0]));
+    this.waypoints = entries.map(([, data]) => ({
+      x: data.position[0],
+      y: data.position[2],
+    }));
   }
 
   // --- Game state ---
@@ -407,60 +460,99 @@ export default class GameDirector {
 
   // --- Enemy spawning ---
 
-  // Frame-driven enemy spawning (once per frame from Update). First barrel is a crazy one
-  // Kong throws at the oil can to light it, then a normal/crazy mix with every 8th crazy.
-  // Counters are advanced BEFORE the async spawn so a stutter frame can't double-spawn.
+  // Frame-driven enemy spawning (once per frame from Update). First barrel is the bouncing one Kong
+  // throws at the oil can to light it; then a flavor mix paced by EnemyTuning. No EnemySpawn marker in
+  // the level → nothing spawns. Counters advance BEFORE the async spawn so a stutter frame can't double-spawn.
   private trySpawn() {
     if (!this.isSpawningEnemies || this.experience.Physics.IsPaused) return;
+    if (!this.enemySpawnPoint) return;
 
     this.timeSinceLastSpawn += this.time.Delta;
 
-    // First barrel: Kong's opening throw — a crazy barrel aimed at the oil can.
+    // First barrel: Kong's opening throw — a bouncing barrel aimed at the oil can.
     if (this.currentSpawnInterval === 0) {
       this.timeSinceLastSpawn = 0;
-      this.currentSpawnInterval = randomRange(3, 4); // 3-4 seconds
+      this.currentSpawnInterval = randomRange(
+        EnemyTuning.firstDelayMin,
+        EnemyTuning.firstDelayMax,
+      );
       this.spawnOilCanBarrel();
       return;
     }
 
-    // Subsequent barrels: mostly normal, every 8th crazy.
+    // Subsequent barrels: the tunable flavor mix.
     if (this.timeSinceLastSpawn >= this.currentSpawnInterval) {
       this.timeSinceLastSpawn = 0;
-      this.currentSpawnInterval = randomRange(2, 3); // 2-3 seconds
+      this.currentSpawnInterval = randomRange(
+        EnemyTuning.spawnIntervalMin,
+        EnemyTuning.spawnIntervalMax,
+      );
       this.enemyCount++;
-
-      if (this.enemyCount % 8 === 0) {
-        this.SpawnCrazyEnemy();
-      } else {
-        this.SpawnEnemy();
-      }
+      this.spawnBarrelByCadence();
     }
   }
 
-  // The opening crazy barrel Kong hurls at the oil can to light it: spawned at the normal
-  // throw point but with bounce drift aimed at the can. Drift defaults rightward if can absent.
+  // Pick a flavor by spawn count: seeking (needs waypoints) wins ties, then bouncing, else rolling.
+  // EnemyTuning.{seeking,bouncing}EveryN = 0 disables that flavor.
+  private spawnBarrelByCadence() {
+    const n = this.enemyCount;
+    const seekN = EnemyTuning.seekingEveryN;
+    const bounceN = EnemyTuning.bouncingEveryN;
+    if (seekN > 0 && n % seekN === 0 && this.waypoints.length > 0) {
+      this.SpawnSeekingEnemy();
+    } else if (bounceN > 0 && n % bounceN === 0) {
+      this.SpawnBouncingEnemy();
+    } else {
+      this.SpawnEnemy();
+    }
+  }
+
+  // The opening bouncing barrel Kong hurls at the oil can to light it: spawned at the EnemySpawn
+  // point with bounce drift aimed at the can. Drift defaults rightward if the can is absent.
   private spawnOilCanBarrel() {
-    const spawn = { x: -13, y: 50 };
+    const spawn = this.enemySpawnPoint;
+    if (!spawn) return;
     const can = this.TrashCans[0];
     let aim = 0;
     if (can) aim = Math.sign(can.CurrentTranslation.x - spawn.x);
-    this.SpawnCrazyEnemy(spawn, aim);
+    this.SpawnBouncingEnemy(spawn, aim);
   }
 
-  // Spawn a NORMAL barrel (rolls the girders, may take ladders).
-  public async SpawnEnemy(position = { x: -13, y: 50 }) {
-    const enemy = new Enemy(1, position);
+  // Spawn a ROLLING barrel (rolls the girders, may take ladders). Defaults to the level's EnemySpawn point.
+  public async SpawnEnemy(position?: { x: number; y: number }) {
+    const spawn = position ?? this.enemySpawnPoint;
+    if (!spawn) return;
+    const enemy = new Enemy(1, spawn, 0, EnemyStates.ROLLING);
     await enemy.CreateObjectGraphics(this.resources.Items.enemy);
     this.Enemies.push(enemy);
   }
 
-  // Spawn a CRAZY barrel (vertical toss that bounces down, never takes ladders).
-  // bounceDirection is its horizontal drift sign.
-  public async SpawnCrazyEnemy(
-    position = { x: -13, y: 50 },
+  // Spawn a BOUNCING barrel (bounces girder-to-girder, never takes ladders). bounceDirection is its
+  // horizontal drift sign. Defaults to the level's EnemySpawn point.
+  public async SpawnBouncingEnemy(
+    position?: { x: number; y: number },
     bounceDirection = 1,
   ) {
-    const enemy = new Enemy(1, position, 0, true, bounceDirection);
+    const spawn = position ?? this.enemySpawnPoint;
+    if (!spawn) return;
+    const enemy = new Enemy(1, spawn, 0, EnemyStates.BOUNCING, bounceDirection);
+    await enemy.CreateObjectGraphics(this.resources.Items.enemy);
+    this.Enemies.push(enemy);
+  }
+
+  // Spawn a SEEKING "sideways" barrel (ignores platforms, beelines the waypoint path). No-op without a
+  // spawn point or any waypoints. Defaults to the level's EnemySpawn point.
+  public async SpawnSeekingEnemy(position?: { x: number; y: number }) {
+    const spawn = position ?? this.enemySpawnPoint;
+    if (!spawn || this.waypoints.length === 0) return;
+    const enemy = new Enemy(
+      1,
+      spawn,
+      0,
+      EnemyStates.SEEKING,
+      1,
+      this.waypoints,
+    );
     await enemy.CreateObjectGraphics(this.resources.Items.enemy);
     this.Enemies.push(enemy);
   }
@@ -478,12 +570,19 @@ export default class GameDirector {
 
     this.Player.Update();
 
-    // Spawn + update enemies (runtime-spawned, not level-data). Compact destroyed barrels
-    // in place right after — keeps the array reference stable.
-    // TODO: uncomment for enemies
-    // this.trySpawn();
+    // Spawn + update enemies (runtime-spawned, not level-data). Any barrel that falls below the
+    // kill-plane is removed; compact destroyed barrels in place right after (keeps the array ref stable).
+    this.trySpawn();
     const firstTrashCan = this.TrashCans[0];
-    this.Enemies.forEach((enemy) => enemy.Update(this.Player, firstTrashCan));
+    this.Enemies.forEach((enemy) => {
+      enemy.Update(this.Player, firstTrashCan);
+      if (
+        !enemy.IsBeingDestroyed &&
+        enemy.PhysicsBody!.translation().y < EnemyTuning.killY
+      ) {
+        Emitter.emit("gameObjectRemoved", enemy);
+      }
+    });
     GameUtils.CompactDestroyedObjects(this.Enemies);
 
     // Update every level-data entity with an update, in one uniform loop. Runs AFTER

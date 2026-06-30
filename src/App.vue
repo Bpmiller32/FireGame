@@ -7,6 +7,7 @@ import InputBindings from "./game/config/inputBindings.ts";
 import registerContactRules from "./game/config/contactRules.ts";
 import CollisionLogger from "./game/debug/collisionLogger.ts";
 import LevelDebug from "./game/debug/levelDebug.ts";
+import EnemyDebug from "./game/debug/enemyDebug.ts";
 import DEBUG_TYPE_COLORS from "./game/config/debugColors.ts";
 import GAME_ASSETS from "./game/config/assetManifest.ts";
 import LEVEL_NODE_TYPES from "./game/config/levelNodeTypes.ts";
@@ -93,8 +94,9 @@ onMounted(async () => {
   gameDirector = director;
   const inputBindings = new InputBindings(exp.Input);
 
-  // Debug level select (dat.gui) — no-op store when debug is inactive.
+  // Debug level select + enemy/barrel tuning (dat.gui) — no-op store when debug is inactive.
   exp.Debug.RegisterModule(new LevelDebug(director));
+  exp.Debug.RegisterModule(new EnemyDebug(director));
 
   // SIM each fixed step (input + game logic); RENDER once per frame (interpolate +
   // camera). The engine calls both back, staying free of game names.

@@ -19,6 +19,8 @@ const EntityType = {
   TELEPORTER: "Teleporter",
   PLAYER_START: "PlayerStart",
   CAMERA_START: "CameraStart",
+  ENEMY_SPAWN: "EnemySpawn",
+  WAYPOINT: "Waypoint",
 } as const;
 
 // Type for entity name values — only valid entity names allowed
